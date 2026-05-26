@@ -43,8 +43,8 @@ export default function DashboardLayout() {
       {/* Logo */}
       <Link to={user?.role === 'teacher' ? '/teacher' : '/student'}
         className="flex items-center gap-3 px-5 py-5 border-b border-slate-100 dark:border-slate-800">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-md shadow-primary/30 shrink-0">
-          <img src="/RUET.png" alt="RUET" className="w-5 h-5 object-contain"
+        <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-md shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 shrink-0">
+          <img src="/RUET.png" alt="RUET" className="w-7 h-7 object-contain"
             onError={e => { e.target.style.display='none'; }}/>
         </div>
         <div>
