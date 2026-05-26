@@ -45,10 +45,9 @@ export default function LandingLayout() {
       }`}>
         <div className="max-w-7xl mx-auto px-5 lg:px-8 flex items-center justify-between gap-4">
 
-          {/* ── LEFT: Logo Circle ────────────────────────── */}
           <Link to="/" className="flex items-center gap-3 shrink-0">
             <div className="w-10 h-10 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center shadow-md shadow-primary/30">
-              <img src="/ruet_logo.svg" alt="RUET" className="w-6 h-6 object-contain brightness-0 invert"/>
+              <img src="/RUET.png" alt="RUET" className="w-6 h-6 object-contain"/>
             </div>
             <span className="font-heading font-extrabold text-lg tracking-tight text-slate-900 dark:text-white hidden sm:block">
               LabSync <span className="text-primary">RUET</span>
@@ -152,7 +151,7 @@ export default function LandingLayout() {
           <div>
             <div className="flex items-center gap-3 mb-4">
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
-                <img src="/ruet_logo.svg" alt="RUET" className="w-5 h-5 object-contain brightness-0 invert"/>
+                <img src="/RUET.png" alt="RUET" className="w-5 h-5 object-contain"/>
               </div>
               <span className="font-heading font-bold text-lg text-white">LabSync RUET</span>
             </div>
