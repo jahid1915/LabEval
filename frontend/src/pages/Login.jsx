@@ -182,7 +182,7 @@ const Login = () => {
               className="w-16 h-16 object-contain mb-6 drop-shadow-lg" 
             />
             <h1 className="text-5xl font-heading font-extrabold mb-4 leading-tight">
-              LabSync <br/> <span className="text-white/80 font-light text-3xl">RUET</span>
+              LabEval <br/> <span className="text-white/80 font-light text-3xl">RUET</span>
             </h1>
             <p className="opacity-90 max-w-sm text-lg font-light leading-relaxed">
               The next-generation laboratory performance tracking and evaluation platform.
@@ -190,7 +190,7 @@ const Login = () => {
           </div>
 
           <div className="relative z-10 text-sm font-medium opacity-80">
-            © 2026 LabSync RUET
+            © 2026 LabEval RUET
           </div>
         </div>
 
@@ -222,7 +222,7 @@ const Login = () => {
               {mode === 'login' ? 'Welcome Back' : 'Create an Account'}
             </h2>
             <p className="text-slate-500 dark:text-slate-400 font-medium">
-              {mode === 'login' ? 'Please sign in to access your dashboard' : 'Register to get started with LabSync RUET'}
+              {mode === 'login' ? 'Please sign in to access your dashboard' : 'Register to get started with LabEval RUET'}
             </p>
           </div>
 

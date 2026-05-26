@@ -47,7 +47,7 @@ const Home = () => {
             </motion.h1>
             
             <motion.p variants={fadeUp} className="text-lg md:text-xl text-slate-600 dark:text-slate-400 mb-10 max-w-2xl mx-auto leading-relaxed">
-              LabSync RUET is the official, next-generation performance tracking platform designed specifically for the rigorous academic environment of RUET.
+              LabEval RUET is the official, next-generation performance tracking platform designed specifically for the rigorous academic environment of RUET.
             </motion.p>
             
             <motion.div variants={fadeUp} className="flex flex-col sm:flex-row items-center justify-center gap-4">
@@ -101,9 +101,9 @@ const Home = () => {
         <div className="absolute inset-0 bg-grid-pattern opacity-10"></div>
         <div className="max-w-4xl mx-auto px-6 text-center relative z-10">
           <h2 className="text-3xl md:text-5xl font-heading font-extrabold text-white mb-6">Ready to digitize your lab?</h2>
-          <p className="text-slate-300 text-lg mb-10 max-w-xl mx-auto">Join the instructors and students already using LabSync RUET to simplify their academic workflow.</p>
+          <p className="text-slate-300 text-lg mb-10 max-w-xl mx-auto">Join the instructors and students already using LabEval RUET to simplify their academic workflow.</p>
           <Link to="/login" className="inline-block px-10 py-5 bg-white text-slate-900 rounded-full font-bold text-lg hover:scale-105 transition-transform shadow-2xl shadow-white/10">
-            Sign In to LabSync RUET
+            Sign In to LabEval RUET
           </Link>
         </div>
       </section>

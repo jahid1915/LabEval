@@ -48,7 +48,7 @@ export default function DashboardLayout() {
             onError={e => { e.target.style.display='none'; }}/>
         </div>
         <div>
-          <p className="font-heading font-extrabold text-sm text-slate-900 dark:text-white leading-tight">LabSync RUET</p>
+          <p className="font-heading font-extrabold text-sm text-slate-900 dark:text-white leading-tight">LabEval RUET</p>
           <p className="text-xs text-slate-400 dark:text-slate-500 capitalize">{user?.role} Portal</p>
         </div>
       </Link>
@@ -146,7 +146,7 @@ export default function DashboardLayout() {
           <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             <Menu size={22}/>
           </button>
-          <span className="font-heading font-extrabold text-slate-800 dark:text-white">LabSync RUET</span>
+          <span className="font-heading font-extrabold text-slate-800 dark:text-white">LabEval RUET</span>
           <button onClick={toggleTheme} className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
             {isDarkMode ? <Sun size={18}/> : <Moon size={18}/>}
           </button>

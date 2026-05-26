@@ -50,7 +50,7 @@ export default function LandingLayout() {
               <img src="/RUET.png" alt="RUET" className="w-6 h-6 object-contain"/>
             </div>
             <span className="font-heading font-extrabold text-lg tracking-tight text-slate-900 dark:text-white hidden sm:block">
-              LabSync <span className="text-primary">RUET</span>
+              LabEval <span className="text-primary">RUET</span>
             </span>
           </Link>
 
@@ -153,7 +153,7 @@ export default function LandingLayout() {
               <div className="w-8 h-8 rounded-full bg-gradient-to-br from-primary to-secondary flex items-center justify-center">
                 <img src="/RUET.png" alt="RUET" className="w-5 h-5 object-contain"/>
               </div>
-              <span className="font-heading font-bold text-lg text-white">LabSync RUET</span>
+              <span className="font-heading font-bold text-lg text-white">LabEval RUET</span>
             </div>
             <p className="text-sm leading-relaxed max-w-xs">
               Next-generation laboratory performance tracking for RUET.
@@ -179,7 +179,7 @@ export default function LandingLayout() {
         </div>
         <div className="max-w-7xl mx-auto px-6 lg:px-8 mt-8 pt-6 border-t border-slate-800 text-xs flex flex-col md:flex-row justify-between gap-4">
           <p>&copy; {new Date().getFullYear()} Rajshahi University of Engineering & Technology. All rights reserved.</p>
-          <p>Powered by LabSync RUET</p>
+          <p>Powered by LabEval RUET</p>
         </div>
       </footer>
     </div>

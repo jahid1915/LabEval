@@ -9,17 +9,17 @@ const About = () => {
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
       >
-        <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-slate-900 dark:text-white mb-8">About LabSync RUET System</h1>
+        <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-slate-900 dark:text-white mb-8">About LabEval RUET System</h1>
         
         <div className="prose prose-lg text-slate-600 dark:text-slate-350">
           <p className="lead text-xl text-slate-700 dark:text-slate-200 font-medium mb-8">
-            LabSync RUET is a specialized Laboratory Performance Tracking System developed exclusively for Rajshahi University of Engineering & Technology (RUET).
+            LabEval RUET is a specialized Laboratory Performance Tracking System developed exclusively for Rajshahi University of Engineering & Technology (RUET).
           </p>
           
           <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm mb-8">
             <h2 className="text-2xl font-heading font-bold text-slate-800 dark:text-white mb-4">Our Mission</h2>
             <p className="text-slate-600 dark:text-slate-300">
-              The primary goal of LabSync RUET is to transition traditional, paper-based laboratory assessments into a streamlined, secure, and fully transparent digital environment. By automating data entry, attendance tracking, and complex grade calculations, LabSync RUET empowers instructors to focus more on teaching and less on administrative overhead.
+              The primary goal of LabEval RUET is to transition traditional, paper-based laboratory assessments into a streamlined, secure, and fully transparent digital environment. By automating data entry, attendance tracking, and complex grade calculations, LabEval RUET empowers instructors to focus more on teaching and less on administrative overhead.
             </p>
           </div>
 

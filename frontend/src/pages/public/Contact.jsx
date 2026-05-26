@@ -16,7 +16,7 @@ const Contact = () => {
     <div className="pt-32 pb-24 max-w-6xl mx-auto px-6">
       <div className="text-center mb-16">
         <h1 className="text-4xl md:text-5xl font-heading font-extrabold text-slate-900 dark:text-white mb-4">Get in Touch</h1>
-        <p className="text-lg text-slate-500 dark:text-slate-400">Have questions about the LabSync RUET system? We're here to help.</p>
+        <p className="text-lg text-slate-500 dark:text-slate-400">Have questions about the LabEval RUET system? We're here to help.</p>
       </div>
 
       <div className="grid md:grid-cols-2 gap-12">
@@ -44,7 +44,7 @@ const Contact = () => {
             </div>
             <div>
               <h3 className="font-heading font-bold text-slate-800 dark:text-white text-lg">Email Support</h3>
-              <p className="text-slate-500 dark:text-slate-400 mt-1">support.labsync@ruet.ac.bd</p>
+              <p className="text-slate-500 dark:text-slate-400 mt-1">support.labEval@ruet.ac.bd</p>
             </div>
           </div>
 
@@ -54,7 +54,7 @@ const Contact = () => {
             </div>
             <div>
               <h3 className="font-heading font-bold text-slate-800 dark:text-white text-lg">Phone</h3>
-              <p className="text-slate-500 dark:text-slate-400 mt-1">+880 1234 567890</p>
+              <p className="text-slate-500 dark:text-slate-400 mt-1">+880 85200 2069</p>
             </div>
           </div>
         </motion.div>
