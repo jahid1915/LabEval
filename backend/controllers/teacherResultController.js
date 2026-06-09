@@ -5,19 +5,25 @@ const Performance = require('../models/Performance');
 const Quiz       = require('../models/Quiz');
 const Test       = require('../models/Test');
 const Others     = require('../models/Others');
+const Viva       = require('../models/Viva');
 
-// Grade scale based on 75 total
+// ── RUET Official Grade Scale (out of 100) ─────────────────────────
 const calculateGrade = (total) => {
-  if (total >= 67.5) return 'A+';   // ≥90% of 75
-  if (total >= 63.75) return 'A';   // ≥85%
-  if (total >= 60) return 'A-';     // ≥80%
-  if (total >= 56.25) return 'B+';  // ≥75%
-  if (total >= 52.5) return 'B';    // ≥70%
-  if (total >= 48.75) return 'B-';  // ≥65%
-  if (total >= 45) return 'C+';     // ≥60%
-  if (total >= 41.25) return 'C';   // ≥55%
-  if (total >= 37.5) return 'D';    // ≥50%
+  if (total >= 80) return 'A+';
+  if (total >= 75) return 'A';
+  if (total >= 70) return 'A-';
+  if (total >= 65) return 'B+';
+  if (total >= 60) return 'B';
+  if (total >= 55) return 'B-';
+  if (total >= 50) return 'C+';
+  if (total >= 45) return 'C';
+  if (total >= 40) return 'D';
   return 'F';
+};
+
+const getGradePoint = (grade) => {
+  const map = { 'A+':4.00, 'A':3.75, 'A-':3.50, 'B+':3.25, 'B':3.00, 'B-':2.75, 'C+':2.50, 'C':2.25, 'D':2.00, 'F':0.00 };
+  return map[grade] ?? 0;
 };
 
 // Att/Report percentage → mark out of 10
@@ -29,8 +35,11 @@ const getPercentageMark = (percentage) => {
   return 0; // below 60% → not eligible
 };
 
-// @desc    Calculate and get final results for a course (Total: 75)
+// @desc    Calculate and get final results for a course (Total: 100)
 // @route   GET /api/teacher/results/:courseId
+// Mark Distribution:
+//   Attendance: 10, Report: 10, Performance: 5, Viva: 25,
+//   Quiz: 20, Test: 20, Others: 10  =>  Total: 100
 const getFinalResults = async (req, res) => {
   try {
     const { courseId } = req.params;
@@ -47,6 +56,7 @@ const getFinalResults = async (req, res) => {
     const quizzes      = await Quiz.find({ course: courseId });
     const tests        = await Test.find({ course: courseId });
     const others       = await Others.find({ course: courseId });
+    const vivas        = await Viva.find({ course: courseId });
 
     // Total classes = number of unique attendance days recorded
     const uniqueDates = [...new Set(attendances.map(a => a.dayName))];
@@ -73,30 +83,36 @@ const getFinalResults = async (req, res) => {
         ? Math.round((stuPerf.reduce((s, p) => s + p.marks, 0) / stuPerf.length) * 100) / 100
         : 0;
 
+      // Viva (max 25) — latest record wins
+      const vivaMark = vivas.find(v => v.student.toString() === stuId)?.marks || 0;
+
       // Quiz (max 20) — latest record wins
       const quizMark = quizzes.find(q => q.student.toString() === stuId)?.marks || 0;
 
       // Test (max 20) — latest record wins
       const testMark = tests.find(t => t.student.toString() === stuId)?.marks || 0;
 
-      // Others (max 10) — sum across sub-types (Presentation + Project + Assignment, capped at 10)
+      // Others (max 10) — sum across sub-types, capped at 10
       const stuOthers  = others.filter(o => o.student.toString() === stuId);
       const otherMark  = Math.min(stuOthers.reduce((s, o) => s + o.marks, 0), 10);
 
-      // Total out of 75
-      const totalMark = Math.round(attMark + repMark + perfMark + quizMark + testMark + otherMark);
+      // Total out of 100
+      const totalMark = Math.round((attMark + repMark + perfMark + vivaMark + quizMark + testMark + otherMark) * 100) / 100;
       const grade     = calculateGrade(totalMark);
+      const gradePoint = getGradePoint(grade);
 
       return {
         student: { _id: student._id, name: student.name, rollNumber: student.rollNumber },
         attendanceMark:  attMark,
         reportMark:      repMark,
         perfMark,
+        vivaMark,
         quizMark,
         testMark,
         otherMark,
         totalMark,
         grade,
+        gradePoint,
         attPct:  Math.round(attPct),
         warning: attPct < 60 ? 'Attendance below 60%' : null,
       };

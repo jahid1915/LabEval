@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { Download, Search, GraduationCap } from 'lucide-react';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
 import * as XLSX from 'xlsx';
 import { motion } from 'framer-motion';
@@ -46,7 +46,7 @@ const FinalResult = () => {
     const doc = new jsPDF();
     doc.text(`Final Results - ${courseId}`, 14, 15);
     
-    const tableColumn = ["Roll", "Name", "Att", "Rep", "Perf", "Viva", "Quiz", "Test", "Oth", "Total", "Grade"];
+    const tableColumn = ["Roll", "Name", "Att", "Rep", "Perf", "Viva", "Quiz", "Test", "Oth", "Total", "Grade", "GP"];
     const tableRows = [];
 
     filteredResults.forEach(r => {
@@ -61,7 +61,8 @@ const FinalResult = () => {
         r.testMark,
         r.otherMark,
         r.totalMark,
-        r.grade
+        r.grade,
+        r.gradePoint
       ];
       tableRows.push(rowData);
     });
@@ -90,6 +91,7 @@ const FinalResult = () => {
       Others: r.otherMark,
       Total: r.totalMark,
       Grade: r.grade,
+      GradePoint: r.gradePoint,
       Warning: r.warning || ''
     })));
     const workbook = XLSX.utils.book_new();
@@ -172,6 +174,7 @@ const FinalResult = () => {
                   <th className="py-4 px-3 text-center">Oth<br/><span className="opacity-60 text-[10px]">(10)</span></th>
                   <th className="py-4 px-4 text-center bg-primary/5 dark:bg-primary/10 text-primary">Total<br/><span className="opacity-60 text-[10px]">(100)</span></th>
                   <th className="py-4 pr-6 text-center">Grade</th>
+                  <th className="py-4 pr-4 text-center">GP</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
@@ -191,6 +194,7 @@ const FinalResult = () => {
                     <td className="py-4 px-3 text-center font-medium">{r.otherMark}</td>
                     <td className="py-4 px-4 text-center font-extrabold text-lg text-primary bg-primary/5 dark:bg-primary/10">{r.totalMark}</td>
                     <td className="py-4 pr-6 text-center font-extrabold text-lg text-slate-800 dark:text-white">{r.grade}</td>
+                    <td className="py-4 pr-4 text-center font-bold text-slate-600 dark:text-slate-300">{r.gradePoint?.toFixed(2)}</td>
                   </tr>
                 ))}
               </tbody>

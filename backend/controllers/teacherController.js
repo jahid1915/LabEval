@@ -5,6 +5,7 @@ const Performance = require('../models/Performance');
 const Quiz       = require('../models/Quiz');
 const Test       = require('../models/Test');
 const Others     = require('../models/Others');
+const Viva       = require('../models/Viva');
 
 // @desc  Get students by dept + series query
 // @route GET /api/teacher/students/any?department=ETE&series=22
@@ -94,6 +95,7 @@ const savePerformance = (req, res) => saveLabRecord(req, res, Performance);
 const saveQuiz        = (req, res) => saveLabRecord(req, res, Quiz);
 const saveTest        = (req, res) => saveLabRecord(req, res, Test);
 const saveOthers      = (req, res) => saveLabRecord(req, res, Others);
+const saveViva        = (req, res) => saveLabRecord(req, res, Viva);
 
 // ── Bulk save for marks tables (Quiz / Test / Others) ─────────────
 // @body { courseId, date, type (optional), records: [{ studentId, marks }] }
@@ -127,6 +129,7 @@ const getRecords = async (req, res) => {
       quiz:        Quiz,
       test:        Test,
       others:      Others,
+      viva:        Viva,
     };
     const ModelToUse = modelMap[model.toLowerCase()];
     if (!ModelToUse) return res.status(400).json({ message: 'Invalid model type' });
@@ -149,5 +152,6 @@ module.exports = {
   saveQuiz,
   saveTest,
   saveOthers,
+  saveViva,
   getRecords,
 };

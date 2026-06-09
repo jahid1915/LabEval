@@ -9,6 +9,7 @@ const {
   saveQuiz,
   saveTest,
   saveOthers,
+  saveViva,
   getRecords,
   bulkSaveAttendance,
 } = require('../controllers/teacherController');
@@ -39,6 +40,7 @@ router.post('/performance',     savePerformance);
 router.post('/quiz',            saveQuiz);
 router.post('/test',            saveTest);
 router.post('/others',          saveOthers);
+router.post('/viva',            saveViva);
 
 // ── Records fetch ──────────────────────────────────────────────────
 router.get('/records/:model/:courseId', getRecords);

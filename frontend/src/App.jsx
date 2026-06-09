@@ -25,6 +25,7 @@ import Attendance       from './pages/teacher/Attendance';
 import Performance      from './pages/teacher/Performance';
 import Quiz             from './pages/teacher/Quiz';
 import Test             from './pages/teacher/Test';
+import Viva             from './pages/teacher/Viva';
 import Others           from './pages/teacher/Others';
 import FinalResult      from './pages/teacher/FinalResult';
 
@@ -80,6 +81,7 @@ export default function App() {
               <Route path="performance"element={<Performance      />} />
               <Route path="quiz"       element={<Quiz             />} />
               <Route path="test"       element={<Test             />} />
+              <Route path="viva"       element={<Viva             />} />
               <Route path="others"     element={<Others           />} />
               <Route path="results"    element={<FinalResult      />} />
             </Route>

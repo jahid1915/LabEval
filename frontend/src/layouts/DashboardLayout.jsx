@@ -5,7 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard, BookOpen, Activity, HelpCircle, FileCheck,
   ClipboardList, TrendingUp, LogOut, Sun, Moon, Menu, X,
-  User, Phone, Building2, ChevronDown, GraduationCap
+  User, Phone, Building2, ChevronDown, GraduationCap, Mic
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
@@ -16,6 +16,7 @@ const teacherNav = [
   { to:'/teacher/performance', icon:<Activity size={18}/>,        label:'Lab Performance' },
   { to:'/teacher/quiz',        icon:<HelpCircle size={18}/>,      label:'Lab Quiz' },
   { to:'/teacher/test',        icon:<FileCheck size={18}/>,       label:'Lab Test' },
+  { to:'/teacher/viva',        icon:<Mic size={18}/>,             label:'Lab Viva' },
   { to:'/teacher/others',      icon:<ClipboardList size={18}/>,   label:'Others' },
   { to:'/teacher/results',     icon:<TrendingUp size={18}/>,      label:'Final Result' },
 ];
