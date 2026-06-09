@@ -16,7 +16,7 @@ const teacherNav = [
   { to:'/teacher/performance', icon:<Activity size={18}/>,        label:'Lab Performance' },
   { to:'/teacher/quiz',        icon:<HelpCircle size={18}/>,      label:'Lab Quiz' },
   { to:'/teacher/test',        icon:<FileCheck size={18}/>,       label:'Lab Test' },
-  { to:'/teacher/viva',        icon:<Mic size={18}/>,             label:'Lab Viva' },
+  { to:'/teacher/viva',        icon:<Mic size={18}/>,             label:'Board Viva' },
   { to:'/teacher/others',      icon:<ClipboardList size={18}/>,   label:'Others' },
   { to:'/teacher/results',     icon:<TrendingUp size={18}/>,      label:'Final Result' },
 ];

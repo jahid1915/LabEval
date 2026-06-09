@@ -50,7 +50,8 @@ const Viva = () => {
       setStudents(filteredStudents);
       setVivaRecords(vivaRes.data);
     } catch (err) {
-      toast.error('Failed to load data');
+      console.error("Error fetching Viva data:", err);
+      toast.error('Failed to load data: ' + (err.response?.data?.message || err.message));
     } finally {
       setLoading(false);
     }
@@ -164,10 +165,10 @@ const Viva = () => {
             <ArrowLeft size={18} /> Back to Dashboard
           </button>
           <div className="flex items-center gap-3">
-            <h1 className="text-3xl font-heading font-extrabold text-slate-800 dark:text-white">Lab Viva Marks</h1>
+            <h1 className="text-3xl font-heading font-extrabold text-slate-800 dark:text-white">Board Viva Marks</h1>
             <span className="px-3 py-1 bg-primary/10 text-primary font-bold rounded-lg text-sm">{courseId}</span>
           </div>
-          <p className="text-slate-500 mt-2">Manage and record Lab Viva evaluations (13-25 marks)</p>
+          <p className="text-slate-500 mt-2">Manage and record Board Viva evaluations (13-25 marks)</p>
         </div>
 
         {/* Configurations panel */}

@@ -14,7 +14,7 @@ const MODULE_CARDS = [
   { title:'Lab Performance',     icon:<Activity className="w-7 h-7"/>,     color:'from-purple-500 to-fuchsia-500', shadow:'shadow-purple-500/30',path:'performance' },
   { title:'Lab Quiz',            icon:<HelpCircle className="w-7 h-7"/>,   color:'from-pink-500 to-rose-400',    shadow:'shadow-pink-500/30',   path:'quiz' },
   { title:'Lab Test',            icon:<FileCheck className="w-7 h-7"/>,    color:'from-indigo-500 to-blue-500',  shadow:'shadow-indigo-500/30', path:'test' },
-  { title:'Lab Viva',            icon:<Mic className="w-7 h-7"/>,          color:'from-teal-500 to-cyan-400',    shadow:'shadow-teal-500/30',   path:'viva' },
+  { title:'Board Viva',          icon:<Mic className="w-7 h-7"/>,          color:'from-teal-500 to-cyan-400',    shadow:'shadow-teal-500/30',   path:'viva' },
   { title:'Others',              icon:<ClipboardList className="w-7 h-7"/>,color:'from-orange-500 to-amber-400', shadow:'shadow-orange-500/30', path:'others' },
   { title:'Final Result',        icon:<TrendingUp className="w-7 h-7"/>,   color:'from-emerald-500 to-teal-400', shadow:'shadow-emerald-500/30',path:'results' },
 ];
