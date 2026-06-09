@@ -48,10 +48,11 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 };
 
 export default function App() {
+  const basename = import.meta.env.DEV ? '/' : '/LabEval';
   return (
     <ThemeProvider>
       <AuthProvider>
-        <Router>
+        <Router basename={basename}>
           <ToastContainer position="top-right" autoClose={3000} theme="colored" />
           <Routes>
             {/* ── Public / Landing ──────────────────────────────── */}
