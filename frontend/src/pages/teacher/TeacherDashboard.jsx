@@ -1,11 +1,11 @@
-import React, { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../api/axios';
 import { motion } from 'framer-motion';
 import {
   BookOpen, Activity, HelpCircle, FileCheck, ClipboardList,
-  TrendingUp, ChevronRight, Plus, Bell, CheckCircle, XCircle, Clock, Mic
+  TrendingUp, ChevronRight, Plus, Bell, CheckCircle, XCircle, Mic
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 

@@ -58,6 +58,7 @@ const Viva = () => {
   }, [rollGroup, courseId, department, series]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
   }, [fetchData]);
 
@@ -103,6 +104,7 @@ const Viva = () => {
       await Promise.all(promises);
       toast.success('Viva marks saved successfully!');
     } catch (err) {
+      console.error("Error saving Board Viva marks:", err);
       toast.error('Failed to save viva marks');
     } finally {
       setSaving(false);
