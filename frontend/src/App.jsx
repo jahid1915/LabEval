@@ -14,11 +14,9 @@ import Home    from './pages/public/Home';
 import About   from './pages/public/About';
 import Contact from './pages/public/Contact';
 
-// Auth Pages (NEW — separate pages per role)
-import TeacherLogin  from './pages/auth/TeacherLogin';
-import StudentLogin  from './pages/auth/StudentLogin';
-import TeacherSignup from './pages/auth/TeacherSignup';
-import StudentSignup from './pages/auth/StudentSignup';
+// Auth Pages (Unified with Slider)
+import TeacherAuth  from './pages/auth/TeacherAuth';
+import StudentAuth  from './pages/auth/StudentAuth';
 
 // Teacher Pages
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
@@ -63,10 +61,10 @@ export default function App() {
             </Route>
 
             {/* ── Auth Pages ────────────────────────────────────── */}
-            <Route path="/login/teacher"  element={<TeacherLogin  />} />
-            <Route path="/login/student"  element={<StudentLogin  />} />
-            <Route path="/signup/teacher" element={<TeacherSignup />} />
-            <Route path="/signup/student" element={<StudentSignup />} />
+            <Route path="/login/teacher"  element={<TeacherAuth />} />
+            <Route path="/signup/teacher" element={<TeacherAuth />} />
+            <Route path="/login/student"  element={<StudentAuth />} />
+            <Route path="/signup/student" element={<StudentAuth />} />
             {/* Legacy /login redirect */}
             <Route path="/login" element={<Navigate to="/login/teacher" replace />} />
 
