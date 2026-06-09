@@ -3,6 +3,7 @@ import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { Save, Mic, ArrowLeft, FileSpreadsheet } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import * as XLSX from 'xlsx';
 
 const Viva = () => {
   const navigate = useNavigate();
@@ -63,19 +64,24 @@ const Viva = () => {
   }, [fetchData]);
 
   const handleMarkChange = (studentId, value) => {
+    if (value === '') {
+      setVivaRecords(prev => prev.filter(r => (r.student?._id || r.student) !== studentId));
+      return;
+    }
+
     let numVal = parseFloat(value);
-    if (isNaN(numVal)) numVal = '';
-    else if (numVal < 13) numVal = 13;
-    else if (numVal > 25) numVal = 25;
+    if (!isNaN(numVal) && numVal > 25) {
+      value = '25';
+    }
 
     setVivaRecords(prev => {
       const existingIdx = prev.findIndex(r => (r.student?._id || r.student) === studentId);
       if (existingIdx > -1) {
         const updated = [...prev];
-        updated[existingIdx] = { ...updated[existingIdx], marks: numVal };
+        updated[existingIdx] = { ...updated[existingIdx], marks: value };
         return updated;
       } else {
-        return [...prev, { student: studentId, marks: numVal, date: currentDate }];
+        return [...prev, { student: studentId, marks: value, date: currentDate }];
       }
     });
   };
@@ -86,6 +92,23 @@ const Viva = () => {
   };
 
   const saveAll = async () => {
+    // Validate marks before saving
+    let hasError = false;
+    students.forEach(student => {
+      const marks = getStudentMark(student._id);
+      if (marks !== '') {
+        const numVal = parseFloat(marks);
+        if (isNaN(numVal) || numVal < 13 || numVal > 25) {
+          hasError = true;
+        }
+      }
+    });
+
+    if (hasError) {
+      toast.error('All Board Viva marks must be in the range of 13 to 25!');
+      return;
+    }
+
     setSaving(true);
     try {
       const promises = students.map(student => {
@@ -95,7 +118,7 @@ const Viva = () => {
             studentId: student._id,
             courseId,
             date: currentDate,
-            marks
+            marks: parseFloat(marks)
           });
         }
         return Promise.resolve();
@@ -109,6 +132,23 @@ const Viva = () => {
     } finally {
       setSaving(false);
     }
+  };
+
+  const exportExcel = () => {
+    const dataToExport = filteredStudents.map(student => {
+      const mark = getStudentMark(student._id);
+      return {
+        'Roll Number': student.rollNumber,
+        'Name': student.name,
+        'Board Viva Marks': mark === '' ? 'N/A' : parseFloat(mark)
+      };
+    });
+
+    const worksheet = XLSX.utils.json_to_sheet(dataToExport);
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, "Board Viva Marks");
+    XLSX.writeFile(workbook, `Board_Viva_Marks_${courseId}.xlsx`);
+    toast.success('Excel file exported successfully!');
   };
 
   const handleBulkImport = () => {
@@ -228,6 +268,13 @@ const Viva = () => {
               Excel Copy-Paste
             </button>
             <button 
+              onClick={exportExcel}
+              className="btn btn-outline btn-md font-bold rounded-xl border-emerald-200 hover:bg-emerald-50 hover:text-emerald-700 dark:hover:bg-emerald-950/20 dark:hover:text-emerald-400 flex items-center gap-2"
+            >
+              <FileSpreadsheet size={16} className="text-emerald-500" />
+              Export Excel
+            </button>
+            <button 
               onClick={saveAll}
               disabled={saving}
               className="btn btn-primary btn-md font-bold rounded-xl shadow-lg shadow-primary/20 flex items-center gap-2"
@@ -277,7 +324,11 @@ const Viva = () => {
                             placeholder="N/A"
                             value={studentMark}
                             onChange={(e) => handleMarkChange(student._id, e.target.value)}
-                            className="w-24 px-4 py-2 border border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 rounded-xl text-center text-slate-800 dark:text-white font-bold outline-none focus:ring-2 focus:ring-primary/30"
+                            className={`w-24 px-4 py-2 border rounded-xl text-center font-bold outline-none focus:ring-2 transition-all ${
+                              studentMark !== '' && (parseFloat(studentMark) < 13 || parseFloat(studentMark) > 25)
+                                ? 'border-rose-500 bg-rose-50 dark:bg-rose-950/20 text-rose-600 focus:ring-rose-500/30'
+                                : 'border-slate-200 dark:border-slate-600 bg-white dark:bg-slate-700 text-slate-800 dark:text-white focus:ring-primary/30'
+                            }`}
                           />
                         </div>
                       </td>
