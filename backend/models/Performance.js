@@ -7,4 +7,8 @@ const performanceSchema = new mongoose.Schema({
   marks: { type: Number, min: 0, max: 5, required: true },
   teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }
 }, { timestamps: true });
+
+// Optimizes queries filtered by student/course/dayName
+performanceSchema.index({ student: 1, course: 1, dayName: 1 });
+
 module.exports = mongoose.model('Performance', performanceSchema);

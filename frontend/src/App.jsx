@@ -31,6 +31,7 @@ import FinalResult      from './pages/teacher/FinalResult';
 
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
+import StudentMarksPage from './pages/student/StudentMarksPage';
 
 // Protected Route guard
 const ProtectedRoute = ({ children, allowedRole }) => {
@@ -93,6 +94,7 @@ export default function App() {
               </ProtectedRoute>
             }>
               <Route index element={<StudentDashboard />} />
+              <Route path="marks/:courseCode" element={<StudentMarksPage />} />
             </Route>
 
             {/* ── Catch-all ─────────────────────────────────────── */}

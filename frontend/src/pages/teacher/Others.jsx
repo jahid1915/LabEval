@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
-import { motion } from 'framer-motion';
-import { Save, Users, ClipboardList, BookOpen, ArrowLeft, FileSpreadsheet } from 'lucide-react';
+import { Save, ClipboardList, ArrowLeft, FileSpreadsheet } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const Others = () => {
@@ -54,7 +53,7 @@ const Others = () => {
 
       setStudents(filteredStudents);
       setOthersRecords(othersRes.data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
@@ -62,6 +61,7 @@ const Others = () => {
   }, [rollGroup, courseId, department, series]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
   }, [fetchData]);
 
@@ -107,7 +107,7 @@ const Others = () => {
 
       await Promise.all(promises);
       toast.success(`${evalType} marks saved successfully!`);
-    } catch (err) {
+    } catch {
       toast.error(`Failed to save ${evalType} marks`);
     } finally {
       setSaving(false);

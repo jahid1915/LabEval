@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { Download, Search, GraduationCap } from 'lucide-react';
@@ -19,23 +19,24 @@ const FinalResult = () => {
   const courseId = course?.courseCode || '';
   const series = course?.series || ''; 
 
-  useEffect(() => {
-    if (series && courseId) {
-      fetchResults();
-    }
-  }, [series, courseId]);
-
-  const fetchResults = async () => {
+  const fetchResults = useCallback(async () => {
     setLoading(true);
     try {
       const res = await api.get(`/teacher/results/${courseId}?department=${department}&series=${series}`);
       setResults(res.data);
-    } catch (error) {
+    } catch {
       toast.error('Failed to load final results');
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId, department, series]);
+
+  useEffect(() => {
+    if (series && courseId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchResults();
+    }
+  }, [series, courseId, fetchResults]);
 
   const filteredResults = results.filter(r => 
     r.student.rollNumber.includes(search) || 

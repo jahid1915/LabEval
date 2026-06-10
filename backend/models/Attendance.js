@@ -7,4 +7,8 @@ const attendanceSchema = new mongoose.Schema({
   status: { type: String, enum: ['Present', 'Absent'], required: true },
   teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }
 }, { timestamps: true });
+
+// Optimizes queries filtered by student/course/dayName
+attendanceSchema.index({ student: 1, course: 1, dayName: 1 });
+
 module.exports = mongoose.model('Attendance', attendanceSchema);

@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../api/axios';
@@ -32,12 +32,7 @@ export default function TeacherDashboard() {
     try { return JSON.parse(sessionStorage.getItem('selectedCourse')) || null; } catch { return null; }
   });
   const [requests, setRequests]       = useState([]);
-  const [reqLoading, setReqLoading]   = useState(false);
-
-  useEffect(() => {
-    fetchCourses();
-    fetchRequests();
-  }, []);
+  const [courseRequests, setCourseRequests] = useState([]);
 
   const fetchCourses = async () => {
     setLoading(true);
@@ -49,13 +44,31 @@ export default function TeacherDashboard() {
   };
 
   const fetchRequests = async () => {
-    setReqLoading(true);
     try {
       const { data } = await api.get('/teacher/requests');
       setRequests(data.filter(r => r.status === 'Pending'));
     } catch { /* silent */ }
-    finally { setReqLoading(false); }
   };
+
+  const fetchCourseRequests = useCallback(async (courseCode) => {
+    try {
+      const { data } = await api.get(`/teacher/requests?course=${courseCode}`);
+      setCourseRequests(data);
+    } catch { /* silent */ }
+  }, []);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchCourses();
+    fetchRequests();
+  }, []);
+
+  useEffect(() => {
+    if (selectedCourse) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      fetchCourseRequests(selectedCourse.courseCode);
+    }
+  }, [selectedCourse, fetchCourseRequests]);
 
   const handleCourseSelect = (course) => {
     sessionStorage.setItem('selectedCourse', JSON.stringify(course));
@@ -70,6 +83,14 @@ export default function TeacherDashboard() {
     try {
       await api.patch(`/teacher/requests/${id}`, { status });
       setRequests(prev => prev.filter(r => r._id !== id));
+      toast.success(`Request ${status}`);
+    } catch { toast.error('Failed to update request'); }
+  };
+
+  const handleCourseRequest = async (id, status) => {
+    try {
+      const { data } = await api.patch(`/teacher/requests/${id}`, { status });
+      setCourseRequests(prev => prev.map(r => r._id === id ? data : r));
       toast.success(`Request ${status}`);
     } catch { toast.error('Failed to update request'); }
   };
@@ -99,11 +120,11 @@ export default function TeacherDashboard() {
               <Bell size={18}/> Pending Student Requests ({requests.length})
             </h2>
             <div className="space-y-2">
-              {requests.map(req => (
+              {requests.filter(r => r.student).map(req => (
                 <div key={req._id} className="flex items-center justify-between bg-white dark:bg-slate-900 rounded-xl px-4 py-3 border border-amber-100 dark:border-amber-900/40">
                   <div>
-                    <p className="font-semibold text-slate-800 dark:text-white text-sm">{req.student?.name} <span className="text-slate-500 dark:text-slate-400 font-normal">({req.student?.rollNumber})</span></p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Course: {req.course}</p>
+                    <p className="font-semibold text-slate-800 dark:text-white text-sm">{req.student?.name} <span className="text-slate-400 font-normal ml-2">({req.student?.rollNumber})</span></p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Course: <strong className="text-slate-750 dark:text-slate-350">{req.course}</strong> · {req.student?.department} · Series {req.student?.series}</p>
                   </div>
                   <div className="flex gap-2">
                     <button onClick={() => handleRequest(req._id, 'Accepted')}
@@ -137,7 +158,7 @@ export default function TeacherDashboard() {
         ) : (
           <motion.div variants={container} initial="hidden" animate="show"
             className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {courses.map((course, i) => (
+            {courses.map(course => (
               <motion.div key={course._id} variants={item}
                 onClick={() => handleCourseSelect(course)}
                 className="group cursor-pointer bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-300 p-6 relative overflow-hidden">
@@ -206,6 +227,67 @@ export default function TeacherDashboard() {
           </motion.div>
         ))}
       </motion.div>
+
+      {/* ── Student Mark Requests for this course ─────────────────── */}
+      {courseRequests.length > 0 && (
+        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+          <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800">
+            <h2 className="font-heading font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
+              <Bell size={18} className="text-amber-500" />
+              Student Mark Requests
+              <span className="ml-2 px-2.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full">
+                {courseRequests.filter(r => r.status === 'Pending').length} pending
+              </span>
+            </h2>
+          </div>
+          <div className="divide-y divide-slate-50 dark:divide-slate-800">
+            {courseRequests.filter(r => r.student).map(req => (
+              <div key={req._id} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
+                <div className="flex items-center gap-3">
+                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm shrink-0">
+                    {req.student?.name?.charAt(0)?.toUpperCase() || '?'}
+                  </div>
+                  <div>
+                    <p className="font-semibold text-sm text-slate-800 dark:text-white">
+                      {req.student?.name}
+                      <span className="text-slate-400 font-normal ml-2">({req.student?.rollNumber})</span>
+                    </p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      {req.student?.department} · Series {req.student?.series}
+                    </p>
+                  </div>
+                </div>
+                <div className="flex items-center gap-2">
+                  {req.status === 'Pending' ? (
+                    <>
+                      <button
+                        onClick={() => handleCourseRequest(req._id, 'Accepted')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors"
+                      >
+                        <CheckCircle size={14} /> Accept
+                      </button>
+                      <button
+                        onClick={() => handleCourseRequest(req._id, 'Rejected')}
+                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-xs font-bold transition-colors"
+                      >
+                        <XCircle size={14} /> Reject
+                      </button>
+                    </>
+                  ) : req.status === 'Accepted' ? (
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-semibold rounded-lg text-xs">
+                      <CheckCircle size={12} /> Accepted
+                    </span>
+                  ) : (
+                    <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 font-semibold rounded-lg text-xs">
+                      <XCircle size={12} /> Rejected
+                    </span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }

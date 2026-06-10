@@ -1,9 +1,9 @@
-import React, { useState, useContext } from 'react';
+import { useState, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-toastify';
-import { LogIn, UserPlus, User, BookOpen, GraduationCap, Building2, Phone, Hash, Type, Sun, Moon } from 'lucide-react';
+import { LogIn, UserPlus, User, GraduationCap, Building2, Phone, Hash, Type, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 const Login = () => {

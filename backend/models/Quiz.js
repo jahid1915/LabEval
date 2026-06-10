@@ -6,4 +6,8 @@ const quizSchema = new mongoose.Schema({
   marks: { type: Number, min: 0, max: 20, required: true },
   teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }
 }, { timestamps: true });
+
+// Optimizes queries filtered by student/course
+quizSchema.index({ student: 1, course: 1 });
+
 module.exports = mongoose.model('Quiz', quizSchema);

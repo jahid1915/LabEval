@@ -1,4 +1,4 @@
-import React, { useState, useContext } from 'react';
+import { useState, useContext } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -44,7 +44,8 @@ export default function StudentAuth() {
     if (signupForm.password !== signupForm.confirmPassword) return toast.error('Passwords do not match');
     if (signupForm.password.length < 6) return toast.error('Password must be at least 6 characters');
     setLoading(true);
-    const { confirmPassword, ...data } = signupForm;
+    const data = { ...signupForm };
+    delete data.confirmPassword;
     const res = await register('student', data);
     setLoading(false);
     if (res.success) { 

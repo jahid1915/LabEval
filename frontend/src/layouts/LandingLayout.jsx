@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -17,8 +17,6 @@ export default function LandingLayout() {
     window.addEventListener('scroll', onScroll);
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
-
-  useEffect(() => { setMobileMenuOpen(false); }, [location]);
 
   const navLinks = [
     { label: 'Home',    path: '/'        },
@@ -122,6 +120,7 @@ export default function LandingLayout() {
             className="fixed inset-0 z-40 bg-white/97 dark:bg-slate-900/97 backdrop-blur-xl flex flex-col items-center justify-center gap-6 md:hidden">
             {navLinks.map(({ label, path }) => (
               <Link key={path} to={path}
+                onClick={() => setMobileMenuOpen(false)}
                 className="text-2xl font-heading font-bold text-slate-800 dark:text-white hover:text-primary transition-colors">
                 {label}
               </Link>

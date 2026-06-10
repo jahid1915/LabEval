@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
@@ -88,7 +88,7 @@ const Attendance = () => {
 
       setAttRecords(dayAttRecords);
       setRepRecords(reconciledRepRecords);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
@@ -96,6 +96,7 @@ const Attendance = () => {
   }, [currentDate, rollGroup, dayName, courseId, department, series, isInitialLoad]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
   }, [fetchData]);
 
@@ -189,7 +190,7 @@ const Attendance = () => {
       await Promise.all([...attPromises, ...repPromises]);
       toast.success('Attendance & reports saved!');
       setHistory([]);
-    } catch (err) {
+    } catch {
       toast.error('Failed to save records');
     }
   };
@@ -313,10 +314,8 @@ const Attendance = () => {
                   const attStatus = getAttStatus(student._id);
                   const repStatus = getRepStatus(student._id);
                   const isPresent = attStatus === 'Present';
-                  const isAbsent = attStatus === 'Absent';
                   const isSubmitted = repStatus === 'Submitted';
                   const attIsSet = attStatus !== null;
-                  const repIsSet = repStatus !== null;
                   return (
                     <tr key={student._id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30 transition-colors group">
                       <td className="py-4 pl-4 font-mono font-semibold text-slate-600 dark:text-slate-400">{student.rollNumber}</td>

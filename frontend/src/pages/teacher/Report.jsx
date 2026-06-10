@@ -1,8 +1,8 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
-import { Save, Check, X, Undo2, FileText } from 'lucide-react';
+import { Save, Undo2, FileText } from 'lucide-react';
 import { format } from 'date-fns';
 import { useLocation } from 'react-router-dom';
 
@@ -20,11 +20,7 @@ const Report = () => {
   const courseId = course?.courseCode || 'Unknown Course';
   const series = course?.series || 'Unknown'; 
 
-  useEffect(() => {
-    fetchData();
-  }, [currentDate, rollGroup]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     try {
       const [stuRes, recRes] = await Promise.all([
@@ -47,12 +43,17 @@ const Report = () => {
 
       setStudents(filteredStudents);
       setRecords(recRes.data.filter(r => r.date.startsWith(currentDate) || r.dayName === dayName));
-    } catch (err) {
+    } catch {
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
     }
-  };
+  }, [courseId, department, series, rollGroup, currentDate, dayName]);
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchData();
+  }, [fetchData]);
 
   const getStudentStatus = (studentId) => {
     const record = records.find(r => r.student._id === studentId || r.student === studentId);
@@ -110,7 +111,7 @@ const Report = () => {
       await Promise.all(promises);
       toast.success('Reports saved successfully');
       setHistory([]); 
-    } catch (err) {
+    } catch {
       toast.error('Failed to save reports');
     }
   };

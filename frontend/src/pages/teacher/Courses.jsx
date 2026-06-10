@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext } from 'react';
+import { useState, useEffect, useContext } from 'react';
 import api from '../../api/axios';
 import { AuthContext } from '../../context/AuthContext';
 import { toast } from 'react-toastify';
@@ -17,17 +17,20 @@ export default function Courses() {
     courseCode: '', courseName: '', series: '', department: user?.department || 'CSE'
   });
 
-  useEffect(() => { fetchCourses(); }, []);
-
   const fetchCourses = async () => {
     setLoading(true);
     try {
       const { data } = await api.get('/teacher/courses');
       setCourses(data);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load courses');
     } finally { setLoading(false); }
   };
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchCourses();
+  }, []);
 
   const handleChange = e => setForm({ ...form, [e.target.name]: e.target.value });
 
@@ -54,7 +57,7 @@ export default function Courses() {
       await api.delete(`/teacher/courses/${id}`);
       setCourses(prev => prev.filter(c => c._id !== id));
       toast.success('Course removed');
-    } catch (err) {
+    } catch {
       toast.error('Failed to remove course');
     } finally { setDeleting(null); }
   };

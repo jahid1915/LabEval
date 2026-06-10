@@ -1,8 +1,7 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
-import { motion } from 'framer-motion';
-import { Save, Check, Users, Activity, BookOpen, ArrowLeft } from 'lucide-react';
+import { Save, Users, Activity, ArrowLeft } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 
 const Performance = () => {
@@ -69,7 +68,7 @@ const Performance = () => {
 
       const dayPerfRecords = perfRes.data.filter(r => r.dayName === currentDay);
       setPerfRecords(dayPerfRecords);
-    } catch (err) {
+    } catch {
       toast.error('Failed to load data');
     } finally {
       setLoading(false);
@@ -77,6 +76,7 @@ const Performance = () => {
   }, [rollGroup, dayName, courseId, department, series, isInitialLoad]);
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchData();
   }, [fetchData]);
 
@@ -117,7 +117,7 @@ const Performance = () => {
 
       await Promise.all(promises);
       toast.success('Performance marks saved successfully!');
-    } catch (err) {
+    } catch {
       toast.error('Failed to save performance marks');
     } finally {
       setSaving(false);

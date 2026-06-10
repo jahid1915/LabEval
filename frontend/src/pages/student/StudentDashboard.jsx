@@ -1,175 +1,281 @@
-import React, { useState, useEffect, useContext } from 'react';
-import api from '../../api/axios';
+import { useState, useEffect, useContext, useCallback } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
+import api from '../../api/axios';
 import { toast } from 'react-toastify';
-import { motion, AnimatePresence } from 'framer-motion';
-import { CheckCircle, AlertTriangle, Send, Activity, Lock, Target } from 'lucide-react';
+import { motion } from 'framer-motion';
+import {
+  BookOpen, Send, Clock, CheckCircle, XCircle,
+  Eye, RefreshCw, GraduationCap, User
+} from 'lucide-react';
+
+const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
+const item = { hidden: { y: 20, opacity: 0 }, show: { y: 0, opacity: 1, transition: { type: 'spring', stiffness: 100 } } };
+
+const StatusBadge = ({ status }) => {
+  if (status === 'Pending') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-semibold rounded-xl text-xs">
+        <div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse" />
+        Pending Approval
+      </span>
+    );
+  }
+  if (status === 'Accepted') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-emerald-100 text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400 font-semibold rounded-xl text-xs">
+        <CheckCircle size={12} />
+        Approved
+      </span>
+    );
+  }
+  if (status === 'Rejected') {
+    return (
+      <span className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 font-semibold rounded-xl text-xs">
+        <XCircle size={12} />
+        Rejected
+      </span>
+    );
+  }
+  return null;
+};
+
+const CourseCard = ({ course, onRequest, requesting, navigate }) => {
+  const requestStatus = course.request?.status || null;
+
+  return (
+    <motion.div variants={item}
+      className="group bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-300 relative overflow-hidden flex flex-col"
+    >
+      {/* Top accent bar */}
+      <div className="h-1 w-full bg-gradient-to-r from-primary to-secondary transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left" />
+
+      <div className="p-6 flex flex-col flex-1">
+        {/* Course info */}
+        <div className="flex items-center gap-4 mb-4">
+          <div className="w-12 h-12 rounded-2xl bg-primary/10 group-hover:bg-primary flex items-center justify-center transition-colors duration-300 shrink-0">
+            <BookOpen className="w-6 h-6 text-primary group-hover:text-white transition-colors duration-300" />
+          </div>
+          <div className="min-w-0 flex-1">
+            <h3 className="font-heading font-extrabold text-xl text-slate-800 dark:text-white group-hover:text-primary transition-colors truncate">
+              {course.courseCode}
+            </h3>
+            <p className="text-slate-500 dark:text-slate-400 text-sm font-medium truncate">{course.courseName}</p>
+          </div>
+        </div>
+
+        {/* Teacher info */}
+        <div className="flex items-center gap-2 mb-4 text-sm text-slate-500 dark:text-slate-400">
+          <User size={14} className="shrink-0" />
+          <span className="truncate">{course.teacherName}</span>
+        </div>
+
+        {/* Badges */}
+        <div className="flex gap-2 mb-5">
+          <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">Series {course.series}</span>
+          <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold rounded-full">{course.department}</span>
+        </div>
+
+        {/* Quick Metrics */}
+        <div className="grid grid-cols-3 gap-2 py-3 px-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl mb-5 border border-slate-100/50 dark:border-slate-800/50 text-center">
+          <div>
+            <p className="text-[9px] uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Attendance</p>
+            <p className="text-sm font-extrabold text-slate-800 dark:text-white mt-0.5">{course.attendancePercentage}%</p>
+          </div>
+          <div className="border-x border-slate-100 dark:border-slate-800/60">
+            <p className="text-[9px] uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Grade</p>
+            <p className="text-sm font-extrabold text-primary mt-0.5">{course.currentGrade || '—'}</p>
+          </div>
+          <div>
+            <p className="text-[9px] uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Total Marks</p>
+            <p className="text-sm font-extrabold text-slate-800 dark:text-white mt-0.5">{course.totalMarks}/100</p>
+          </div>
+        </div>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        {/* Action area */}
+        <div className="pt-4 border-t border-slate-100 dark:border-slate-800/50">
+          {/* No request yet */}
+          {!requestStatus && (
+            <button
+              onClick={() => onRequest(course)}
+              disabled={requesting}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-primary hover:bg-primary-focus text-white rounded-xl font-bold text-sm shadow-lg shadow-primary/25 transition-all disabled:opacity-50"
+            >
+              <Send size={14} />
+              Request Marks
+            </button>
+          )}
+
+          {/* Pending */}
+          {requestStatus === 'Pending' && (
+            <div className="flex items-center justify-center">
+              <StatusBadge status="Pending" />
+            </div>
+          )}
+
+          {/* Accepted → View Marks */}
+          {requestStatus === 'Accepted' && (
+            <button
+              onClick={() => navigate(`/student/marks/${course.courseCode}`)}
+              className="w-full flex items-center justify-center gap-2 px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl font-bold text-sm shadow-lg shadow-emerald-500/25 transition-all"
+            >
+              <Eye size={14} />
+              View Marks
+            </button>
+          )}
+
+          {/* Rejected → Re-request */}
+          {requestStatus === 'Rejected' && (
+            <div className="space-y-2">
+              <div className="flex items-center justify-center">
+                <StatusBadge status="Rejected" />
+              </div>
+              <button
+                onClick={() => onRequest(course)}
+                disabled={requesting}
+                className="w-full flex items-center justify-center gap-2 px-4 py-2 bg-slate-100 dark:bg-slate-800 hover:bg-primary/10 text-slate-600 dark:text-slate-300 hover:text-primary rounded-xl font-semibold text-xs transition-all disabled:opacity-50"
+              >
+                <RefreshCw size={12} />
+                Re-request
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    </motion.div>
+  );
+};
 
 const StudentDashboard = () => {
   const { user } = useContext(AuthContext);
-  const [summary, setSummary] = useState(null);
-  const [detailedMarks, setDetailedMarks] = useState(null);
-  const [requestStatus, setRequestStatus] = useState(null);
-  
-  const courseId = 'CSE-2200'; // Hardcoded for prototype demo
+  const navigate = useNavigate();
+  const [courses, setCourses]       = useState([]);
+  const [loading, setLoading]       = useState(true);
+  const [requesting, setRequesting] = useState(false);
+
+  const fetchCourses = useCallback(async () => {
+    try {
+      const { data } = await api.get('/student/courses');
+      setCourses(data);
+    } catch {
+      toast.error('Failed to load courses');
+    } finally {
+      setLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
-    const fetchSummary = async () => {
-      try {
-        const res = await api.get(`/student/dashboard/${courseId}`);
-        setSummary(res.data);
-      } catch (err) {
-        toast.error('Failed to fetch summary');
-      }
-    };
-    fetchSummary();
-  }, [courseId]);
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchCourses();
+  }, [fetchCourses]);
 
-  const handleRequestMarks = async () => {
+  const handleRequestMarks = async (course) => {
+    setRequesting(true);
     try {
-      const res = await api.post('/student/request', { courseId, teacherId: 'T-101' });
-      setRequestStatus(res.data.status);
-      toast.success(`Request ${res.data.status}`);
+      await api.post('/student/request', {
+        courseCode: course.courseCode,
+        teacherId: course.teacherId
+      });
+      toast.success(`Request sent for ${course.courseCode}`);
+      // Refresh courses to update status
+      await fetchCourses();
     } catch (error) {
-      toast.error('Failed to request marks');
+      toast.error(error.response?.data?.message || 'Failed to send request');
+    } finally {
+      setRequesting(false);
     }
   };
 
-  const fetchDetailedMarks = async () => {
-    try {
-      const res = await api.get(`/student/detailed-marks/${courseId}`);
-      setDetailedMarks(res.data);
-    } catch (error) {
-      toast.error(error.response?.data?.message || 'Failed to fetch detailed marks');
-    }
-  };
-
-  const MetricCard = ({ title, value, subtitle, icon, delay, isHidden }) => (
-    <motion.div 
-      initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay }}
-      className="relative bg-white dark:bg-slate-800 rounded-3xl p-6 border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden group"
-    >
-      <div className="absolute top-0 right-0 p-6 opacity-10 group-hover:scale-110 group-hover:-rotate-12 transition-transform duration-500">
-        {icon}
-      </div>
-      <div className="relative z-10">
-        <h3 className="font-heading font-semibold text-slate-500 dark:text-slate-400 mb-2">{title}</h3>
-        <div className="flex items-end gap-3">
-          <span className={`text-4xl md:text-5xl font-heading font-extrabold ${isHidden ? 'text-slate-300 dark:text-slate-600' : 'text-slate-800 dark:text-white'}`}>
-            {value}
-          </span>
-          {isHidden && <Lock className="w-6 h-6 text-slate-300 dark:text-slate-600 mb-1" />}
-        </div>
-        <p className="text-sm font-medium mt-3 text-slate-400">{subtitle}</p>
-      </div>
-      <div className="absolute bottom-0 left-0 w-full h-1.5 bg-gradient-to-r from-primary to-accent opacity-0 group-hover:opacity-100 transition-opacity"></div>
-    </motion.div>
-  );
+  // Quick stats
+  const totalCourses    = courses.length;
+  const pendingRequests = courses.filter(c => c.request?.status === 'Pending').length;
+  const approvedCourses = courses.filter(c => c.request?.status === 'Accepted').length;
 
   return (
-    <div className="max-w-7xl mx-auto">
-      <div className="mb-10">
-        <h1 className="text-3xl md:text-4xl font-heading font-extrabold text-slate-800 dark:text-white mb-3">Student Dashboard</h1>
-        <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">Performance overview for {courseId}</p>
+    <div className="max-w-7xl mx-auto space-y-8">
+      {/* Header */}
+      <div>
+        <h1 className="text-3xl md:text-4xl font-heading font-extrabold text-slate-800 dark:text-white mb-1">
+          Welcome, <span className="text-primary">{user?.name?.split(' ')[0]}</span> 👋
+        </h1>
+        <p className="text-slate-500 dark:text-slate-400 font-medium text-lg">
+          Your courses • {user?.department} • Series {user?.series}
+        </p>
       </div>
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
-        <MetricCard 
-          title="Attendance" 
-          value={summary ? `${summary.attendancePercentage.toFixed(1)}%` : '---'}
-          subtitle={summary?.attendancePercentage < 60 ? <span className="flex items-center text-rose-500"><AlertTriangle className="w-4 h-4 mr-1"/> Warning: Below 60%</span> : 'On track'}
-          icon={<Activity size={80} />}
-          delay={0.1}
-        />
-        <MetricCard 
-          title="Total Marks" 
-          value="Hidden"
-          subtitle="Request detailed marks to view"
-          icon={<Target size={80} />}
-          isHidden={true}
-          delay={0.2}
-        />
-        <MetricCard 
-          title="Current Grade" 
-          value="N/A"
-          subtitle="Pending final evaluation"
-          icon={<CheckCircle size={80} />}
-          isHidden={true}
-          delay={0.3}
-        />
-      </div>
-
-      <motion.div 
-        initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.4 }}
-        className="bg-white dark:bg-slate-800 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm overflow-hidden"
-      >
-        <div className="p-8 md:p-10">
-          <h2 className="text-2xl font-heading font-bold text-slate-800 dark:text-white mb-3">Detailed Marks Request</h2>
-          <p className="text-slate-500 dark:text-slate-400 mb-8 max-w-2xl leading-relaxed">
-            Curious about your performance breakdown? You can send a request directly to your course instructor to reveal your detailed scores across Viva, Quizzes, Tests, and other metrics.
-          </p>
-          
-          <div className="flex flex-wrap gap-4 items-center bg-slate-50 dark:bg-slate-900/50 p-6 rounded-2xl border border-slate-100 dark:border-slate-800">
-            <button 
-              className="btn btn-primary px-8 rounded-xl font-semibold shadow-lg shadow-primary/30" 
-              onClick={handleRequestMarks}
-              disabled={requestStatus === 'Pending' || requestStatus === 'Accepted'}
-            >
-              <Send className="w-4 h-4 mr-2" />
-              Request Breakdown
-            </button>
-            
-            {requestStatus === 'Pending' && <span className="px-6 py-3 bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400 font-semibold rounded-xl flex items-center gap-2"><div className="w-2 h-2 rounded-full bg-amber-500 animate-pulse"></div> Request Pending</span>}
-            {requestStatus === 'Rejected' && <span className="px-6 py-3 bg-rose-100 text-rose-700 dark:bg-rose-900/30 dark:text-rose-400 font-semibold rounded-xl">Request Rejected</span>}
-            {requestStatus === 'Accepted' && (
-              <button className="btn btn-success text-white px-8 rounded-xl font-semibold shadow-lg shadow-emerald-500/30" onClick={fetchDetailedMarks}>
-                <CheckCircle className="w-4 h-4 mr-2"/>
-                Reveal Marks
-              </button>
-            )}
+      {/* Quick Stats */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.05 }}
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 flex items-center gap-4"
+        >
+          <div className="w-11 h-11 rounded-xl bg-primary/10 flex items-center justify-center">
+            <BookOpen className="w-5 h-5 text-primary" />
           </div>
+          <div>
+            <p className="text-2xl font-heading font-extrabold text-slate-800 dark:text-white">{totalCourses}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Total Courses</p>
+          </div>
+        </motion.div>
 
-          <AnimatePresence>
-            {detailedMarks && (
-              <motion.div 
-                initial={{ height: 0, opacity: 0 }}
-                animate={{ height: 'auto', opacity: 1 }}
-                className="mt-10 overflow-hidden"
-              >
-                <h3 className="text-xl font-heading font-bold text-slate-800 dark:text-white mb-6">Your Performance Breakdown</h3>
-                <div className="overflow-x-auto rounded-2xl border border-slate-200 dark:border-slate-700">
-                  <table className="w-full text-left border-collapse">
-                    <thead>
-                      <tr className="bg-slate-50 dark:bg-slate-900/80 border-b border-slate-200 dark:border-slate-700">
-                        <th className="py-4 px-6 font-semibold text-slate-600 dark:text-slate-300">Evaluation Metric</th>
-                        <th className="py-4 px-6 font-semibold text-slate-600 dark:text-slate-300 text-right">Achieved Score</th>
-                      </tr>
-                    </thead>
-                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800 text-slate-700 dark:text-slate-300">
-                      <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="py-4 px-6 font-medium">Viva Voce</td>
-                        <td className="py-4 px-6 text-right font-bold text-lg">{detailedMarks.vivas.reduce((acc, curr) => acc + curr.marks, 0)}</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="py-4 px-6 font-medium">Quizzes</td>
-                        <td className="py-4 px-6 text-right font-bold text-lg">{detailedMarks.quizzes.reduce((acc, curr) => acc + curr.marks, 0)}</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="py-4 px-6 font-medium">Lab Tests</td>
-                        <td className="py-4 px-6 text-right font-bold text-lg">{detailedMarks.tests.reduce((acc, curr) => acc + curr.marks, 0)}</td>
-                      </tr>
-                      <tr className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
-                        <td className="py-4 px-6 font-medium">Projects & Others</td>
-                        <td className="py-4 px-6 text-right font-bold text-lg text-primary">{detailedMarks.others.reduce((acc, curr) => acc + curr.marks, 0)}</td>
-                      </tr>
-                    </tbody>
-                  </table>
-                </div>
-              </motion.div>
-            )}
-          </AnimatePresence>
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.1 }}
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 flex items-center gap-4"
+        >
+          <div className="w-11 h-11 rounded-xl bg-amber-500/10 flex items-center justify-center">
+            <Clock className="w-5 h-5 text-amber-500" />
+          </div>
+          <div>
+            <p className="text-2xl font-heading font-extrabold text-slate-800 dark:text-white">{pendingRequests}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Pending Requests</p>
+          </div>
+        </motion.div>
+
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }} transition={{ delay: 0.15 }}
+          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-100 dark:border-slate-800 p-5 flex items-center gap-4"
+        >
+          <div className="w-11 h-11 rounded-xl bg-emerald-500/10 flex items-center justify-center">
+            <GraduationCap className="w-5 h-5 text-emerald-500" />
+          </div>
+          <div>
+            <p className="text-2xl font-heading font-extrabold text-slate-800 dark:text-white">{approvedCourses}</p>
+            <p className="text-xs text-slate-500 dark:text-slate-400 font-semibold">Marks Available</p>
+          </div>
+        </motion.div>
+      </div>
+
+      {/* Course Cards Grid */}
+      {loading ? (
+        <div className="flex justify-center py-20">
+          <span className="loading loading-spinner text-primary loading-lg" />
         </div>
-      </motion.div>
+      ) : courses.length === 0 ? (
+        <motion.div initial={{ y: 20, opacity: 0 }} animate={{ y: 0, opacity: 1 }}
+          className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700"
+        >
+          <BookOpen className="w-14 h-14 text-slate-300 dark:text-slate-600 mx-auto mb-4" />
+          <h3 className="text-xl font-bold text-slate-700 dark:text-white mb-2">No Courses Found</h3>
+          <p className="text-slate-500 dark:text-slate-400 max-w-md mx-auto">
+            No courses are available for your department ({user?.department}) and series ({user?.series}) yet.
+            Please check back later or contact your teacher.
+          </p>
+        </motion.div>
+      ) : (
+        <motion.div variants={container} initial="hidden" animate="show"
+          className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5"
+        >
+          {courses.map(course => (
+            <CourseCard
+              key={course._id}
+              course={course}
+              onRequest={handleRequestMarks}
+              requesting={requesting}
+              navigate={navigate}
+            />
+          ))}
+        </motion.div>
+      )}
     </div>
   );
 };

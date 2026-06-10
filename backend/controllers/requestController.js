@@ -1,5 +1,4 @@
 const Request = require('../models/Request');
-const Student = require('../models/Student');
 
 // POST /api/student/request — student sends request for detailed marks
 const createRequest = async (req, res) => {
@@ -9,14 +8,24 @@ const createRequest = async (req, res) => {
       return res.status(400).json({ message: 'courseCode and teacherId are required' });
     }
 
-    // Check if a pending request already exists
+    // Upsert: if a request already exists for this student+course, update it
     const existing = await Request.findOne({
-      student:  req.user._id,
-      course:   courseCode,
-      status:   'Pending'
+      student: req.user._id,
+      course:  courseCode
     });
+
     if (existing) {
-      return res.status(400).json({ message: 'A pending request already exists for this course.' });
+      if (existing.status === 'Pending') {
+        return res.status(400).json({ message: 'A pending request already exists for this course.' });
+      }
+      if (existing.status === 'Accepted') {
+        return res.status(400).json({ message: 'Your request for this course is already accepted.' });
+      }
+      // If Rejected → reset to Pending (re-request)
+      existing.status  = 'Pending';
+      existing.teacher = teacherId;
+      await existing.save();
+      return res.json(existing);
     }
 
     const request = await Request.create({
@@ -42,15 +51,24 @@ const getStudentRequests = async (req, res) => {
   }
 };
 
-// GET /api/teacher/requests — teacher sees all pending requests
+// GET /api/teacher/requests — teacher sees requests (optionally filtered by course)
 const getTeacherRequests = async (req, res) => {
   try {
-    const Teacher = require('../models/Teacher');
-    const teacher = await Teacher.findById(req.user._id);
-    const requests = await Request.find({ teacher: teacher.teacherId })
+    const teacherId = req.user.teacherId;
+    const query = { teacher: teacherId };
+
+    // Optional course filter
+    if (req.query.course) {
+      query.course = req.query.course;
+    }
+
+    const requests = await Request.find(query)
       .populate('student', 'name rollNumber series department')
       .sort({ createdAt: -1 });
-    res.json(requests);
+
+    // Filter out requests with deleted/null student documents
+    const validRequests = requests.filter(r => r.student !== null);
+    res.json(validRequests);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
@@ -69,6 +87,9 @@ const updateRequest = async (req, res) => {
 
     request.status = status;
     await request.save();
+
+    // Populate student info before sending response
+    await request.populate('student', 'name rollNumber series department');
 
     res.json(request);
   } catch (err) {

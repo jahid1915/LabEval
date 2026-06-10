@@ -1,16 +1,19 @@
 const express = require('express');
 const router  = express.Router();
-const { getDashboardSummary, getDetailedMarks } = require('../controllers/studentController');
-const { createRequest, getStudentRequests }      = require('../controllers/requestController');
-const { protect }                                = require('../middleware/authMiddleware');
+const { getStudentCourses, getStudentMarks } = require('../controllers/studentCourseController');
+const { createRequest, getStudentRequests }  = require('../controllers/requestController');
+const { protect }                            = require('../middleware/authMiddleware');
 
 router.use(protect);
 
-router.get('/dashboard/:courseId', getDashboardSummary);
-router.get('/detailed-marks/:courseId', getDetailedMarks);
+// Course listing (courses matching student's dept/series + request status)
+router.get('/courses', getStudentCourses);
+
+// Full marks breakdown (gated by Accepted request)
+router.get('/marks/:courseCode', getStudentMarks);
 
 // Request management
-router.post('/request',   createRequest);
-router.get('/requests',   getStudentRequests);
+router.post('/request',  createRequest);
+router.get('/requests',  getStudentRequests);
 
 module.exports = router;

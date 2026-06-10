@@ -1,3 +1,5 @@
+import daisyui from 'daisyui';
+
 /** @type {import('tailwindcss').Config} */
 export default {
   content: [
@@ -30,7 +32,7 @@ export default {
       }
     },
   },
-  plugins: [require("daisyui")],
+  plugins: [daisyui],
   daisyui: {
     themes: ["light"], // We only use DaisyUI's light base, handling dark mode manually via Tailwind's 'dark:' classes for total control over the glassmorphism aesthetic.
   },
