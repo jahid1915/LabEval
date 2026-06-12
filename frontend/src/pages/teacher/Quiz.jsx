@@ -9,6 +9,7 @@ const Quiz = () => {
   const [students, setStudents] = useState([]);
   const [quizRecords, setQuizRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState({ performance: 5, quiz: 30, report: 10, attendance: 5, test: 20, others: 5 });
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [rollGroup, setRollGroup] = useState('1-30');
   const [saving, setSaving] = useState(false);
@@ -29,9 +30,10 @@ const Quiz = () => {
     if (!series) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [stuRes, quizRes] = await Promise.all([
+      const [stuRes, quizRes, configRes] = await Promise.all([
         api.get(`/teacher/students/any?department=${department}&series=${series}`),
-        api.get(`/teacher/records/quiz/${courseId}`)
+        api.get(`/teacher/records/quiz/${courseId}`),
+        course?._id ? api.get(`/teacher/courses/${course._id}/config`) : Promise.resolve({ data: null })
       ]);
 
       let allStudents = stuRes.data;
@@ -50,6 +52,9 @@ const Quiz = () => {
 
       setStudents(filteredStudents);
       setQuizRecords(quizRes.data);
+      if (configRes?.data?.config) {
+        setConfig(configRes.data.config);
+      }
     } catch {
       toast.error('Failed to load data');
     } finally {
@@ -66,7 +71,7 @@ const Quiz = () => {
     let numVal = parseFloat(value);
     if (isNaN(numVal)) numVal = '';
     else if (numVal < 0) numVal = 0;
-    else if (numVal > 20) numVal = 20;
+    else if (numVal > config.quiz) numVal = config.quiz;
 
     setQuizRecords(prev => {
       const existingIdx = prev.findIndex(r => (r.student?._id || r.student) === studentId);
@@ -132,7 +137,7 @@ const Quiz = () => {
         if (roll && !isNaN(markVal)) {
           const student = students.find(s => s.rollNumber === roll);
           if (student) {
-            const marks = Math.min(20, Math.max(0, markVal));
+             const marks = Math.min(config.quiz, Math.max(0, markVal));
             const existingIdx = updatedRecords.findIndex(r => (r.student?._id || r.student) === student._id);
             if (existingIdx > -1) {
               updatedRecords[existingIdx] = { ...updatedRecords[existingIdx], marks };
@@ -171,7 +176,7 @@ const Quiz = () => {
             <h1 className="text-3xl font-heading font-extrabold text-slate-800 dark:text-white">Lab Quiz Marks</h1>
             <span className="px-3 py-1 bg-primary/10 text-primary font-bold rounded-lg text-sm">{courseId}</span>
           </div>
-          <p className="text-slate-500 mt-2">Manage and record Continuous Lab Quiz evaluations (0-20 marks)</p>
+          <p className="text-slate-500 mt-2">Manage and record Continuous Lab Quiz evaluations (0-{config.quiz} marks)</p>
         </div>
 
         {/* Configurations panel */}
@@ -258,7 +263,7 @@ const Quiz = () => {
                 <tr className="bg-slate-100/50 dark:bg-slate-700 text-slate-600 dark:text-slate-200">
                   <th className="font-bold">Roll Number</th>
                   <th className="font-bold">Name</th>
-                  <th className="font-bold text-center">Quiz Marks (Max 20)</th>
+                  <th className="font-bold text-center">Quiz Marks (Max {config.quiz})</th>
                 </tr>
               </thead>
               <tbody>
@@ -273,7 +278,7 @@ const Quiz = () => {
                           <input 
                             type="number"
                             min="0"
-                            max="20"
+                            max={config.quiz}
                             step="0.5"
                             placeholder="N/A"
                             value={studentMark}

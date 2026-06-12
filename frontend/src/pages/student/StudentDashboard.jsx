@@ -6,7 +6,7 @@ import { toast } from 'react-toastify';
 import { motion } from 'framer-motion';
 import {
   BookOpen, Send, Clock, CheckCircle, XCircle,
-  Eye, RefreshCw, GraduationCap, User
+  Eye, RefreshCw, GraduationCap, User, BarChart2
 } from 'lucide-react';
 
 const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.08 } } };
@@ -77,18 +77,16 @@ const CourseCard = ({ course, onRequest, requesting, navigate }) => {
         </div>
 
         {/* Quick Metrics */}
-        <div className="grid grid-cols-3 gap-2 py-3 px-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl mb-5 border border-slate-100/50 dark:border-slate-800/50 text-center">
+        <div className="grid grid-cols-2 gap-2 py-3 px-4 bg-slate-50 dark:bg-slate-800/40 rounded-2xl mb-5 border border-slate-100/50 dark:border-slate-800/50 text-center">
           <div>
             <p className="text-[9px] uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Attendance</p>
             <p className="text-sm font-extrabold text-slate-800 dark:text-white mt-0.5">{course.attendancePercentage}%</p>
           </div>
-          <div className="border-x border-slate-100 dark:border-slate-800/60">
-            <p className="text-[9px] uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Grade</p>
-            <p className="text-sm font-extrabold text-primary mt-0.5">{course.currentGrade || '—'}</p>
-          </div>
-          <div>
-            <p className="text-[9px] uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider">Total Marks</p>
-            <p className="text-sm font-extrabold text-slate-800 dark:text-white mt-0.5">{course.totalMarks}/100</p>
+          <div className="border-l border-slate-100 dark:border-slate-800/60">
+            <p className="text-[9px] uppercase font-extrabold text-slate-400 dark:text-slate-500 tracking-wider flex items-center justify-center gap-1">
+              <BarChart2 size={9} /> Total Marks
+            </p>
+            <p className="text-sm font-extrabold text-primary mt-0.5">{course.totalMarks}<span className="text-slate-400 text-xs font-semibold">/75</span></p>
           </div>
         </div>
 
@@ -168,7 +166,6 @@ const StudentDashboard = () => {
   }, []);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCourses();
   }, [fetchCourses]);
 
@@ -180,7 +177,6 @@ const StudentDashboard = () => {
         teacherId: course.teacherId
       });
       toast.success(`Request sent for ${course.courseCode}`);
-      // Refresh courses to update status
       await fetchCourses();
     } catch (error) {
       toast.error(error.response?.data?.message || 'Failed to send request');

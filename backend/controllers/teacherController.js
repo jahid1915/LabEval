@@ -5,7 +5,6 @@ const Performance = require('../models/Performance');
 const Quiz       = require('../models/Quiz');
 const Test       = require('../models/Test');
 const Others     = require('../models/Others');
-const Viva       = require('../models/Viva');
 
 // @desc  Get students by dept + series query
 // @route GET /api/teacher/students/any?department=ETE&series=22
@@ -65,6 +64,27 @@ const bulkSaveAttendance = async (req, res) => {
 const saveLabRecord = async (req, res, Model) => {
   try {
     const { studentId, courseId, date, marks, status, type, dayName } = req.body;
+
+    // Validate marks against course's assessmentConfig if marks are provided
+    if (marks !== undefined && marks !== null) {
+      const Course = require('../models/Course');
+      const courseDoc = await Course.findOne({ courseCode: courseId.trim().toUpperCase(), teacherId: req.user.teacherId });
+      if (courseDoc && courseDoc.assessmentConfig) {
+        let configKey = '';
+        if (Model.modelName === 'Performance') configKey = 'performance';
+        else if (Model.modelName === 'Quiz') configKey = 'quiz';
+        else if (Model.modelName === 'Test') configKey = 'test';
+        else if (Model.modelName === 'Others') configKey = 'others';
+
+        if (configKey) {
+          const maxAllowed = courseDoc.assessmentConfig[configKey] ?? 75;
+          if (marks > maxAllowed) {
+            return res.status(400).json({ message: `Marks (${marks}) exceed maximum configured limit of ${maxAllowed} for ${configKey}.` });
+          }
+        }
+      }
+    }
+
     let query = { student: studentId, course: courseId };
     if (dayName) query.dayName = dayName;
     if (type)    query.type    = type;
@@ -95,7 +115,6 @@ const savePerformance = (req, res) => saveLabRecord(req, res, Performance);
 const saveQuiz        = (req, res) => saveLabRecord(req, res, Quiz);
 const saveTest        = (req, res) => saveLabRecord(req, res, Test);
 const saveOthers      = (req, res) => saveLabRecord(req, res, Others);
-const saveViva        = (req, res) => saveLabRecord(req, res, Viva);
 
 // ── Bulk save for marks tables (Quiz / Test / Others) ─────────────
 // @body { courseId, date, type (optional), records: [{ studentId, marks }] }
@@ -129,7 +148,6 @@ const getRecords = async (req, res) => {
       quiz:        Quiz,
       test:        Test,
       others:      Others,
-      viva:        Viva,
     };
     const ModelToUse = modelMap[model.toLowerCase()];
     if (!ModelToUse) return res.status(400).json({ message: 'Invalid model type' });
@@ -152,6 +170,5 @@ module.exports = {
   saveQuiz,
   saveTest,
   saveOthers,
-  saveViva,
   getRecords,
 };

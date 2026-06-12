@@ -18,7 +18,7 @@ const About = () => {
           <div className="bg-white dark:bg-slate-800 p-8 rounded-3xl border border-slate-100 dark:border-slate-700 shadow-sm mb-8">
             <h2 className="text-2xl font-heading font-bold text-slate-800 dark:text-white mb-4">Our Mission</h2>
             <p className="text-slate-600 dark:text-slate-300">
-              The primary goal of LabEval RUET is to transition traditional, paper-based laboratory assessments into a streamlined, secure, and fully transparent digital environment. By automating data entry, attendance tracking, and complex grade calculations, LabEval RUET empowers instructors to focus more on teaching and less on administrative overhead.
+              The primary goal of LabEval RUET is to transition traditional, paper-based laboratory assessments into a streamlined, secure, and fully transparent digital environment. By automating data entry, attendance tracking, and mark calculations, LabEval RUET empowers instructors to focus more on teaching and less on administrative overhead.
             </p>
           </div>
 
@@ -29,7 +29,8 @@ const About = () => {
                 <li>• Record daily attendance effortlessly</li>
                 <li>• Track lab report submissions</li>
                 <li>• Grade continuous performance</li>
-                <li>• Auto-calculate final lab grades</li>
+                <li>• Configure max marks per component (out of 75)</li>
+                <li>• Auto-calculate final totals out of 75</li>
                 <li>• Export official result sheets (PDF/Excel)</li>
               </ul>
             </div>
@@ -39,6 +40,7 @@ const About = () => {
               <ul className="space-y-2 text-emerald-800 dark:text-emerald-300 text-sm">
                 <li>• View attendance percentages in real-time</li>
                 <li>• Track submitted vs missing reports</li>
+                <li>• See total marks out of 75</li>
                 <li>• Request detailed marks breakdown securely</li>
                 <li>• Stay informed about academic standing</li>
               </ul>

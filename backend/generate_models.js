@@ -34,16 +34,6 @@ const performanceSchema = new mongoose.Schema({
 }, { timestamps: true });
 module.exports = mongoose.model('Performance', performanceSchema);`,
 
-  'Viva.js': `const mongoose = require('mongoose');
-const vivaSchema = new mongoose.Schema({
-  student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
-  course: { type: mongoose.Schema.Types.ObjectId, ref: 'Course', required: true },
-  date: { type: Date, required: true },
-  marks: { type: Number, min: 13, max: 25, required: true },
-  teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }
-}, { timestamps: true });
-module.exports = mongoose.model('Viva', vivaSchema);`,
-
   'Quiz.js': `const mongoose = require('mongoose');
 const quizSchema = new mongoose.Schema({
   student: { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
@@ -91,12 +81,10 @@ const finalResultSchema = new mongoose.Schema({
   attendanceMarks: { type: Number, default: 0 },
   reportMarks: { type: Number, default: 0 },
   performanceMarks: { type: Number, default: 0 },
-  vivaMarks: { type: Number, default: 0 },
   quizMarks: { type: Number, default: 0 },
   testMarks: { type: Number, default: 0 },
   othersMarks: { type: Number, default: 0 },
   totalMarks: { type: Number, default: 0 },
-  grade: { type: String },
   teacher: { type: mongoose.Schema.Types.ObjectId, ref: 'Teacher' }
 }, { timestamps: true });
 module.exports = mongoose.model('FinalResult', finalResultSchema);`

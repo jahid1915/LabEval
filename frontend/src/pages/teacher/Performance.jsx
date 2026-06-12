@@ -9,6 +9,7 @@ const Performance = () => {
   const [students, setStudents] = useState([]);
   const [perfRecords, setPerfRecords] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [config, setConfig] = useState({ performance: 5, quiz: 30, report: 10, attendance: 5, test: 20, others: 5 });
   const [currentDate, setCurrentDate] = useState(new Date().toISOString().split('T')[0]);
   const [dayName, setDayName] = useState('Day-1');
   const [isInitialLoad, setIsInitialLoad] = useState(true);
@@ -27,9 +28,10 @@ const Performance = () => {
     if (!series) { setLoading(false); return; }
     setLoading(true);
     try {
-      const [stuRes, perfRes] = await Promise.all([
+      const [stuRes, perfRes, configRes] = await Promise.all([
         api.get(`/teacher/students/any?department=${department}&series=${series}`),
-        api.get(`/teacher/records/performance/${courseId}`)
+        api.get(`/teacher/records/performance/${courseId}`),
+        course?._id ? api.get(`/teacher/courses/${course._id}/config`) : Promise.resolve({ data: null })
       ]);
 
       let allStudents = stuRes.data;
@@ -68,6 +70,9 @@ const Performance = () => {
 
       const dayPerfRecords = perfRes.data.filter(r => r.dayName === currentDay);
       setPerfRecords(dayPerfRecords);
+      if (configRes?.data?.config) {
+        setConfig(configRes.data.config);
+      }
     } catch {
       toast.error('Failed to load data');
     } finally {
@@ -248,7 +253,7 @@ const Performance = () => {
                       <td className="font-semibold text-slate-700 dark:text-slate-300">{student.name}</td>
                       <td className="py-4">
                         <div className="flex items-center justify-center gap-3">
-                          {[1, 2, 3, 4, 5].map((val) => {
+                          {Array.from({ length: Math.max(1, Math.floor(config.performance || 5)) }, (_, i) => i + 1).map((val) => {
                             const isSelected = studentMarks === val;
                             return (
                               <button

@@ -16,7 +16,7 @@ if (!teacherContent.includes('allocatedCourses')) {
 }
 
 // 2. Update lab models
-const labModels = ['Attendance.js', 'Report.js', 'Performance.js', 'Viva.js', 'Quiz.js', 'Test.js', 'Others.js', 'Request.js', 'FinalResult.js'];
+const labModels = ['Attendance.js', 'Report.js', 'Performance.js', 'Quiz.js', 'Test.js', 'Others.js', 'Request.js', 'FinalResult.js'];
 for (const file of labModels) {
   const filePath = path.join(modelsDir, file);
   if (fs.existsSync(filePath)) {

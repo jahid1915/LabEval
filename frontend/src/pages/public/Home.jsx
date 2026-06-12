@@ -79,7 +79,7 @@ const Home = () => {
           >
             {[
               { icon: <Activity className="text-blue-500 dark:text-blue-400" size={32} />, title: "Real-time Tracking", desc: "Monitor daily attendance, lab reports, and continuous performance effortlessly.", bg: "bg-blue-50 dark:bg-blue-950/40" },
-              { icon: <Zap className="text-amber-500 dark:text-amber-400" size={32} />, title: "Automated Grading", desc: "Instantly calculate final grades based on customizable weightages for quizzes and vivas.", bg: "bg-amber-50 dark:bg-amber-950/40" },
+              { icon: <Zap className="text-amber-500 dark:text-amber-400" size={32} />, title: "Configurable Marks", desc: "Teachers set custom maximum marks per component. Results auto-calculate out of 75 in real time.", bg: "bg-amber-50 dark:bg-amber-950/40" },
               { icon: <ShieldCheck className="text-emerald-500 dark:text-emerald-400" size={32} />, title: "Secure Access", desc: "Role-based authentication ensures data integrity and privacy for every user.", bg: "bg-emerald-50 dark:bg-emerald-950/40" },
               { icon: <BarChart3 className="text-purple-500 dark:text-purple-400" size={32} />, title: "Instant Reports", desc: "Export final comprehensive results to PDF or Excel with a single click.", bg: "bg-purple-50 dark:bg-purple-950/40" }
             ].map((feature, idx) => (

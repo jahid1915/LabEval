@@ -9,13 +9,18 @@ const {
   saveQuiz,
   saveTest,
   saveOthers,
-  saveViva,
   getRecords,
   bulkSaveAttendance,
 } = require('../controllers/teacherController');
 
 const { getFinalResults }    = require('../controllers/teacherResultController');
-const { getCourses, addCourse, deleteCourse } = require('../controllers/courseController');
+const {
+  getCourses,
+  addCourse,
+  deleteCourse,
+  getAssessmentConfig,
+  updateAssessmentConfig
+} = require('../controllers/courseController');
 const { getTeacherRequests, updateRequest }   = require('../controllers/requestController');
 const { protect, teacherOnly }               = require('../middleware/authMiddleware');
 
@@ -26,6 +31,10 @@ router.use(teacherOnly);
 router.get('/courses',       getCourses);
 router.post('/courses',      addCourse);
 router.delete('/courses/:id', deleteCourse);
+
+// ── Assessment configuration (per course) ─────────────────────────
+router.get('/courses/:id/config',   getAssessmentConfig);
+router.patch('/courses/:id/config', updateAssessmentConfig);
 
 // ── Student fetch ──────────────────────────────────────────────────
 // GET /api/teacher/students/any?department=ETE&series=22
@@ -40,7 +49,6 @@ router.post('/performance',     savePerformance);
 router.post('/quiz',            saveQuiz);
 router.post('/test',            saveTest);
 router.post('/others',          saveOthers);
-router.post('/viva',            saveViva);
 
 // ── Records fetch ──────────────────────────────────────────────────
 router.get('/records/:model/:courseId', getRecords);

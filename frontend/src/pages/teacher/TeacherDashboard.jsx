@@ -5,7 +5,8 @@ import api from '../../api/axios';
 import { motion } from 'framer-motion';
 import {
   BookOpen, Activity, HelpCircle, FileCheck, ClipboardList,
-  TrendingUp, ChevronRight, Plus, Bell, CheckCircle, XCircle, Mic
+  TrendingUp, ChevronRight, Plus, Bell, CheckCircle, XCircle,
+  Settings, Save, AlertTriangle
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 
@@ -14,9 +15,19 @@ const MODULE_CARDS = [
   { title:'Lab Performance',     icon:<Activity className="w-7 h-7"/>,     color:'from-purple-500 to-fuchsia-500', shadow:'shadow-purple-500/30',path:'performance' },
   { title:'Lab Quiz',            icon:<HelpCircle className="w-7 h-7"/>,   color:'from-pink-500 to-rose-400',    shadow:'shadow-pink-500/30',   path:'quiz' },
   { title:'Lab Test',            icon:<FileCheck className="w-7 h-7"/>,    color:'from-indigo-500 to-blue-500',  shadow:'shadow-indigo-500/30', path:'test' },
-  { title:'Board Viva',          icon:<Mic className="w-7 h-7"/>,          color:'from-teal-500 to-cyan-400',    shadow:'shadow-teal-500/30',   path:'viva' },
   { title:'Others',              icon:<ClipboardList className="w-7 h-7"/>,color:'from-orange-500 to-amber-400', shadow:'shadow-orange-500/30', path:'others' },
   { title:'Final Result',        icon:<TrendingUp className="w-7 h-7"/>,   color:'from-emerald-500 to-teal-400', shadow:'shadow-emerald-500/30',path:'results' },
+];
+
+const TOTAL_MARKS = 75;
+
+const CONFIG_FIELDS = [
+  { key: 'performance', label: 'Lab Performance', color: 'text-purple-600 dark:text-purple-400' },
+  { key: 'quiz',        label: 'Lab Quiz',        color: 'text-pink-600 dark:text-pink-400' },
+  { key: 'report',      label: 'Lab Report',      color: 'text-blue-600 dark:text-blue-400' },
+  { key: 'attendance',  label: 'Lab Attendance',  color: 'text-cyan-600 dark:text-cyan-400' },
+  { key: 'test',        label: 'Lab Test',        color: 'text-indigo-600 dark:text-indigo-400' },
+  { key: 'others',      label: 'Others',          color: 'text-orange-600 dark:text-orange-400' },
 ];
 
 const item = { hidden:{ y:20, opacity:0 }, show:{ y:0, opacity:1, transition:{ type:'spring', stiffness:100 } } };
@@ -33,6 +44,12 @@ export default function TeacherDashboard() {
   });
   const [requests, setRequests]       = useState([]);
   const [courseRequests, setCourseRequests] = useState([]);
+
+  // Assessment config state
+  const [config, setConfig]       = useState(null);
+  const [configDraft, setConfigDraft] = useState(null);
+  const [configLoading, setConfigLoading] = useState(false);
+  const [configSaving, setConfigSaving]   = useState(false);
 
   const fetchCourses = async () => {
     setLoading(true);
@@ -57,18 +74,27 @@ export default function TeacherDashboard() {
     } catch { /* silent */ }
   }, []);
 
+  const fetchConfig = useCallback(async (courseId) => {
+    setConfigLoading(true);
+    try {
+      const { data } = await api.get(`/teacher/courses/${courseId}/config`);
+      setConfig(data.config);
+      setConfigDraft({ ...data.config });
+    } catch { toast.error('Could not load assessment configuration'); }
+    finally { setConfigLoading(false); }
+  }, []);
+
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchCourses();
     fetchRequests();
   }, []);
 
   useEffect(() => {
     if (selectedCourse) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
       fetchCourseRequests(selectedCourse.courseCode);
+      fetchConfig(selectedCourse._id);
     }
-  }, [selectedCourse, fetchCourseRequests]);
+  }, [selectedCourse, fetchCourseRequests, fetchConfig]);
 
   const handleCourseSelect = (course) => {
     sessionStorage.setItem('selectedCourse', JSON.stringify(course));
@@ -93,6 +119,33 @@ export default function TeacherDashboard() {
       setCourseRequests(prev => prev.map(r => r._id === id ? data : r));
       toast.success(`Request ${status}`);
     } catch { toast.error('Failed to update request'); }
+  };
+
+  const handleConfigChange = (key, value) => {
+    const num = parseFloat(value);
+    setConfigDraft(prev => ({ ...prev, [key]: isNaN(num) ? 0 : Math.max(0, num) }));
+  };
+
+  const configTotal = configDraft
+    ? Object.values(configDraft).reduce((s, v) => s + (parseFloat(v) || 0), 0)
+    : 0;
+  const configValid = Math.round(configTotal * 100) / 100 === TOTAL_MARKS;
+
+  const handleSaveConfig = async () => {
+    if (!configValid) {
+      toast.error(`Total must equal ${TOTAL_MARKS}. Current: ${configTotal}`);
+      return;
+    }
+    setConfigSaving(true);
+    try {
+      await api.patch(`/teacher/courses/${selectedCourse._id}/config`, configDraft);
+      setConfig({ ...configDraft });
+      toast.success('Assessment configuration saved!');
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to save configuration');
+    } finally {
+      setConfigSaving(false);
+    }
   };
 
   // ── Course Selection Screen ────────────────────────────────────────
@@ -227,6 +280,111 @@ export default function TeacherDashboard() {
           </motion.div>
         ))}
       </motion.div>
+
+      {/* ── Assessment Configuration Section ─────────────────────── */}
+      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
+        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Settings size={18} className="text-primary" />
+            </div>
+            <div>
+              <h2 className="font-heading font-bold text-lg text-slate-800 dark:text-white">Assessment Configuration</h2>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Configure maximum marks for each component. Total must equal {TOTAL_MARKS}.</p>
+            </div>
+          </div>
+          {/* Running total badge */}
+          <div className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
+            configValid
+              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
+              : 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400'
+          }`}>
+            {Math.round(configTotal * 100) / 100} / {TOTAL_MARKS}
+          </div>
+        </div>
+
+        {configLoading ? (
+          <div className="p-10 flex justify-center">
+            <span className="loading loading-spinner text-primary" />
+          </div>
+        ) : configDraft ? (
+          <div className="p-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-5">
+              {CONFIG_FIELDS.map(field => (
+                <div key={field.key} className="flex flex-col gap-1.5">
+                  <label className={`text-xs font-extrabold uppercase tracking-wider ${field.color}`}>
+                    {field.label}
+                  </label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.5"
+                      value={configDraft[field.key]}
+                      onChange={(e) => handleConfigChange(field.key, e.target.value)}
+                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-center font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
+                    />
+                  </div>
+                  {config && (
+                    <p className="text-[10px] text-slate-400 text-center">
+                      Current: <span className="font-bold">{config[field.key]}</span>
+                    </p>
+                  )}
+                </div>
+              ))}
+            </div>
+
+            {/* Validation warning */}
+            {!configValid && configTotal > 0 && (
+              <div className="flex items-center gap-2 px-4 py-3 mb-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl text-sm text-amber-700 dark:text-amber-400 font-semibold">
+                <AlertTriangle size={16} />
+                Total must equal {TOTAL_MARKS}. Current total: {Math.round(configTotal * 100) / 100}. Difference: {Math.round((TOTAL_MARKS - configTotal) * 100) / 100}
+              </div>
+            )}
+
+            {/* Mark distribution visual */}
+            <div className="mb-5 flex rounded-full overflow-hidden h-3">
+              {CONFIG_FIELDS.map((field, idx) => {
+                const pct = configTotal > 0 ? (configDraft[field.key] / TOTAL_MARKS) * 100 : 0;
+                const colors = ['bg-purple-500','bg-pink-500','bg-blue-500','bg-cyan-500','bg-indigo-500','bg-orange-500'];
+                return (
+                  <div
+                    key={field.key}
+                    style={{ width: `${pct}%` }}
+                    className={`${colors[idx]} transition-all duration-300`}
+                    title={`${field.label}: ${configDraft[field.key]}`}
+                  />
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div className="flex flex-wrap gap-x-4 gap-y-1 mb-5 text-xs text-slate-500 dark:text-slate-400">
+              {CONFIG_FIELDS.map((field, idx) => {
+                const dotColors = ['bg-purple-500','bg-pink-500','bg-blue-500','bg-cyan-500','bg-indigo-500','bg-orange-500'];
+                return (
+                  <span key={field.key} className="flex items-center gap-1.5">
+                    <span className={`w-2.5 h-2.5 rounded-full ${dotColors[idx]}`} />
+                    {field.label} ({configDraft[field.key]})
+                  </span>
+                );
+              })}
+            </div>
+
+            <button
+              onClick={handleSaveConfig}
+              disabled={!configValid || configSaving}
+              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-sm shadow-md shadow-primary/25 hover:bg-primary-focus transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {configSaving
+                ? <span className="loading loading-spinner loading-sm" />
+                : <Save size={16} />
+              }
+              Save Configuration
+            </button>
+          </div>
+        ) : null}
+      </div>
 
       {/* ── Student Mark Requests for this course ─────────────────── */}
       {courseRequests.length > 0 && (

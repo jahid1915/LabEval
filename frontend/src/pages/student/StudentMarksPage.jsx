@@ -4,32 +4,27 @@ import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  ArrowLeft, Award, ClipboardList, Activity, Mic, HelpCircle,
+  ArrowLeft, Award, ClipboardList, Activity, HelpCircle,
   FileCheck, Layers, CheckCircle, XCircle, ChevronDown, Calendar
 } from 'lucide-react';
 
-const MARK_CATEGORIES = [
-  { key: 'attendance',  label: 'Attendance',       icon: <ClipboardList size={20} />, color: 'from-blue-500 to-cyan-400',    shadow: 'shadow-blue-500/20' },
-  { key: 'report',      label: 'Lab Report',       icon: <ClipboardList size={20} />, color: 'from-indigo-500 to-blue-400',  shadow: 'shadow-indigo-500/20' },
-  { key: 'performance', label: 'Lab Performance',  icon: <Activity size={20} />,      color: 'from-purple-500 to-fuchsia-500', shadow: 'shadow-purple-500/20' },
-  { key: 'viva',        label: 'Board Viva',       icon: <Mic size={20} />,           color: 'from-teal-500 to-cyan-400',    shadow: 'shadow-teal-500/20' },
-  { key: 'quiz',        label: 'Lab Quiz',         icon: <HelpCircle size={20} />,    color: 'from-pink-500 to-rose-400',    shadow: 'shadow-pink-500/20' },
-  { key: 'test',        label: 'Lab Test',         icon: <FileCheck size={20} />,     color: 'from-orange-500 to-amber-400', shadow: 'shadow-orange-500/20' },
-  { key: 'others',      label: 'Others',           icon: <Layers size={20} />,        color: 'from-emerald-500 to-teal-400', shadow: 'shadow-emerald-500/20' },
-];
-
-const gradeColorMap = {
-  'A+': 'from-emerald-400 to-green-500',
-  'A':  'from-emerald-400 to-teal-500',
-  'A-': 'from-teal-400 to-cyan-500',
-  'B+': 'from-blue-400 to-indigo-500',
-  'B':  'from-blue-400 to-blue-600',
-  'B-': 'from-indigo-400 to-purple-500',
-  'C+': 'from-amber-400 to-orange-500',
-  'C':  'from-orange-400 to-red-500',
-  'D':  'from-rose-400 to-red-500',
-  'F':  'from-red-500 to-red-700',
+const DEFAULT_CONFIG = {
+  performance: 5,
+  quiz:        30,
+  report:      10,
+  attendance:  5,
+  test:        20,
+  others:      5,
 };
+
+const MARK_CATEGORIES = [
+  { key: 'attendance',  label: 'Attendance',      icon: <ClipboardList size={20} />, color: 'from-blue-500 to-cyan-400',    shadow: 'shadow-blue-500/20' },
+  { key: 'report',      label: 'Lab Report',      icon: <ClipboardList size={20} />, color: 'from-indigo-500 to-blue-400',  shadow: 'shadow-indigo-500/20' },
+  { key: 'performance', label: 'Lab Performance', icon: <Activity size={20} />,      color: 'from-purple-500 to-fuchsia-500', shadow: 'shadow-purple-500/20' },
+  { key: 'quiz',        label: 'Lab Quiz',        icon: <HelpCircle size={20} />,    color: 'from-pink-500 to-rose-400',    shadow: 'shadow-pink-500/20' },
+  { key: 'test',        label: 'Lab Test',        icon: <FileCheck size={20} />,     color: 'from-orange-500 to-amber-400', shadow: 'shadow-orange-500/20' },
+  { key: 'others',      label: 'Others',          icon: <Layers size={20} />,        color: 'from-emerald-500 to-teal-400', shadow: 'shadow-emerald-500/20' },
+];
 
 const ProgressBar = ({ value, max, colorClass }) => {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0;
@@ -150,7 +145,6 @@ const StudentMarksPage = () => {
   }, [courseCode, navigate]);
 
   useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     fetchMarks();
   }, [fetchMarks]);
 
@@ -164,13 +158,21 @@ const StudentMarksPage = () => {
 
   if (!data) return null;
 
-  const { course, marks, totalMark, grade, gradePoint, records } = data;
-  const gradientClass = gradeColorMap[grade] || 'from-slate-400 to-slate-500';
+  const { course, marks, totalMark, totalMax, records } = data;
+  const maxTotal = totalMax || 75;
+  const totalPct = maxTotal > 0 ? Math.min((totalMark / maxTotal) * 100, 100) : 0;
 
   const formatDate = (d) => {
     if (!d) return '—';
     return new Date(d).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' });
   };
+
+  // Color for progress bar based on percentage
+  const totalColorClass =
+    totalPct >= 80 ? 'from-emerald-400 to-teal-500' :
+    totalPct >= 60 ? 'from-blue-400 to-indigo-500' :
+    totalPct >= 40 ? 'from-amber-400 to-orange-500' :
+    'from-rose-400 to-red-500';
 
   return (
     <div className="max-w-6xl mx-auto space-y-8">
@@ -195,7 +197,7 @@ const StudentMarksPage = () => {
         </div>
       </div>
 
-      {/* Grade Summary */}
+      {/* Total Marks Summary */}
       <motion.div
         initial={{ y: 20, opacity: 0 }}
         animate={{ y: 0, opacity: 1 }}
@@ -203,11 +205,11 @@ const StudentMarksPage = () => {
         className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden"
       >
         <div className="p-6 md:p-8 flex flex-col sm:flex-row items-center gap-6">
-          {/* Grade Circle */}
-          <div className={`w-28 h-28 rounded-full bg-gradient-to-br ${gradientClass} flex items-center justify-center shadow-2xl shrink-0`}>
+          {/* Score Circle */}
+          <div className={`w-28 h-28 rounded-full bg-gradient-to-br ${totalColorClass} flex items-center justify-center shadow-2xl shrink-0`}>
             <div className="w-24 h-24 rounded-full bg-white dark:bg-slate-900 flex flex-col items-center justify-center">
-              <span className="text-3xl font-heading font-extrabold text-slate-800 dark:text-white">{grade}</span>
-              <span className="text-xs text-slate-400 font-bold">GP: {gradePoint.toFixed(2)}</span>
+              <span className="text-3xl font-heading font-extrabold text-slate-800 dark:text-white">{totalMark}</span>
+              <span className="text-xs text-slate-400 font-bold">/{maxTotal}</span>
             </div>
           </div>
 
@@ -218,11 +220,12 @@ const StudentMarksPage = () => {
             </h2>
             <div className="flex items-end gap-2 justify-center sm:justify-start mb-3">
               <span className="text-5xl font-heading font-extrabold text-primary">{totalMark}</span>
-              <span className="text-xl text-slate-400 font-bold mb-1">/100</span>
+              <span className="text-xl text-slate-400 font-bold mb-1">/{maxTotal}</span>
             </div>
             <div className="w-full max-w-md">
-              <ProgressBar value={totalMark} max={100} colorClass={gradientClass} />
+              <ProgressBar value={totalMark} max={maxTotal} colorClass={totalColorClass} />
             </div>
+            <p className="text-sm text-slate-500 dark:text-slate-400 mt-2">{totalPct.toFixed(1)}% of total marks achieved</p>
           </div>
 
           {/* Award Icon */}
@@ -238,11 +241,13 @@ const StudentMarksPage = () => {
           <Calendar size={20} className="text-primary" />
           Marks Breakdown
         </h2>
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {MARK_CATEGORIES.map((cat, idx) => (
-            <motion.div key={cat.key} transition={{ delay: 0.05 * idx }}>
-              <MarkCard category={cat} markData={marks[cat.key]} />
-            </motion.div>
+            marks[cat.key] && (
+              <motion.div key={cat.key} transition={{ delay: 0.05 * idx }}>
+                <MarkCard category={cat} markData={marks[cat.key]} />
+              </motion.div>
+            )
           ))}
         </div>
       </div>
@@ -297,7 +302,7 @@ const StudentMarksPage = () => {
               <tr key={idx} className="hover:bg-slate-50 dark:hover:bg-slate-800/50 transition-colors">
                 <td className="py-2.5 px-4 text-slate-700 dark:text-slate-300">{formatDate(r.date)}</td>
                 <td className="py-2.5 px-4 text-slate-500 dark:text-slate-400">{r.dayName}</td>
-                <td className="py-2.5 px-4 text-right font-bold text-slate-800 dark:text-white">{r.marks}/5</td>
+                <td className="py-2.5 px-4 text-right font-bold text-slate-800 dark:text-white">{r.marks}</td>
               </tr>
             )}
           />

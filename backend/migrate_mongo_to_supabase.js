@@ -152,11 +152,10 @@ async function run() {
       }
     };
 
-    // 4. Migrate attendance, reports, performances, vivas, quizzes, tests, others, requests
+    // 4. Migrate attendance, reports, performances, quizzes, tests, others, requests
     await migrateRecords('attendances', 'attendance', 'attendance records');
     await migrateRecords('reports', 'reports', 'report records');
     await migrateRecords('performances', 'performances', 'performance records');
-    await migrateRecords('vivas', 'vivas', 'viva records');
     await migrateRecords('quizzes', 'quizzes', 'quiz records');
     await migrateRecords('tests', 'tests', 'test records');
     await migrateRecords('others', 'others', 'other records');
