@@ -6,6 +6,9 @@ const Quiz       = require('../models/Quiz');
 const Test       = require('../models/Test');
 const Others     = require('../models/Others');
 const Course     = require('../models/Course');
+const CourseOffering = require('../models/CourseOffering');
+const FinalResult = require('../models/FinalResult');
+const { logAudit } = require('../middleware/auditMiddleware');
 
 // Default assessment config (must sum to 75)
 const DEFAULT_CONFIG = {
@@ -17,40 +20,47 @@ const DEFAULT_CONFIG = {
   others:      5,
 };
 
-// Resolve effective config from course document (fallback to defaults)
-const resolveConfig = (course) => ({
-  performance: course?.assessmentConfig?.performance ?? DEFAULT_CONFIG.performance,
-  quiz:        course?.assessmentConfig?.quiz        ?? DEFAULT_CONFIG.quiz,
-  report:      course?.assessmentConfig?.report      ?? DEFAULT_CONFIG.report,
-  attendance:  course?.assessmentConfig?.attendance  ?? DEFAULT_CONFIG.attendance,
-  test:        course?.assessmentConfig?.test        ?? DEFAULT_CONFIG.test,
-  others:      course?.assessmentConfig?.others      ?? DEFAULT_CONFIG.others,
+const resolveConfig = (sourceDoc) => ({
+  performance: sourceDoc?.assessmentConfig?.performance ?? DEFAULT_CONFIG.performance,
+  quiz:        sourceDoc?.assessmentConfig?.quiz        ?? DEFAULT_CONFIG.quiz,
+  report:      sourceDoc?.assessmentConfig?.report      ?? DEFAULT_CONFIG.report,
+  attendance:  sourceDoc?.assessmentConfig?.attendance  ?? DEFAULT_CONFIG.attendance,
+  test:        sourceDoc?.assessmentConfig?.test        ?? DEFAULT_CONFIG.test,
+  others:      sourceDoc?.assessmentConfig?.others      ?? DEFAULT_CONFIG.others,
 });
 
-// Att/Report percentage → mark scaled to configured max
 const getPercentageMark = (percentage, maxMark) => {
   if (percentage >= 90) return maxMark;
   if (percentage >= 80) return Math.round((maxMark * 0.9) * 100) / 100;
   if (percentage >= 70) return Math.round((maxMark * 0.8) * 100) / 100;
   if (percentage >= 60) return Math.round((maxMark * 0.7) * 100) / 100;
-  return 0; // below 60% → not eligible
+  return 0;
 };
 
-// @desc    Calculate and get final results for a course (Total: 75)
-// @route   GET /api/teacher/results/:courseId
-// Mark Distribution: Attendance + Report + Performance + Quiz + Test + Others = 75 (teacher-configured)
+// @desc Calculate and get final results for a course (Total: 75)
+// @route GET /api/teacher/results/:courseId
 const getFinalResults = async (req, res) => {
   try {
     const { courseId } = req.params;
-    const { department, series } = req.query;
+    const { department, series, offeringId } = req.query;
 
     let query = {};
-    if (department) query.department = department;
+    if (department) query.department = department.toUpperCase();
     if (series)     query.series = series;
 
-    // Fetch course to get assessment config
-    const course = await Course.findOne({ courseCode: courseId });
-    const cfg    = resolveConfig(course);
+    // Fetch offering or course config
+    let configDoc = null;
+    let offeringDoc = null;
+    if (offeringId && offeringId.match(/^[0-9a-fA-F]{24}$/)) {
+      offeringDoc = await CourseOffering.findById(offeringId);
+      configDoc = offeringDoc;
+    }
+    if (!configDoc) {
+      offeringDoc = await CourseOffering.findOne({ courseCode: courseId.trim().toUpperCase() });
+      configDoc = offeringDoc || await Course.findOne({ courseCode: courseId.trim().toUpperCase() });
+    }
+
+    const cfg = resolveConfig(configDoc);
 
     const students     = await Student.find(query).sort({ rollNumber: 1 });
     const attendances  = await Attendance.find({ course: courseId });
@@ -59,44 +69,48 @@ const getFinalResults = async (req, res) => {
     const quizzes      = await Quiz.find({ course: courseId });
     const tests        = await Test.find({ course: courseId });
     const others       = await Others.find({ course: courseId });
+    const finalSaved   = await FinalResult.find({ course: courseId });
 
-    // Total classes = number of unique attendance days recorded
+    // Total unique attendance days recorded
     const uniqueDates = [...new Set(attendances.map(a => a.dayName))];
     const totalClassesTaken = uniqueDates.length || 1;
 
     const results = students.map(student => {
       const stuId = student._id.toString();
 
-      // Attendance (max = cfg.attendance) — percentage-based
+      // Attendance
       const stuAtt      = attendances.filter(a => a.student.toString() === stuId);
       const presentCount = stuAtt.filter(a => a.status === 'Present').length;
       const attPct       = (presentCount / totalClassesTaken) * 100;
       const attMark      = getPercentageMark(attPct, cfg.attendance);
 
-      // Report (max = cfg.report) — percentage-based
+      // Report
       const stuRep       = reports.filter(r => r.student.toString() === stuId);
       const submittedCnt = stuRep.filter(r => r.status === 'Submitted').length;
       const repPct       = (submittedCnt / totalClassesTaken) * 100;
       const repMark      = getPercentageMark(repPct, cfg.report);
 
-      // Performance (max = cfg.performance) — average of all daily marks
+      // Performance (average)
       const stuPerf  = performances.filter(p => p.student.toString() === stuId);
       const perfMark = stuPerf.length > 0
         ? Math.round((stuPerf.reduce((s, p) => s + p.marks, 0) / stuPerf.length) * 100) / 100
         : 0;
 
-      // Quiz (max = cfg.quiz) — latest record wins
+      // Quiz
       const quizMark = quizzes.find(q => q.student.toString() === stuId)?.marks || 0;
 
-      // Test (max = cfg.test) — latest record wins
+      // Test
       const testMark = tests.find(t => t.student.toString() === stuId)?.marks || 0;
 
-      // Others (max = cfg.others) — sum across sub-types, capped at configured max
+      // Others
       const stuOthers  = others.filter(o => o.student.toString() === stuId);
       const otherMark  = Math.min(stuOthers.reduce((s, o) => s + o.marks, 0), cfg.others);
 
       // Total out of 75
       const totalMark = Math.round((attMark + repMark + perfMark + quizMark + testMark + otherMark) * 100) / 100;
+
+      // Find if already saved in FinalResult
+      const saved = finalSaved.find(f => f.student.toString() === stuId);
 
       return {
         student: { _id: student._id, name: student.name, rollNumber: student.rollNumber },
@@ -110,6 +124,8 @@ const getFinalResults = async (req, res) => {
         attPct: Math.round(attPct),
         warning: attPct < 60 ? 'Attendance below 60%' : null,
         config: cfg,
+        status: saved?.status || (offeringDoc?.isMarksPublished ? 'published' : 'draft'),
+        isPublished: saved?.isPublished || !!offeringDoc?.isMarksPublished
       };
     });
 
@@ -119,4 +135,55 @@ const getFinalResults = async (req, res) => {
   }
 };
 
-module.exports = { getFinalResults };
+// @desc Save / Submit / Sync Mark Sheet
+// @route POST /api/teacher/results/:courseId/submit
+const submitMarkSheet = async (req, res) => {
+  try {
+    const { courseId } = req.params;
+    const { records, status = 'submitted' } = req.body;
+    if (!Array.isArray(records)) {
+      return res.status(400).json({ message: 'records array is required' });
+    }
+
+    const offeringDoc = await CourseOffering.findOne({ courseCode: courseId.trim().toUpperCase() });
+
+    const ops = records.map(async (r) => {
+      return FinalResult.findOneAndUpdate(
+        { student: r.studentId, course: courseId },
+        {
+          student: r.studentId,
+          course: courseId,
+          courseOffering: offeringDoc?._id || null,
+          attendanceMarks: r.attendanceMark || 0,
+          reportMarks: r.reportMark || 0,
+          performanceMarks: r.perfMark || 0,
+          quizMarks: r.quizMark || 0,
+          testMarks: r.testMark || 0,
+          othersMarks: r.otherMark || 0,
+          totalMarks: r.totalMark || 0,
+          status,
+          teacher: req.user._id
+        },
+        { upsert: true, returnDocument: 'after' }
+      );
+    });
+
+    await Promise.all(ops);
+
+    await logAudit({
+      req,
+      action: 'SUBMIT_MARK_SHEET',
+      entity: 'FinalResult',
+      details: `${req.user.name} submitted marks for ${courseId} [Status: ${status}]`
+    });
+
+    res.json({ message: `Mark sheet ${status} successfully`, count: records.length });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+module.exports = {
+  getFinalResults,
+  submitMarkSheet
+};

@@ -1,4 +1,6 @@
 const Course      = require('../models/Course');
+const CourseOffering = require('../models/CourseOffering');
+const TeacherAssignment = require('../models/TeacherAssignment');
 const Teacher     = require('../models/Teacher');
 const Request     = require('../models/Request');
 const Attendance  = require('../models/Attendance');
@@ -8,7 +10,6 @@ const Quiz        = require('../models/Quiz');
 const Test        = require('../models/Test');
 const Others      = require('../models/Others');
 
-// Default assessment config (must sum to 75)
 const DEFAULT_CONFIG = {
   performance: 5,
   quiz:        30,
@@ -18,23 +19,21 @@ const DEFAULT_CONFIG = {
   others:      5,
 };
 
-// Resolve effective config from course document (fallback to defaults)
-const resolveConfig = (course) => ({
-  performance: course?.assessmentConfig?.performance ?? DEFAULT_CONFIG.performance,
-  quiz:        course?.assessmentConfig?.quiz        ?? DEFAULT_CONFIG.quiz,
-  report:      course?.assessmentConfig?.report      ?? DEFAULT_CONFIG.report,
-  attendance:  course?.assessmentConfig?.attendance  ?? DEFAULT_CONFIG.attendance,
-  test:        course?.assessmentConfig?.test        ?? DEFAULT_CONFIG.test,
-  others:      course?.assessmentConfig?.others      ?? DEFAULT_CONFIG.others,
+const resolveConfig = (sourceDoc) => ({
+  performance: sourceDoc?.assessmentConfig?.performance ?? DEFAULT_CONFIG.performance,
+  quiz:        sourceDoc?.assessmentConfig?.quiz        ?? DEFAULT_CONFIG.quiz,
+  report:      sourceDoc?.assessmentConfig?.report      ?? DEFAULT_CONFIG.report,
+  attendance:  sourceDoc?.assessmentConfig?.attendance  ?? DEFAULT_CONFIG.attendance,
+  test:        sourceDoc?.assessmentConfig?.test        ?? DEFAULT_CONFIG.test,
+  others:      sourceDoc?.assessmentConfig?.others      ?? DEFAULT_CONFIG.others,
 });
 
-// Att/Report percentage → mark scaled to configured max
 const getPercentageMark = (percentage, maxMark) => {
   if (percentage >= 90) return maxMark;
   if (percentage >= 80) return Math.round((maxMark * 0.9) * 100) / 100;
   if (percentage >= 70) return Math.round((maxMark * 0.8) * 100) / 100;
   if (percentage >= 60) return Math.round((maxMark * 0.7) * 100) / 100;
-  return 0; // below 60% → not eligible
+  return 0;
 };
 
 // @desc    Get all courses matching student's department & series, with request status and summary metrics
@@ -43,27 +42,73 @@ const getStudentCourses = async (req, res) => {
   try {
     const student = req.user;
     const { department, series } = student;
+    const cleanDept = department.toUpperCase();
 
-    // Find all courses matching the student's dept & series
-    const courses = await Course.find({
-      department: department.toUpperCase(),
-      series:     series
+    // 1. Fetch CourseOfferings for this dept & series
+    const offerings = await CourseOffering.find({
+      departmentCode: cleanDept,
+      seriesName: series,
+      status: 'active'
     }).sort({ createdAt: -1 });
+
+    // 2. Fetch legacy courses
+    const legacyCourses = await Course.find({
+      department: cleanDept,
+      series: series
+    }).sort({ createdAt: -1 });
+
+    // Build unified course list
+    const combinedCourses = [];
+    offerings.forEach(off => {
+      combinedCourses.push({
+        _id: off._id,
+        offeringId: off._id,
+        courseCode: off.courseCode,
+        courseName: off.courseName,
+        series: off.seriesName,
+        department: off.departmentCode,
+        sessionName: off.sessionName,
+        semesterName: off.semesterName,
+        assessmentConfig: off.assessmentConfig || DEFAULT_CONFIG,
+        isMarksPublished: off.isMarksPublished,
+        isOffering: true
+      });
+    });
+
+    legacyCourses.forEach(lc => {
+      if (!combinedCourses.some(c => c.courseCode === lc.courseCode)) {
+        combinedCourses.push({
+          _id: lc._id,
+          courseCode: lc.courseCode,
+          courseName: lc.courseName,
+          series: lc.series,
+          department: lc.departmentCode || lc.department,
+          teacherId: lc.teacherId,
+          assessmentConfig: lc.assessmentConfig || DEFAULT_CONFIG,
+          isMarksPublished: false,
+          isOffering: false
+        });
+      }
+    });
+
+    const courseCodes = combinedCourses.map(c => c.courseCode);
 
     // Get all requests by this student
     const requests = await Request.find({ student: student._id });
     const requestMap = {};
     requests.forEach(r => { requestMap[r.course] = r; });
 
-    // Get teacher names for all unique teacherIds
-    const teacherIds = [...new Set(courses.map(c => c.teacherId))];
-    const teachers = await Teacher.find({ teacherId: { $in: teacherIds } }).select('teacherId name');
-    const teacherNameMap = {};
-    teachers.forEach(t => { teacherNameMap[t.teacherId] = t.name; });
+    // Fetch teacher assignments for offerings
+    const offeringIds = offerings.map(o => o._id);
+    const assignments = await TeacherAssignment.find({ courseOffering: { $in: offeringIds }, status: 'active' })
+      .populate('teacher', 'name teacherId designation');
+    
+    const offeringTeacherMap = {};
+    assignments.forEach(a => {
+      offeringTeacherMap[a.courseOffering.toString()] = a.teacher?.name || a.teacherId;
+    });
 
-    const courseCodes = courses.map(c => c.courseCode);
-
-    // Fetch all records for this student and all matching courses in bulk
+    // Bulk fetch evaluation records
     const [
       allAttendances,
       allReports,
@@ -82,7 +127,6 @@ const getStudentCourses = async (req, res) => {
       Attendance.find({ course: { $in: courseCodes } })
     ]);
 
-    // Group records by courseCode for instant memory lookup
     const attByCourse    = {};
     const repByCourse    = {};
     const perfByCourse   = {};
@@ -109,10 +153,9 @@ const getStudentCourses = async (req, res) => {
     allOthers.forEach(o       => { if (otherByCourse[o.course])  otherByCourse[o.course].push(o); });
     allCourseAttendances.forEach(a => { if (allAttByCourse[a.course]) allAttByCourse[a.course].push(a); });
 
-    // Build response with summary calculations
-    const result = courses.map(course => {
+    const result = combinedCourses.map(course => {
       const courseCode = course.courseCode;
-      const cfg        = resolveConfig(course);
+      const cfg = resolveConfig(course);
 
       const attendances  = attByCourse[courseCode]   || [];
       const reports      = repByCourse[courseCode]   || [];
@@ -145,20 +188,24 @@ const getStudentCourses = async (req, res) => {
       const testMark  = tests.length > 0 ? tests[tests.length - 1].marks : 0;
       const otherMark = Math.min(others.reduce((s, o) => s + o.marks, 0), cfg.others);
 
-      // Total out of 75
       const totalMark = Math.round((attMark + repMark + perfMark + quizMark + testMark + otherMark) * 100) / 100;
+
+      const teacherName = course.offeringId 
+        ? (offeringTeacherMap[course.offeringId.toString()] || 'Faculty Assigned')
+        : (course.teacherId || 'Faculty');
 
       return {
         _id:         course._id,
-        courseCode:   course.courseCode,
+        offeringId:  course.offeringId,
+        courseCode:  course.courseCode,
         courseName:  course.courseName,
         series:      course.series,
         department:  course.department,
-        teacherId:   course.teacherId,
-        teacherName: teacherNameMap[course.teacherId] || course.teacherId,
+        teacherName,
+        isMarksPublished: !!course.isMarksPublished,
         attendancePercentage: Math.round(attPct),
         totalMarks: totalMark,
-        request:     requestMap[course.courseCode]
+        request: requestMap[course.courseCode]
           ? {
               _id:    requestMap[course.courseCode]._id,
               status: requestMap[course.courseCode].status
@@ -173,35 +220,39 @@ const getStudentCourses = async (req, res) => {
   }
 };
 
-// @desc    Get full marks breakdown for a student in a course (only if Accepted)
+// @desc    Get full marks breakdown for a student in a course
 // @route   GET /api/student/marks/:courseCode
 const getStudentMarks = async (req, res) => {
   try {
     const studentId  = req.user._id;
-    const courseCode  = req.params.courseCode;
+    const courseCode = req.params.courseCode.trim().toUpperCase();
 
-    // Check that student has an Accepted request for this course
+    // Check course offering or legacy course
+    const offering = await CourseOffering.findOne({
+      courseCode,
+      departmentCode: req.user.department,
+      seriesName: req.user.series
+    });
+
+    const isPublished = offering?.isMarksPublished;
+
+    // Check request status
     const request = await Request.findOne({
       student: studentId,
       course:  courseCode,
       status:  'Accepted'
     });
-    if (!request) {
-      return res.status(403).json({ message: 'Marks access not granted. Request approval from your teacher first.' });
+
+    // If neither published nor request accepted, require request
+    if (!isPublished && !request) {
+      return res.status(403).json({
+        message: 'Marks access not granted yet. The teacher will publish marks soon, or you may request access.'
+      });
     }
 
-    // Get course info (includes assessmentConfig)
-    const course = await Course.findOne({ courseCode, department: req.user.department, series: req.user.series });
-    if (!course) {
-      return res.status(404).json({ message: 'Course not found' });
-    }
+    const cfg = resolveConfig(offering || await Course.findOne({ courseCode }));
 
-    const cfg = resolveConfig(course);
-
-    // Get teacher name
-    const teacher = await Teacher.findOne({ teacherId: course.teacherId }).select('name teacherId');
-
-    // Fetch all records for this student + course
+    // Fetch records
     const attendances  = await Attendance.find({ student: studentId, course: courseCode }).sort({ date: 1 });
     const reports      = await Report.find({ student: studentId, course: courseCode }).sort({ date: 1 });
     const performances = await Performance.find({ student: studentId, course: courseCode }).sort({ date: 1 });
@@ -209,47 +260,39 @@ const getStudentMarks = async (req, res) => {
     const tests        = await Test.find({ student: studentId, course: courseCode });
     const others       = await Others.find({ student: studentId, course: courseCode });
 
-    // Also fetch ALL attendance for this course to get total classes
     const allAttendance = await Attendance.find({ course: courseCode });
     const uniqueDates   = [...new Set(allAttendance.map(a => a.dayName))];
     const totalClasses  = uniqueDates.length || 1;
 
-    // ── Calculate marks ─────────────────────────────────────────────
-    // Attendance (max = cfg.attendance)
+    // Attendance
     const presentCount = attendances.filter(a => a.status === 'Present').length;
     const attPct       = (presentCount / totalClasses) * 100;
     const attMark      = getPercentageMark(attPct, cfg.attendance);
 
-    // Report (max = cfg.report)
+    // Report
     const submittedCount = reports.filter(r => r.status === 'Submitted').length;
     const repPct         = (submittedCount / totalClasses) * 100;
     const repMark        = getPercentageMark(repPct, cfg.report);
 
-    // Performance (max = cfg.performance) — average
+    // Performance
     const perfMark = performances.length > 0
       ? Math.round((performances.reduce((s, p) => s + p.marks, 0) / performances.length) * 100) / 100
       : 0;
 
-    // Quiz (max = cfg.quiz) — latest record
-    const quizMark = quizzes.length > 0 ? quizzes[quizzes.length - 1].marks : 0;
-
-    // Test (max = cfg.test) — latest record
-    const testMark = tests.length > 0 ? tests[tests.length - 1].marks : 0;
-
-    // Others (max = cfg.others) — sum capped at configured max
+    // Quiz, Test, Others
+    const quizMark  = quizzes.length > 0 ? quizzes[quizzes.length - 1].marks : 0;
+    const testMark  = tests.length > 0 ? tests[tests.length - 1].marks : 0;
     const otherMark = Math.min(others.reduce((s, o) => s + o.marks, 0), cfg.others);
 
-    // Total out of 75
     const totalMark = Math.round((attMark + repMark + perfMark + quizMark + testMark + otherMark) * 100) / 100;
 
     res.json({
       course: {
-        courseCode:   course.courseCode,
-        courseName:  course.courseName,
-        series:      course.series,
-        department:  course.department,
-        teacherName: teacher?.name || course.teacherId,
-        teacherId:   course.teacherId,
+        courseCode:  offering?.courseCode || courseCode,
+        courseName:  offering?.courseName || courseCode,
+        series:      offering?.seriesName || req.user.series,
+        department:  offering?.departmentCode || req.user.department,
+        isMarksPublished: !!isPublished
       },
       marks: {
         attendance:  { mark: attMark,   max: cfg.attendance,  percentage: Math.round(attPct),  present: presentCount,    total: totalClasses },

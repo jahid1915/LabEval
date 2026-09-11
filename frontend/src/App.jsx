@@ -14,9 +14,11 @@ import Home    from './pages/public/Home';
 import About   from './pages/public/About';
 import Contact from './pages/public/Contact';
 
-// Auth Pages (Unified with Slider)
-import TeacherAuth  from './pages/auth/TeacherAuth';
-import StudentAuth  from './pages/auth/StudentAuth';
+// Unified Customized Auth Page
+import AuthPage from './pages/auth/AuthPage';
+
+// Admin Pages
+import AdminDashboard from './pages/admin/AdminDashboard';
 
 // Teacher Pages
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
@@ -25,7 +27,6 @@ import Attendance       from './pages/teacher/Attendance';
 import Performance      from './pages/teacher/Performance';
 import Quiz             from './pages/teacher/Quiz';
 import Test             from './pages/teacher/Test';
-
 import Others           from './pages/teacher/Others';
 import FinalResult      from './pages/teacher/FinalResult';
 
@@ -41,9 +42,11 @@ const ProtectedRoute = ({ children, allowedRole }) => {
       <span className="loading loading-spinner text-primary loading-lg"></span>
     </div>
   );
-  if (!user) return <Navigate to="/login/teacher" replace />;
+  if (!user) return <Navigate to="/login" replace />;
   if (allowedRole && user.role !== allowedRole) {
-    return <Navigate to={user.role === 'teacher' ? '/teacher' : '/student'} replace />;
+    if (user.role === 'admin')   return <Navigate to="/admin" replace />;
+    if (user.role === 'teacher') return <Navigate to="/teacher" replace />;
+    return <Navigate to="/student" replace />;
   }
   return children;
 };
@@ -62,13 +65,24 @@ export default function App() {
               <Route path="/contact" element={<Contact />} />
             </Route>
 
-            {/* ── Auth Pages ────────────────────────────────────── */}
-            <Route path="/login/teacher"  element={<TeacherAuth />} />
-            <Route path="/signup/teacher" element={<TeacherAuth />} />
-            <Route path="/login/student"  element={<StudentAuth />} />
-            <Route path="/signup/student" element={<StudentAuth />} />
-            {/* Legacy /login redirect */}
-            <Route path="/login" element={<Navigate to="/login/teacher" replace />} />
+            {/* ── Unified & Customized Auth Portal ──────────────── */}
+            <Route path="/login"          element={<AuthPage />} />
+            <Route path="/signup"         element={<AuthPage />} />
+            <Route path="/auth"           element={<AuthPage />} />
+            <Route path="/login/student"  element={<AuthPage />} />
+            <Route path="/signup/student" element={<AuthPage />} />
+            <Route path="/login/teacher"  element={<AuthPage />} />
+            <Route path="/signup/teacher" element={<AuthPage />} />
+            <Route path="/login/admin"    element={<AuthPage />} />
+
+            {/* ── Admin Routes ──────────────────────────────────── */}
+            <Route path="/admin" element={
+              <ProtectedRoute allowedRole="admin">
+                <DashboardLayout />
+              </ProtectedRoute>
+            }>
+              <Route index element={<AdminDashboard />} />
+            </Route>
 
             {/* ── Teacher Routes ────────────────────────────────── */}
             <Route path="/teacher" element={
@@ -82,7 +96,6 @@ export default function App() {
               <Route path="performance"element={<Performance      />} />
               <Route path="quiz"       element={<Quiz             />} />
               <Route path="test"       element={<Test             />} />
-
               <Route path="others"     element={<Others           />} />
               <Route path="results"    element={<FinalResult      />} />
             </Route>

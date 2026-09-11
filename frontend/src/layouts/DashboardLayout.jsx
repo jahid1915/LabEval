@@ -16,13 +16,16 @@ const teacherNav = [
   { to:'/teacher/performance', icon:<Activity size={18}/>,        label:'Lab Performance' },
   { to:'/teacher/quiz',        icon:<HelpCircle size={18}/>,      label:'Lab Quiz' },
   { to:'/teacher/test',        icon:<FileCheck size={18}/>,       label:'Lab Test' },
-
   { to:'/teacher/others',      icon:<ClipboardList size={18}/>,   label:'Others' },
   { to:'/teacher/results',     icon:<TrendingUp size={18}/>,      label:'Final Result' },
 ];
 
 const studentNav = [
   { to:'/student', icon:<LayoutDashboard size={18}/>, label:'My Courses', end:true },
+];
+
+const adminNav = [
+  { to:'/admin', icon:<LayoutDashboard size={18}/>, label:'Admin Hub', end:true },
 ];
 
 const SidebarContent = ({
@@ -35,10 +38,29 @@ const SidebarContent = ({
   isDarkMode,
   toggleTheme,
   handleLogout
-}) => (
+}) => {
+  const getRoleBadge = () => {
+    if (user?.role === 'admin') return 'Admin Console';
+    if (user?.role === 'teacher') return 'Teacher Portal';
+    return 'Student Portal';
+  };
+
+  const getPortalLink = () => {
+    if (user?.role === 'admin') return '/admin';
+    if (user?.role === 'teacher') return '/teacher';
+    return '/student';
+  };
+
+  const getSubtext = () => {
+    if (user?.role === 'admin') return user?.username || 'Administrator';
+    if (user?.role === 'teacher') return user?.teacherId || 'Faculty';
+    return user?.rollNumber || 'Student';
+  };
+
+  return (
   <div className="flex flex-col h-full">
     {/* Logo */}
-    <Link to={user?.role === 'teacher' ? '/teacher' : '/student'}
+    <Link to={getPortalLink()}
       className="flex items-center gap-3 px-5 py-5 border-b border-slate-100 dark:border-slate-800">
       <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-md shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 shrink-0">
         <img src="/RUET.png" alt="RUET" className="w-7 h-7 object-contain"
@@ -46,7 +68,7 @@ const SidebarContent = ({
       </div>
       <div>
         <p className="font-heading font-extrabold text-sm text-slate-900 dark:text-white leading-tight">LabEval RUET</p>
-        <p className="text-xs text-slate-400 dark:text-slate-500 capitalize">{user?.role} Portal</p>
+        <p className="text-xs text-slate-400 dark:text-slate-500 capitalize">{getRoleBadge()}</p>
       </div>
     </Link>
 
@@ -54,13 +76,15 @@ const SidebarContent = ({
     <div className="mx-3 my-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 overflow-hidden">
       <button onClick={() => setProfileExpanded(!profileExpanded)}
         className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-        <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm shrink-0">
+        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${
+          user?.role === 'admin' ? 'bg-gradient-to-br from-amber-500 to-orange-600' : 'bg-gradient-to-br from-primary to-accent'
+        }`}>
           {user?.name?.charAt(0)?.toUpperCase() || 'U'}
         </div>
         <div className="flex-1 min-w-0">
           <p className="font-bold text-sm text-slate-800 dark:text-white truncate">{user?.name || 'User'}</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500">
-            {user?.role === 'teacher' ? user?.teacherId : user?.rollNumber}
+          <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
+            {getSubtext()}
           </p>
         </div>
         <ChevronDown size={16} className={`text-slate-400 transition-transform ${profileExpanded ? 'rotate-180' : ''}`}/>
@@ -74,14 +98,21 @@ const SidebarContent = ({
                 <Phone size={12} className="shrink-0"/>
                 <span className="truncate">{user?.contactNo || '—'}</span>
               </div>
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <Building2 size={12} className="shrink-0"/>
-                <span>{user?.department || '—'}</span>
-              </div>
+              {user?.department && (
+                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                  <Building2 size={12} className="shrink-0"/>
+                  <span>{user?.department}</span>
+                </div>
+              )}
               {user?.role === 'student' && (
                 <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
                   <GraduationCap size={12} className="shrink-0"/>
                   <span>Series {user?.series || '—'}</span>
+                </div>
+              )}
+              {user?.role === 'admin' && (
+                <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 font-bold">
+                  <span>Super Admin Privilege</span>
                 </div>
               )}
             </div>
@@ -112,7 +143,8 @@ const SidebarContent = ({
       </button>
     </div>
   </div>
-);
+  );
+};
 
 export default function DashboardLayout() {
   const { user, logout }          = useContext(AuthContext);
@@ -121,7 +153,9 @@ export default function DashboardLayout() {
   const [profileExpanded, setProfileExpanded] = useState(true);
   const navigate = useNavigate();
 
-  const navItems = user?.role === 'teacher' ? teacherNav : studentNav;
+  let navItems = studentNav;
+  if (user?.role === 'teacher') navItems = teacherNav;
+  if (user?.role === 'admin')   navItems = adminNav;
 
   const handleLogout = () => { logout(); navigate('/'); };
 

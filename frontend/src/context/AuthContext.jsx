@@ -22,14 +22,17 @@ export const AuthProvider = ({ children }) => {
 
   const login = async (role, credentials) => {
     try {
-      const endpoint = role === 'teacher' ? '/auth/teacher-login' : '/auth/student-login';
+      let endpoint = '/auth/student-login';
+      if (role === 'teacher') endpoint = '/auth/teacher-login';
+      if (role === 'admin')   endpoint = '/auth/admin-login';
+
       const response = await api.post(endpoint, credentials);
       const userData = response.data;
       
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('token', userData.token);
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || 'Login failed' };
     }
@@ -43,14 +46,17 @@ export const AuthProvider = ({ children }) => {
 
   const register = async (role, credentials) => {
     try {
-      const endpoint = role === 'teacher' ? '/auth/teacher-register' : '/auth/student-register';
+      let endpoint = '/auth/student-register';
+      if (role === 'teacher') endpoint = '/auth/teacher-register';
+      if (role === 'admin')   endpoint = '/auth/admin-register';
+
       const response = await api.post(endpoint, credentials);
       const userData = response.data;
       
       localStorage.setItem('user', JSON.stringify(userData));
       localStorage.setItem('token', userData.token);
       setUser(userData);
-      return { success: true };
+      return { success: true, user: userData };
     } catch (error) {
       return { success: false, message: error.response?.data?.message || 'Registration failed' };
     }

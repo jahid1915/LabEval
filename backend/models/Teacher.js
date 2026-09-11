@@ -2,13 +2,79 @@ const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 
 const teacherSchema = new mongoose.Schema({
-  name:      { type: String, required: true },
-  teacherId: { type: String, required: true, unique: true, uppercase: true, trim: true },
-  department:{ type: String, required: true },
-  contactNo: { type: String, required: true },
-  password:  { type: String, required: true },
-  role:      { type: String, default: 'teacher' },
-  // Courses are now managed via the Course collection, but kept here for quick lookup
+  name: { 
+    type: String, 
+    required: true,
+    trim: true 
+  },
+  teacherId: { 
+    type: String, 
+    required: true, 
+    unique: true, 
+    uppercase: true, 
+    trim: true 
+  },
+  email: {
+    type: String,
+    trim: true,
+    lowercase: true,
+    default: ''
+  },
+  department: { 
+    type: String, 
+    required: true,
+    uppercase: true,
+    trim: true 
+  },
+  departmentRef: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department'
+  },
+  facultyRef: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Faculty'
+  },
+  designation: {
+    type: String,
+    default: 'Lecturer',
+    trim: true
+  },
+  contactNo: { 
+    type: String, 
+    required: true,
+    trim: true 
+  },
+  password: { 
+    type: String, 
+    required: true 
+  },
+  role: { 
+    type: String, 
+    default: 'teacher' 
+  },
+  dutyStatus: {
+    type: String,
+    enum: ['ON_DUTY', 'ON_LEAVE', 'UNAVAILABLE', 'INACTIVE'],
+    default: 'ON_DUTY'
+  },
+  specialization: {
+    type: String,
+    default: ''
+  },
+  joiningDate: {
+    type: Date,
+    default: Date.now
+  },
+  avatarUrl: {
+    type: String,
+    default: ''
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive', 'archived'],
+    default: 'active'
+  },
+  // Legacy compatibility array
   allocatedCourses: [{
     courseCode: String,
     courseName: String,
@@ -26,5 +92,7 @@ teacherSchema.pre('save', async function(next) {
 teacherSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+teacherSchema.index({ teacherId: 1, department: 1, dutyStatus: 1 });
 
 module.exports = mongoose.model('Teacher', teacherSchema);
