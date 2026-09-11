@@ -5,7 +5,7 @@ import {
   CalendarOff, CheckCircle, XCircle, Clock, Search, Loader2, 
   User, Calendar, MessageSquare, Filter
 } from 'lucide-react';
-import API from '../../utils/api';
+import api from '../../api/axios';
 
 export default function LeaveManagementPage() {
   const [leaves, setLeaves] = useState([]);
@@ -19,7 +19,7 @@ export default function LeaveManagementPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await API.get('/leaves');
+      const res = await api.get('/leaves');
       setLeaves(res.data.leaves || res.data || []);
     } catch { toast.error('Failed to load leave requests'); }
     finally { setLoading(false); }
@@ -38,7 +38,7 @@ export default function LeaveManagementPage() {
   const handleApprove = async (id) => {
     setProcessing(id);
     try {
-      await API.put(`/leaves/${id}/approve`);
+      await api.put(`/leaves/${id}/approve`);
       toast.success('Leave approved');
       fetchAll();
     } catch (err) { toast.error(err.response?.data?.message || 'Failed to approve'); }
@@ -49,7 +49,7 @@ export default function LeaveManagementPage() {
     if (!rejectId) return;
     setProcessing(rejectId);
     try {
-      await API.put(`/leaves/${rejectId}/reject`, { adminRemarks: rejectReason });
+      await api.put(`/leaves/${rejectId}/reject`, { adminRemarks: rejectReason });
       toast.success('Leave rejected');
       setRejectId(null);
       setRejectReason('');

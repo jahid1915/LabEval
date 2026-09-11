@@ -1,11 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
+import api from '../../api/axios';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Building2, Plus, Pencil, Trash2, Search, X, Loader2,
   ChevronDown, Users, BookOpen, GraduationCap
 } from 'lucide-react';
-import API from '../../utils/api';
 
 const emptyForm = { name: '', code: '', faculty: '', hodTeacher: '', description: '' };
 
@@ -25,9 +25,9 @@ export default function DepartmentsPage() {
     setLoading(true);
     try {
       const [dRes, fRes, tRes] = await Promise.all([
-        API.get('/admin/departments'),
-        API.get('/admin/faculties'),
-        API.get('/admin/teachers')
+        api.get('/departments'),
+        api.get('/faculties'),
+        api.get('/admin/teachers')
       ]);
       setDepartments(dRes.data.departments || dRes.data || []);
       setFaculties(fRes.data.faculties || fRes.data || []);
@@ -64,10 +64,10 @@ export default function DepartmentsPage() {
     setSaving(true);
     try {
       if (editId) {
-        await API.put(`/admin/departments/${editId}`, form);
+        await api.put(`/departments/${editId}`, form);
         toast.success('Department updated');
       } else {
-        await API.post('/admin/departments', form);
+        await api.post('/departments', form);
         toast.success('Department created');
       }
       setShowModal(false);
@@ -81,7 +81,7 @@ export default function DepartmentsPage() {
 
   const handleDelete = async () => {
     try {
-      await API.delete(`/admin/departments/${deleteId}`);
+      await api.delete(`/departments/${deleteId}`);
       toast.success('Department deleted');
       setDeleteId(null);
       fetchAll();

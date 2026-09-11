@@ -5,7 +5,7 @@ import {
   Layers, Plus, Pencil, Trash2, Search, X, Loader2,
   BookOpen, Users, Calendar, GraduationCap, CheckCircle
 } from 'lucide-react';
-import API from '../../utils/api';
+import api from '../../api/axios';
 
 const emptyForm = { course: '', teacher: '', session: '', semester: '', series: '', section: '', isActive: true };
 
@@ -27,11 +27,11 @@ export default function CourseOfferingsPage() {
     setLoading(true);
     try {
       const [oRes, cRes, tRes, sRes, srRes] = await Promise.all([
-        API.get('/courses/offerings'),
-        API.get('/courses/catalog'),
-        API.get('/admin/teachers'),
-        API.get('/academic/sessions'),
-        API.get('/admin/series')
+        api.get('/course-offerings'),
+        api.get('/courses'),
+        api.get('/admin/teachers'),
+        api.get('/academic/sessions'),
+        api.get('/academic/series')
       ]);
       setOfferings(oRes.data.offerings || oRes.data || []);
       setCourses(cRes.data.courses || cRes.data || []);
@@ -87,10 +87,10 @@ export default function CourseOfferingsPage() {
     setSaving(true);
     try {
       if (editId) {
-        await API.put(`/courses/offerings/${editId}`, form);
+        await api.put(`/course-offerings/${editId}`, form);
         toast.success('Offering updated');
       } else {
-        await API.post('/courses/offerings', form);
+        await api.post('/course-offerings', form);
         toast.success('Offering created');
       }
       setShowModal(false);
@@ -101,7 +101,7 @@ export default function CourseOfferingsPage() {
 
   const handleDelete = async () => {
     try {
-      await API.delete(`/courses/offerings/${deleteId}`);
+      await api.delete(`/course-offerings/${deleteId}`);
       toast.success('Offering deleted');
       setDeleteId(null);
       fetchAll();

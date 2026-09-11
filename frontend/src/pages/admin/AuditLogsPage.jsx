@@ -5,7 +5,7 @@ import {
   ScrollText, Search, Loader2, Filter, Calendar, User,
   Shield, Eye, Pencil, Trash2, Plus, ArrowUpDown
 } from 'lucide-react';
-import API from '../../utils/api';
+import api from '../../api/axios';
 
 export default function AuditLogsPage() {
   const [logs, setLogs] = useState([]);
@@ -21,7 +21,7 @@ export default function AuditLogsPage() {
       const params = new URLSearchParams({ page, limit: 50 });
       if (filterAction) params.set('action', filterAction);
       if (search) params.set('search', search);
-      const res = await API.get(`/audit?${params}`);
+      const res = await api.get(`/audit?${params}`);
       setLogs(res.data.logs || res.data || []);
       setTotalPages(res.data.totalPages || 1);
     } catch { toast.error('Failed to load audit logs'); }

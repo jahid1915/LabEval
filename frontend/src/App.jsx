@@ -18,7 +18,18 @@ import Contact from './pages/public/Contact';
 import AuthPage from './pages/auth/AuthPage';
 
 // Admin Pages
-import AdminDashboard from './pages/admin/AdminDashboard';
+import AdminDashboard       from './pages/admin/AdminDashboard';
+import FacultiesPage         from './pages/admin/FacultiesPage';
+import DepartmentsPage       from './pages/admin/DepartmentsPage';
+import SeriesPage            from './pages/admin/SeriesPage';
+import AcademicSessionsPage  from './pages/admin/AcademicSessionsPage';
+import TeachersPage          from './pages/admin/TeachersPage';
+import StudentsPage          from './pages/admin/StudentsPage';
+import CourseCatalogPage     from './pages/admin/CourseCatalogPage';
+import CourseOfferingsPage   from './pages/admin/CourseOfferingsPage';
+import LeaveManagementPage   from './pages/admin/LeaveManagementPage';
+import AnnouncementsPage     from './pages/admin/AnnouncementsPage';
+import AuditLogsPage         from './pages/admin/AuditLogsPage';
 
 // Teacher Pages
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
@@ -29,6 +40,7 @@ import Quiz             from './pages/teacher/Quiz';
 import Test             from './pages/teacher/Test';
 import Others           from './pages/teacher/Others';
 import FinalResult      from './pages/teacher/FinalResult';
+import TeacherLeavePage from './pages/teacher/TeacherLeavePage';
 
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
@@ -81,7 +93,18 @@ export default function App() {
                 <DashboardLayout />
               </ProtectedRoute>
             }>
-              <Route index element={<AdminDashboard />} />
+              <Route index                  element={<AdminDashboard />} />
+              <Route path="faculties"       element={<FacultiesPage />} />
+              <Route path="departments"     element={<DepartmentsPage />} />
+              <Route path="sessions"        element={<AcademicSessionsPage />} />
+              <Route path="series"          element={<SeriesPage />} />
+              <Route path="teachers"        element={<TeachersPage />} />
+              <Route path="students"        element={<StudentsPage />} />
+              <Route path="course-catalog"  element={<CourseCatalogPage />} />
+              <Route path="course-offerings" element={<CourseOfferingsPage />} />
+              <Route path="leaves"          element={<LeaveManagementPage />} />
+              <Route path="announcements"   element={<AnnouncementsPage />} />
+              <Route path="audit-logs"      element={<AuditLogsPage />} />
             </Route>
 
             {/* ── Teacher Routes ────────────────────────────────── */}
@@ -98,6 +121,7 @@ export default function App() {
               <Route path="test"       element={<Test             />} />
               <Route path="others"     element={<Others           />} />
               <Route path="results"    element={<FinalResult      />} />
+              <Route path="leave"      element={<TeacherLeavePage />} />
             </Route>
 
             {/* ── Student Routes ────────────────────────────────── */}

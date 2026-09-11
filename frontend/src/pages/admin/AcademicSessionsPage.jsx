@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Plus, Pencil, Trash2, Search, X, Loader2, CheckCircle, Clock } from 'lucide-react';
-import API from '../../utils/api';
+import api from '../../api/axios';
 
 const emptyForm = { name: '', year: '', startDate: '', endDate: '', isActive: false };
 
@@ -19,7 +19,7 @@ export default function AcademicSessionsPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await API.get('/academic/sessions');
+      const res = await api.get('/academic/sessions');
       setSessions(res.data.sessions || res.data || []);
     } catch { toast.error('Failed to load sessions'); }
     finally { setLoading(false); }
@@ -49,10 +49,10 @@ export default function AcademicSessionsPage() {
     setSaving(true);
     try {
       if (editId) {
-        await API.put(`/academic/sessions/${editId}`, form);
+        await api.put(`/academic/sessions/${editId}`, form);
         toast.success('Session updated');
       } else {
-        await API.post('/academic/sessions', form);
+        await api.post('/academic/sessions', form);
         toast.success('Session created');
       }
       setShowModal(false);
@@ -64,7 +64,7 @@ export default function AcademicSessionsPage() {
 
   const handleDelete = async () => {
     try {
-      await API.delete(`/academic/sessions/${deleteId}`);
+      await api.delete(`/academic/sessions/${deleteId}`);
       toast.success('Session deleted');
       setDeleteId(null);
       fetchAll();
@@ -73,7 +73,7 @@ export default function AcademicSessionsPage() {
 
   const toggleActive = async (s) => {
     try {
-      await API.put(`/academic/sessions/${s._id}`, { ...s, isActive: !s.isActive });
+      await api.put(`/academic/sessions/${s._id}`, { ...s, isActive: !s.isActive });
       toast.success(s.isActive ? 'Session deactivated' : 'Session activated');
       fetchAll();
     } catch (err) { toast.error('Toggle failed'); }

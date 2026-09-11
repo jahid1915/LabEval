@@ -5,7 +5,7 @@ import {
   Users, Plus, Pencil, Trash2, Search, X, Loader2,
   Building2, Hash, Eye, EyeOff, Upload
 } from 'lucide-react';
-import API from '../../utils/api';
+import api from '../../api/axios';
 
 const emptyForm = { name: '', rollNumber: '', department: '', series: '', section: '', contactNo: '', password: '' };
 
@@ -28,9 +28,9 @@ export default function StudentsPage() {
     setLoading(true);
     try {
       const [sRes, dRes, srRes] = await Promise.all([
-        API.get('/admin/students'),
-        API.get('/admin/departments'),
-        API.get('/admin/series')
+        api.get('/admin/students'),
+        api.get('/departments'),
+        api.get('/academic/series')
       ]);
       setStudents(sRes.data.students || sRes.data || []);
       setDepartments(dRes.data.departments || dRes.data || []);
@@ -67,10 +67,10 @@ export default function StudentsPage() {
       const data = { ...form };
       if (editId && !data.password) delete data.password;
       if (editId) {
-        await API.put(`/admin/students/${editId}`, data);
+        await api.put(`/admin/students/${editId}`, data);
         toast.success('Student updated');
       } else {
-        await API.post('/admin/students', data);
+        await api.post('/admin/students', data);
         toast.success('Student registered');
       }
       setShowModal(false);
@@ -82,7 +82,7 @@ export default function StudentsPage() {
 
   const handleDelete = async () => {
     try {
-      await API.delete(`/admin/students/${deleteId}`);
+      await api.delete(`/admin/students/${deleteId}`);
       toast.success('Student removed');
       setDeleteId(null);
       fetchAll();

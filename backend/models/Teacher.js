@@ -57,6 +57,16 @@ const teacherSchema = new mongoose.Schema({
     enum: ['ON_DUTY', 'ON_LEAVE', 'UNAVAILABLE', 'INACTIVE'],
     default: 'ON_DUTY'
   },
+  name_bn: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  officeContact: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   specialization: {
     type: String,
     default: ''
@@ -83,8 +93,8 @@ const teacherSchema = new mongoose.Schema({
   }]
 }, { timestamps: true });
 
-teacherSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+teacherSchema.pre('save', async function() {
+  if (!this.isModified('password')) return;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });

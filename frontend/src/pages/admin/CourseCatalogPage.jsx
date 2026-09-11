@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Plus, Pencil, Trash2, Search, X, Loader2, Hash, Layers } from 'lucide-react';
-import API from '../../utils/api';
+import api from '../../api/axios';
 
 const emptyForm = { courseCode: '', courseTitle: '', credits: '', department: '', type: 'lab', description: '' };
 
@@ -22,8 +22,8 @@ export default function CourseCatalogPage() {
     setLoading(true);
     try {
       const [cRes, dRes] = await Promise.all([
-        API.get('/courses/catalog'),
-        API.get('/admin/departments')
+        api.get('/courses'),
+        api.get('/departments')
       ]);
       setCourses(cRes.data.courses || cRes.data || []);
       setDepartments(dRes.data.departments || dRes.data || []);
@@ -57,10 +57,10 @@ export default function CourseCatalogPage() {
     setSaving(true);
     try {
       if (editId) {
-        await API.put(`/courses/catalog/${editId}`, form);
+        await api.put(`/courses/${editId}`, form);
         toast.success('Course updated');
       } else {
-        await API.post('/courses/catalog', form);
+        await api.post('/courses', form);
         toast.success('Course created');
       }
       setShowModal(false);
@@ -71,7 +71,7 @@ export default function CourseCatalogPage() {
 
   const handleDelete = async () => {
     try {
-      await API.delete(`/courses/catalog/${deleteId}`);
+      await api.delete(`/courses/${deleteId}`);
       toast.success('Course deleted');
       setDeleteId(null);
       fetchAll();

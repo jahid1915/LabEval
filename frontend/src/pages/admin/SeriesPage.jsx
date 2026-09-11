@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users, Plus, Pencil, Trash2, Search, X, Loader2, Building2, Hash } from 'lucide-react';
-import API from '../../utils/api';
+import api from '../../api/axios';
 
 const emptyForm = { name: '', department: '', year: '', section: '' };
 
@@ -21,8 +21,8 @@ export default function SeriesPage() {
     setLoading(true);
     try {
       const [sRes, dRes] = await Promise.all([
-        API.get('/admin/series'),
-        API.get('/admin/departments')
+        api.get('/academic/series'),
+        api.get('/departments')
       ]);
       setSeries(sRes.data.series || sRes.data || []);
       setDepartments(dRes.data.departments || dRes.data || []);
@@ -57,10 +57,10 @@ export default function SeriesPage() {
     setSaving(true);
     try {
       if (editId) {
-        await API.put(`/admin/series/${editId}`, form);
+        await api.put(`/academic/series/${editId}`, form);
         toast.success('Series updated');
       } else {
-        await API.post('/admin/series', form);
+        await api.post('/academic/series', form);
         toast.success('Series created');
       }
       setShowModal(false);
@@ -74,7 +74,7 @@ export default function SeriesPage() {
 
   const handleDelete = async () => {
     try {
-      await API.delete(`/admin/series/${deleteId}`);
+      await api.delete(`/academic/series/${deleteId}`);
       toast.success('Series deleted');
       setDeleteId(null);
       fetchAll();

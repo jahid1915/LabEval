@@ -1,0 +1,1040 @@
+{
+  "faculty_name": "Faculty of Civil Engineering",
+  "faculty_code": "CE_FACULTY",
+  "departments": [
+    {
+      "department_name": "Civil Engineering",
+      "department_code": "CE",
+      "teachers": [
+        {
+          "teacher_id": "CE-343",
+          "name": "Dr. Abu Sufian Md. Zia Hasan",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "ziaruet@gmail.com",
+          "phone": "880-1911558343",
+          "status": "Active",
+          "office_contact": "Room no. 3203"
+        },
+        {
+          "teacher_id": "CE-805",
+          "name": "Dr. Anupam Chowdhury",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "anupam@ce.ruet.ac.bd",
+          "phone": "880-1827978805",
+          "status": "Active",
+          "office_contact": "R3210, Civil Engineering Building"
+        },
+        {
+          "teacher_id": "CE-679",
+          "name": "Dr. Bulbul Ahmed",
+          "name_bn": "ড. বুলবুল আহমেদ",
+          "designation": "Professor",
+          "email": "bulbulruet@gmail.com",
+          "phone": "880-1717042679",
+          "status": "Active",
+          "office_contact": "1st Floor (North), Room: 3215, Civil Engineering Building"
+        },
+        {
+          "teacher_id": "CE-731",
+          "name": "Dr. H. M. Rasel",
+          "name_bn": "ড. এইচ, এম, রাসেল",
+          "designation": "Professor",
+          "email": "hmrasel@ruet.ac.bd",
+          "phone": "880-171255731",
+          "status": "Active",
+          "office_contact": "1st Floor (North), Room: 3212, Civil Engineering Building"
+        },
+        {
+          "teacher_id": "CE-551",
+          "name": "Dr. Md. Abdul Alim",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "maalim89@yahoo.com",
+          "phone": "880-1713228551",
+          "status": "Active",
+          "office_contact": "Level 2, Civil Engineering Building"
+        },
+        {
+          "teacher_id": "CE-863",
+          "name": "Dr. Md. Abu Sayeed",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "sayeed.ce00@gmail.com",
+          "phone": "880-1727866863",
+          "status": "Active",
+          "office_contact": "Level 2, Civil Engineering Building"
+        },
+        {
+          "teacher_id": "CE-527",
+          "name": "Dr. Md. Akhtar Hossain",
+          "name_bn": "ডঃ মোঃ আখতার হোসেন",
+          "designation": "Professor",
+          "email": "akhtar@ce.ruet.ac.bd",
+          "phone": "880-1718282527",
+          "status": "Active",
+          "office_contact": "3214, CE Building"
+        },
+        {
+          "teacher_id": "CE-774",
+          "name": "Dr. Md. Kamruzzaman",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "kzaman@ce.ruet.ac.bd",
+          "phone": "880-1733740774",
+          "status": "Active",
+          "office_contact": "Room 3202, First Floor, Civil Engineering Building"
+        },
+        {
+          "teacher_id": "CE-050",
+          "name": "Dr. Md. Kumruzzaman",
+          "name_bn": "ম‌োঃকামরুজ্জামান রিপন",
+          "designation": "Professor",
+          "email": "kzzaman2000@gmail.com",
+          "phone": "880-1614015050",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-019",
+          "name": "Dr. Md. Mahmud Sazzad",
+          "name_bn": "ড. মোঃ মাহমুদ সাজ্জাদ",
+          "designation": "Professor",
+          "email": "mmsruet@gmail.com",
+          "phone": "880-1744355019",
+          "status": "Active",
+          "office_contact": "3213, 3rd Block, 2nd Floor, Civil Building, Department of Civil Engineering, RUET"
+        },
+        {
+          "teacher_id": "CE-251",
+          "name": "Dr. Md. Niamul Bari",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "niamulbari@yahoo.com",
+          "phone": "880-1816950251",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-605",
+          "name": "Dr. Md. Shafi Uddin Miah",
+          "name_bn": "ডঃ মোঃ সফি উদ্দিন মিয়া",
+          "designation": "Professor",
+          "email": "shafi@ce.ruet.ac.bd",
+          "phone": "880-1713228605",
+          "status": "Retired",
+          "office_contact": "Civil Engineering Building ( 1st Floor), RUET, Rajshahi"
+        },
+        {
+          "teacher_id": "CE-115",
+          "name": "Dr. Md. Shafiqul Islam",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "islam94001@yahoo.com",
+          "phone": "880-1760249115",
+          "status": "Active",
+          "office_contact": "Room No.: 3211, Dept. of CE, RUET"
+        },
+        {
+          "teacher_id": "CE-388",
+          "name": "Dr. Md. Zahanggir Alam",
+          "name_bn": "মো: জাহাঙ্গীর আলম",
+          "designation": "Professor",
+          "email": "zahangir02@gmail.com",
+          "phone": "880-1712337388",
+          "status": "Active",
+          "office_contact": "Room no. 3213, 1st Floor, CE Building"
+        },
+        {
+          "teacher_id": "CE-385",
+          "name": "Dr. Syed Abdul Mofiz",
+          "name_bn": "ড. সৈয়দ আব্দুল মফিজ",
+          "designation": "Professor",
+          "email": "samofiz@gmail.com",
+          "phone": "880-1556314385",
+          "status": "Retired",
+          "office_contact": "Civil Building 1st Floor"
+        },
+        {
+          "teacher_id": "CE-338",
+          "name": "Dr. Tarif Uddin Ahmed",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "tarif.ruet@yahoo.com",
+          "phone": "880-1556314338",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-529",
+          "name": "Dr. Tohur Ahmed",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "tohurruet@gmail.com",
+          "phone": "880-1762646529",
+          "status": "Retired",
+          "office_contact": "Room No. 1203, Civil Building"
+        },
+        {
+          "teacher_id": "CE-851",
+          "name": "Iqbal Matin",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "imatinbd@gmail.com",
+          "phone": "880-1714459851",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-976",
+          "name": "Mohd. Abdus Sobhan",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "msobhan@yahoo.com",
+          "phone": "880-1755591976",
+          "status": "Retired",
+          "office_contact": "1st floor, Civil Building"
+        },
+        {
+          "teacher_id": "CE-004",
+          "name": "NHM Kamrujjaman Serker",
+          "name_bn": "এন. এইচ. এম. কামরুজ্জামান সরকার",
+          "designation": "Professor",
+          "email": "kserker@yahoo.com",
+          "phone": "880-1970030004",
+          "status": "Active",
+          "office_contact": "3201, Civil Engineering Building,"
+        },
+        {
+          "teacher_id": "CE-000",
+          "name": "Prof. Dr. Md. Robiul Awall",
+          "name_bn": "অধ্যাপক ড. মোঃ রবিউল আওয়াল",
+          "designation": "Professor",
+          "email": "robi95@ce.ruet.ac.bd",
+          "phone": "880-1700000000",
+          "status": "Active",
+          "office_contact": "3217, Academic Building-4, Department of Civil Engineering, Kazla-6204, Rajshahi, Bangladesh."
+        },
+        {
+          "teacher_id": "CE-294",
+          "name": "Prof. Dr. S. M. Zahurul Islam",
+          "name_bn": "প্রফেসর ড. এস, এম জহুরুল ইসলাম",
+          "designation": "Professor",
+          "email": "zahurul90@gmail.com",
+          "phone": "880-1715048294",
+          "status": "Active",
+          "office_contact": "3312 ,3rd Block, 2nd Floor, Civil Building, Department of Civil Engineering, RUET"
+        },
+        {
+          "teacher_id": "CE-219",
+          "name": "Ahmed Hossain",
+          "name_bn": "আহমেদ হোসাইন",
+          "designation": "Assistant Professor",
+          "email": "ahmedhossain090001@gmail.com",
+          "phone": "880-1717817219",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-237",
+          "name": "Atika Hossain Akhi",
+          "name_bn": "আতিকা হোসেন আঁখি",
+          "designation": "Assistant Professor",
+          "email": "atika2012cen@gmail.com",
+          "phone": "880-1752136237",
+          "status": "On leave",
+          "office_contact": "Room no.: 3213, Department of Civil Engineering"
+        },
+        {
+          "teacher_id": "CE-052",
+          "name": "Dr. Md. Mintu Miah",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "mintu07ruetce@gmail.com",
+          "phone": "880-8083874052",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-617",
+          "name": "G. M. Harun- Or- Rashid",
+          "name_bn": "জি, এম, হারুন-অর-রশীদ",
+          "designation": "Assistant Professor",
+          "email": "gmharun.ruet11@gmail.com",
+          "phone": "880-1717504617",
+          "status": "On leave",
+          "office_contact": "Level 2, Civil Engineering Building"
+        },
+        {
+          "teacher_id": "CE-036",
+          "name": "Keya Roy",
+          "name_bn": "কেয়া রায়",
+          "designation": "Assistant Professor",
+          "email": "roykeya0944@gmail.com",
+          "phone": "880-1716076036",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-626",
+          "name": "Mahmud Hasan",
+          "name_bn": "মাহমুদ হাসান",
+          "designation": "Assistant Professor",
+          "email": "masudce120037@gmail.com",
+          "phone": "880-1733467626",
+          "status": "On leave",
+          "office_contact": "BECM Building (1st Floor of Transportation Laboratory)"
+        },
+        {
+          "teacher_id": "CE-358",
+          "name": "Md Masud Rana",
+          "name_bn": "মোঃ মাসুদ রানা",
+          "designation": "Assistant Professor",
+          "email": "masud.ce08@gmail.com",
+          "phone": "880-1745575358",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-865",
+          "name": "MD. MOHAYMINUL ISLAM",
+          "name_bn": "মোঃ মোহাইমিনুল ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "mohayminul.islam37@gmail.com",
+          "phone": "880-1521446865",
+          "status": "On leave",
+          "office_contact": "202, Level: 02, Transportation Engineering Laboratory, Department of Civil Engineering, RUET."
+        },
+        {
+          "teacher_id": "CE-277",
+          "name": "Md. Rafiul Islam",
+          "name_bn": "মোঃ রাফিউল ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "rafiulislam.1500080@gmail.com",
+          "phone": "880-1643894277",
+          "status": "Active",
+          "office_contact": "CE 5209"
+        },
+        {
+          "teacher_id": "CE-596",
+          "name": "Md. Sohel Rana",
+          "name_bn": "মোঃ সোহেল রানা",
+          "designation": "Assistant Professor",
+          "email": "sohelranace15@gmail.com",
+          "phone": "880-1750361596",
+          "status": "On leave",
+          "office_contact": "Transportation Lab, 1st Floor, Room No. 5207"
+        },
+        {
+          "teacher_id": "CE-236",
+          "name": "Miraz Ahamed",
+          "name_bn": "মিরাজ আহমেদ",
+          "designation": "Assistant Professor",
+          "email": "miraz@ce.ruet.ac.bd",
+          "phone": "880-1521211236",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-083",
+          "name": "Mithun Chakrabartty",
+          "name_bn": "মিঠুন চক্রবর্ত্তী",
+          "designation": "Assistant Professor",
+          "email": "mithun.ruetce@gmail.com",
+          "phone": "880-1938134083",
+          "status": "On leave",
+          "office_contact": "3211, Civil Engineering Building (Academic Building-4)"
+        },
+        {
+          "teacher_id": "CE-361",
+          "name": "Sumaya Tabassum",
+          "name_bn": "সুমাইয়া তাবাসসুম",
+          "designation": "Assistant Professor",
+          "email": "sumayatabassum161@gmail.com",
+          "phone": "880-1878047361",
+          "status": "Active",
+          "office_contact": "Room No. 3216, Department of Civil Engineering, RUET"
+        },
+        {
+          "teacher_id": "CE-485",
+          "name": "Zahidul Islam",
+          "name_bn": "জাহিদুল ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "zahid@ce.ruet.ac.bd",
+          "phone": "880-1701076485",
+          "status": "On leave",
+          "office_contact": "Transportation Engineering Lab, Room No: 205"
+        },
+        {
+          "teacher_id": "CE-265",
+          "name": "Abu Shad",
+          "name_bn": "আবু সাদ",
+          "designation": "Lecturer",
+          "email": "abushad@ce.ruet.ac.bd",
+          "phone": "880-1704496265",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-014",
+          "name": "Atonu Saha",
+          "name_bn": "অতনু সাহা",
+          "designation": "Lecturer",
+          "email": "atonusaha2002@gmail.com",
+          "phone": "880-1790333014",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-779",
+          "name": "Briti Ray",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "britirayce29@gmail.com",
+          "phone": "880-1956639779",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-135",
+          "name": "Md Ashraful Imran",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "imran10ruet@gmail.com",
+          "phone": "880-1736190135",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-455",
+          "name": "Md. Nobinur Rahman",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "mnrahman@ruet.ac.bd",
+          "phone": "880-1717643455",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-406",
+          "name": "Md. Rumman Howlader",
+          "name_bn": "মোঃ রুম্মান হাওলাদার",
+          "designation": "Lecturer",
+          "email": "rumman@ce.ruet.ac.bd",
+          "phone": "880-1790867406",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-261",
+          "name": "Mohammad Ali",
+          "name_bn": "মোহাম্মদ আলী",
+          "designation": "Lecturer",
+          "email": "mdali@ce.ruet.ac.bd",
+          "phone": "880-1307894261",
+          "status": "Active",
+          "office_contact": "Room 5202, 2nd Floor, Transportation Engineering Lab"
+        },
+        {
+          "teacher_id": "CE-271",
+          "name": "Ragib Noor Srijan",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "ragibnoor7108@gmail.com",
+          "phone": "880-1648551271",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CE-585",
+          "name": "Shraboni Rani Paul",
+          "name_bn": "শ্রাবণী রানী পাল",
+          "designation": "Lecturer",
+          "email": "spaul@ce.ruet.ac.bd",
+          "phone": "880-1780947585",
+          "status": "Active",
+          "office_contact": null
+        }
+      ]
+    },
+    {
+      "department_name": "Urban & Regional Planning",
+      "department_code": "URP",
+      "teachers": [
+        {
+          "teacher_id": "URP-485",
+          "name": "Dr. Md. Abdul Wakil",
+          "name_bn": "ড. মোঃ আবদুল ওয়াকিল",
+          "designation": "Professor",
+          "email": "mawakil.wakil@gmail.com",
+          "phone": "880-1716729485",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "URP-674",
+          "name": "Dr. Md. Mostafizur Rahman",
+          "name_bn": "ড. মোঃ মোস্তাফিজুর রহমান",
+          "designation": "Professor",
+          "email": "mostafizur@urp.ruet.ac.bd",
+          "phone": "880-1913821674",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "URP-992",
+          "name": "Dr. MST ILME FARIDATUL",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "mifaridatul@urp.ruet.ac.bd",
+          "phone": "880-1787830992",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "URP-726",
+          "name": "Anutosh Das",
+          "name_bn": "অনুতোষ দাশ",
+          "designation": "Assistant Professor",
+          "email": "anutosh@urp.ruet.ac.bd",
+          "phone": "880-1984875726",
+          "status": "On leave",
+          "office_contact": "URP Administrative Building (1st Floor, Rear Side)"
+        },
+        {
+          "teacher_id": "URP-366",
+          "name": "Dulal Sarker",
+          "name_bn": "দুলাল সরকার",
+          "designation": "Assistant Professor",
+          "email": "dulalsarker@urp.ruet.ac.bd",
+          "phone": "880-1764821366",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "URP-303",
+          "name": "Faria Afrin Zinia",
+          "name_bn": "ফারিয়া আফরিন জিনিয়া",
+          "designation": "Assistant Professor",
+          "email": "afrinzinia17@gmail.com",
+          "phone": "880-1684837303",
+          "status": "On leave",
+          "office_contact": "1st Floor, Dept. of URP,RUET"
+        },
+        {
+          "teacher_id": "URP-162",
+          "name": "Ferdous Farhana Huq",
+          "name_bn": "ফেরদৌস ফারহানা হক",
+          "designation": "Assistant Professor",
+          "email": "ferdous.huq08buet@gmail.com",
+          "phone": "880-1911532162",
+          "status": "Retired",
+          "office_contact": "URP Admin Building"
+        },
+        {
+          "teacher_id": "URP-621",
+          "name": "Jahid Hasan",
+          "name_bn": "জাহিদ হাসান",
+          "designation": "Assistant Professor",
+          "email": "jahid@urp.ruet.ac.bd",
+          "phone": "880-1735639621",
+          "status": "On leave",
+          "office_contact": "Seminar Room, 1st Floor, Dept. of URP, RUET."
+        },
+        {
+          "teacher_id": "URP-226",
+          "name": "Md. Sakib Zubayer",
+          "name_bn": "মোঃ সাকিব জুবায়ের",
+          "designation": "Assistant Professor",
+          "email": "sakibzubayer@urp.ruet.ac.bd",
+          "phone": "880-1674968226",
+          "status": "Active",
+          "office_contact": "North Corridor, 1st floor URP Department"
+        },
+        {
+          "teacher_id": "URP-622",
+          "name": "Md. Shakil Ar Salan",
+          "name_bn": "মোঃ শাকিল আরসালান",
+          "designation": "Assistant Professor",
+          "email": "sarsalan@urp.ruet.ac.bd",
+          "phone": "880-1763121622",
+          "status": "Active",
+          "office_contact": "Seminar Room, 1st Floor, Department of URP, RUET"
+        },
+        {
+          "teacher_id": "URP-254",
+          "name": "Muhaiminul Islam",
+          "name_bn": "মুহাইমিনুল ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "muhaiminul@urp.ruet.ac.bd",
+          "phone": "880-1733492254",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "URP-505",
+          "name": "Muhammad Waresul Hassan Nipun",
+          "name_bn": "মোহাম্মদ ওয়ারেসুল হাসান নিপুন",
+          "designation": "Assistant Professor",
+          "email": "waresulhassan@urp.ruet.ac.bd",
+          "phone": "880-1673395505",
+          "status": "Active",
+          "office_contact": "1st Floor, Department of Urban & Regional Planning"
+        },
+        {
+          "teacher_id": "URP-648",
+          "name": "Nazia Hossain",
+          "name_bn": "নাজিয়া হোসেন",
+          "designation": "Assistant Professor",
+          "email": "naziaurp@urp.ruet.ac.bd",
+          "phone": "880-1760412648",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "URP-499",
+          "name": "Sumita Roy",
+          "name_bn": "সুমিতা রায়",
+          "designation": "Assistant Professor",
+          "email": "sumitaroy@urp.ruet.ac.bd",
+          "phone": "880-1626333499",
+          "status": "Active",
+          "office_contact": "1st Floor, Department of Urban & Regional Planning, RUET"
+        },
+        {
+          "teacher_id": "URP-375",
+          "name": "HOSSAIN MOHIUDDIN",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "hossain.mohiuddin19@gmail.com",
+          "phone": null,
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "URP-372",
+          "name": "Junaid Imam Adib",
+          "name_bn": "জুনাইদ ইমাম আদিব",
+          "designation": "Lecturer",
+          "email": "junaidadib@urp.ruet.ac.bd",
+          "phone": "880-1765974372",
+          "status": "Active",
+          "office_contact": "Seminar Room, Dept. of URP, RUET"
+        },
+        {
+          "teacher_id": "URP-442",
+          "name": "Md. Arshadul Islam",
+          "name_bn": "মোঃ এরশাদুল ইসলাম",
+          "designation": "Lecturer",
+          "email": "arshad@urp.ruet.ac.bd",
+          "phone": "880-1918641442",
+          "status": "Active",
+          "office_contact": "Seminar Room, Dept. of URP, RUET"
+        },
+        {
+          "teacher_id": "URP-822",
+          "name": "MD. NAIMUR RAHMAN",
+          "name_bn": "মোঃ নাঈমুর রহমান",
+          "designation": "Lecturer",
+          "email": "naimur@urp.ruet.ac.bd",
+          "phone": "880-1521569822",
+          "status": "Active",
+          "office_contact": "Seminar Room, Dept. of URP, RUET."
+        },
+        {
+          "teacher_id": "URP-367",
+          "name": "Yeasin Ahmead",
+          "name_bn": "ইয়াসিন আহম্মেদ",
+          "designation": "Lecturer",
+          "email": "yeasin@urp.ruet.ac.bd",
+          "phone": "880-1980449367",
+          "status": "Active",
+          "office_contact": "Seminar Room, Department of URP, RUET."
+        }
+      ]
+    },
+    {
+      "department_name": "Architecture",
+      "department_code": "Arch",
+      "teachers": [
+        {
+          "teacher_id": "Arch-263",
+          "name": "Md. Asaduzzaman",
+          "name_bn": "মোঃ আসাদুজ্জামান",
+          "designation": "Associate Professor",
+          "email": "asaduzzamansohag@gmail.com",
+          "phone": "880-1717854263",
+          "status": "On leave",
+          "office_contact": "1203 (1ST FLOOR,) 1ST BLOCK (OFFICE), DEPT. OF ARCHITECTURE, RUET."
+        },
+        {
+          "teacher_id": "Arch-319",
+          "name": "Md. Sabbir Ahsan",
+          "name_bn": null,
+          "designation": "Associate Professor",
+          "email": "sabbirahsan@arch.ruet.ac.bd",
+          "phone": "880-1935191319",
+          "status": "Active",
+          "office_contact": "Architecture Building"
+        },
+        {
+          "teacher_id": "Arch-978",
+          "name": "Farjana Jesmin",
+          "name_bn": "ফারজানা জেসমিন",
+          "designation": "Assistant Professor",
+          "email": "f.jesmin@arch.ruet.ac.bd",
+          "phone": "880-1709137978",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-949",
+          "name": "Md Samiul Sabbir Islam",
+          "name_bn": "মোঃ সামিউল সাব্বির ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "samiul100108@gmail.com",
+          "phone": "880-1790489949",
+          "status": "Active",
+          "office_contact": "1st Floor, Department of Architecture"
+        },
+        {
+          "teacher_id": "Arch-559",
+          "name": "Md. Nazmul Hoda",
+          "name_bn": "মোঃ নাজমুল হোদা",
+          "designation": "Assistant Professor",
+          "email": "mnhoda@arch.ruet.ac.bd",
+          "phone": "880-1716666559",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-858",
+          "name": "Md. Rafsun Jany",
+          "name_bn": "মোঃ রাফসান জানি",
+          "designation": "Assistant Professor",
+          "email": "arch.rafsunjany@gmail.com",
+          "phone": "880-1855082858",
+          "status": "On leave",
+          "office_contact": "1st Floor, Department of Architecture"
+        },
+        {
+          "teacher_id": "Arch-884",
+          "name": "Nadia Monzur",
+          "name_bn": "নাদিয়া মনজুর",
+          "designation": "Assistant Professor",
+          "email": "nadiamonzur@gmail.com",
+          "phone": "880-1719133884",
+          "status": "Active",
+          "office_contact": "Architecture Department, First Floor"
+        },
+        {
+          "teacher_id": "Arch-078",
+          "name": "Sheikh Hameem",
+          "name_bn": "শেখ হামীম",
+          "designation": "Assistant Professor",
+          "email": "sheikh.hameem71@gmail.com",
+          "phone": "880-1767348078",
+          "status": "Active",
+          "office_contact": "1st floor, Department of Architecture,RUET"
+        },
+        {
+          "teacher_id": "Arch-354",
+          "name": "Tamanna Sultana Swarna",
+          "name_bn": "তামান্না সুলতানা স্বর্ণা",
+          "designation": "Assistant Professor",
+          "email": "tamannasultana@arch.ruet.ac.bd",
+          "phone": null,
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-212",
+          "name": "Z H M Monjur Murshed",
+          "name_bn": "জেড, এইচ, এম, মঞ্জুর মোর্শেদ",
+          "designation": "Assistant Professor",
+          "email": "zhm@arch.ruet.ac.bd",
+          "phone": "880-1711585212",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-044",
+          "name": "Armin Rahman Mouly",
+          "name_bn": "আরমিন রহমান মৌলি",
+          "designation": "Lecturer",
+          "email": "moulybuet.24@gmail.com",
+          "phone": "880-1536178044",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-539",
+          "name": "Ashiqur Rahman Turjo",
+          "name_bn": "আশিকুর রহমান তূর্য্য",
+          "designation": "Lecturer",
+          "email": "ashiqur.turjo@arch.ruet.ac.bd",
+          "phone": "880-1971472539",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-234",
+          "name": "Farah Jamal",
+          "name_bn": "ফারাহ জামাল",
+          "designation": "Lecturer",
+          "email": "farahjamal@arch.ruet.ac.bd",
+          "phone": "880-1715039234",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-327",
+          "name": "Lamia Tasnim Ankon",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "ankon0109@gmail.com",
+          "phone": "880-1772470327",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-073",
+          "name": "Md Rafsan Zaman",
+          "name_bn": "মোঃ রাফসান জামান",
+          "designation": "Lecturer",
+          "email": "mdrafsanzaman@arch.ruet.ac.bd",
+          "phone": "880-1781300073",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-344",
+          "name": "MD.EZAJUL ISLAM",
+          "name_bn": "মোঃ ইজাজুল ইসলাম",
+          "designation": "Lecturer",
+          "email": "ezajulislam@arch.ruet.ac.bd",
+          "phone": "880-1786218344",
+          "status": "Active",
+          "office_contact": "1st Floor, Department of Architecture, RUET"
+        },
+        {
+          "teacher_id": "Arch-457",
+          "name": "Mohammad Rakibul Islam Anik",
+          "name_bn": "মোহাম্মদ রাকিবুল ইসলাম অনিক",
+          "designation": "Lecturer",
+          "email": "rakibul.islam@arch.ruet.ac.bd",
+          "phone": "880-1531961457",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-020",
+          "name": "Nabilah Nargis",
+          "name_bn": "নাবিলাহ নার্গিস",
+          "designation": "Lecturer",
+          "email": "nabilah.nargis@arch.ruet.ac.bd",
+          "phone": "880-1854634020",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-496",
+          "name": "Nazia Afrin Trina",
+          "name_bn": "নাজিয়া আফরিন তৃনা",
+          "designation": "Lecturer",
+          "email": "124arch0801046@gmail.com",
+          "phone": "880-1673837496",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-454",
+          "name": "Prianka Das",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "prianka.das@arch.ruet.ac.bd",
+          "phone": "880-1732007454",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-814",
+          "name": "Rabiul Islam Remon",
+          "name_bn": "রবিউল ইসলাম রিমন",
+          "designation": "Lecturer",
+          "email": "rabiulislamremon@arch.ruet.ac.bd",
+          "phone": "880-1882581814",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Arch-781",
+          "name": "Shammi Akter Keya",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "keya0801048@gmail.com",
+          "phone": "880-1753696781",
+          "status": "Retired",
+          "office_contact": null
+        }
+      ]
+    },
+    {
+      "department_name": "Building Engineering & Construction Management",
+      "department_code": "BECM",
+      "teachers": [
+        {
+          "teacher_id": "BECM-807",
+          "name": "Aojoy kumar Shuvo",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "aojoy.ce66@gmail.com",
+          "phone": "880-1748113807",
+          "status": "Active",
+          "office_contact": "Teachers' Room, BECM, RUET"
+        },
+        {
+          "teacher_id": "BECM-476",
+          "name": "Ashadul Islam",
+          "name_bn": "আসাদুল ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "asadruetce11@gmail.com",
+          "phone": "880-1738244476",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "BECM-048",
+          "name": "Faruque Abdullah",
+          "name_bn": "ফারুক আব্দুল্লাহ",
+          "designation": "Assistant Professor",
+          "email": "abdullahruet13@gmail.com",
+          "phone": "880-1701011048",
+          "status": "Active",
+          "office_contact": "1st Floor, Transportation & Public Health Lab, RUET"
+        },
+        {
+          "teacher_id": "BECM-000",
+          "name": "Md. Ashraful Islam",
+          "name_bn": "মোঃ আশরাফুল ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "ashraful.ce.ruet13@gmail.com",
+          "phone": "880-1773839000",
+          "status": "Active",
+          "office_contact": "1st Floor, Transportation & Public Health Lab, RUET"
+        },
+        {
+          "teacher_id": "BECM-195",
+          "name": "MD. LUTFOR RAHMAN",
+          "name_bn": "মোঃ লুৎফর রহমান",
+          "designation": "Assistant Professor",
+          "email": "lutforrony@becm.ruet.ac.bd",
+          "phone": "880-1964037195",
+          "status": "On leave",
+          "office_contact": "1st Floor, Transportation & Public Health Lab, RUET"
+        },
+        {
+          "teacher_id": "BECM-227",
+          "name": "Md. Nur Alam Riad",
+          "name_bn": "মোঃ নুর আলম রিয়াদ",
+          "designation": "Assistant Professor",
+          "email": "riyadrzs13civilruet@gmail.com",
+          "phone": "880-1701917227",
+          "status": "Active",
+          "office_contact": "1st Floor, Transportation & Public Health Lab, RUET"
+        },
+        {
+          "teacher_id": "BECM-339",
+          "name": "Mehedi Hasan",
+          "name_bn": "মেহেদী হাসান",
+          "designation": "Assistant Professor",
+          "email": "mehedi.ruet95@gmail.com",
+          "phone": "880-1773056339",
+          "status": "Active",
+          "office_contact": "3rd Floor, Block-3, Room No.: BECM 3407, Academic Building-5, RUET"
+        },
+        {
+          "teacher_id": "BECM-283",
+          "name": "RAKIBUL HASAN",
+          "name_bn": "রাকিবুল হাসান",
+          "designation": "Assistant Professor",
+          "email": "rakibulkuet14@becm.ruet.ac.bd",
+          "phone": "880-1902064283",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "BECM-244",
+          "name": "Shayla Sharmin",
+          "name_bn": "শায়লা শারমিন",
+          "designation": "Assistant Professor",
+          "email": "shaylasharmin.100016@gmail.com",
+          "phone": "880-1754472244",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "BECM-935",
+          "name": "Md. Jubaer Hossain",
+          "name_bn": "মোঃ জুবায়ের হোসেন",
+          "designation": "Lecturer",
+          "email": "jubaer@becm.ruet.ac.bd",
+          "phone": "880-1795718935",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "BECM-203",
+          "name": "MD. Mehedi Hassan Galib",
+          "name_bn": "মোঃ মেহেদী হাসান গালিব",
+          "designation": "Lecturer",
+          "email": "mehedihassangalib@gmail.com",
+          "phone": "880-1301108203",
+          "status": "Active",
+          "office_contact": "1st Floor, Transportation & Public Health Lab, RUET"
+        },
+        {
+          "teacher_id": "BECM-906",
+          "name": "Md. Mustakim",
+          "name_bn": "মোঃ মুস্তাকীম",
+          "designation": "Lecturer",
+          "email": "mustakim@becm.ruet.ac.bd",
+          "phone": "880-1771601906",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "BECM-406",
+          "name": "MD. RUMMAN HOWLADER",
+          "name_bn": "মোঃ রুম্মান হাওলাদার",
+          "designation": "Lecturer",
+          "email": "rummanruet.ce18@gmail.com",
+          "phone": "880-1790867406",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "BECM-681",
+          "name": "Md. Towfik Hassan",
+          "name_bn": "মোঃ তৌফিক হাসান",
+          "designation": "Lecturer",
+          "email": "mthassan.ruet16@gmail.com",
+          "phone": "880-1761719681",
+          "status": "Active",
+          "office_contact": "1st Floor, Transportation & Public Health Lab, RUET"
+        },
+        {
+          "teacher_id": "BECM-111",
+          "name": "Showaib Ahmed Chowdhury",
+          "name_bn": "শোয়াইব আহমেদ চৌধুরী",
+          "designation": "Lecturer",
+          "email": "showaib.ruet@gmail.com",
+          "phone": "880-1828775111",
+          "status": "On leave",
+          "office_contact": "Teachers' Room, BECM, RUET"
+        }
+      ]
+    }
+  ]
+}

@@ -24,12 +24,15 @@ const syncTeacherDutyStatuses = async () => {
       );
     }
 
-    // 2. Find teachers who are marked ON_LEAVE but currently have no active approved leave
-    const teachersOnLeave = await Teacher.find({ dutyStatus: 'ON_LEAVE' });
-    for (const t of teachersOnLeave) {
-      if (!onLeaveTeacherIds.includes(t._id.toString())) {
-        t.dutyStatus = 'ON_DUTY';
-        await t.save();
+    // 2. Only reset teachers whose approved leave request in system has ended
+    const expiredLeaves = await LeaveRequest.find({
+      status: 'approved',
+      endDate: { $lt: today }
+    });
+    const expiredTeacherIds = expiredLeaves.map(l => l.teacher?.toString()).filter(Boolean);
+    for (const tId of expiredTeacherIds) {
+      if (!onLeaveTeacherIds.includes(tId)) {
+        await Teacher.updateOne({ _id: tId, dutyStatus: 'ON_LEAVE' }, { dutyStatus: 'ON_DUTY' });
       }
     }
 

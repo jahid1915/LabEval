@@ -16,6 +16,31 @@ const importData = async () => {
     await Course.deleteMany();
     await Admin.deleteMany();
 
+    const Faculty = require('./models/Faculty');
+    const Department = require('./models/Department');
+
+    await Faculty.deleteMany();
+    await Department.deleteMany();
+
+    const faculty = await Faculty.create({
+      name: 'Faculty of Electrical & Computer Engineering',
+      code: 'ECE',
+      deanName: 'Prof. Dr. M. ECE',
+      status: 'active'
+    });
+
+    const cseDept = await Department.create({
+      name: 'Computer Science & Engineering',
+      code: 'CSE',
+      faculty: faculty._id
+    });
+
+    const eteDept = await Department.create({
+      name: 'Electronics & Telecommunication Engineering',
+      code: 'ETE',
+      faculty: faculty._id
+    });
+
     // Create Super Admin
     await Admin.create({
       name: 'System Administrator',
@@ -27,15 +52,17 @@ const importData = async () => {
     });
 
     await Course.insertMany([
-      { teacherId: 'T-101', courseCode: 'CSE2200', courseName: 'Software Development Lab', series: '22', department: 'CSE' },
-      { teacherId: 'T-101', courseCode: 'CSE2202', courseName: 'Algorithm Lab', series: '22', department: 'CSE' },
-      { teacherId: 'T-101', courseCode: 'ETE3111', courseName: 'Communication Theory Lab', series: '22', department: 'ETE' }
+      { teacherId: 'T-101', courseCode: 'CSE2200', courseName: 'Software Development Lab', series: '22', department: cseDept._id, departmentCode: 'CSE', faculty: faculty._id, credit: 1.5, courseType: 'Lab' },
+      { teacherId: 'T-101', courseCode: 'CSE2202', courseName: 'Algorithm Lab', series: '22', department: cseDept._id, departmentCode: 'CSE', faculty: faculty._id, credit: 1.5, courseType: 'Lab' },
+      { teacherId: 'T-101', courseCode: 'ETE3111', courseName: 'Communication Theory Lab', series: '22', department: eteDept._id, departmentCode: 'ETE', faculty: faculty._id, credit: 1.5, courseType: 'Lab' }
     ]);
 
     await Teacher.create({
       name: 'Dr. Test Teacher',
       teacherId: 'T-101',
       department: 'CSE',
+      departmentRef: cseDept._id,
+      facultyRef: faculty._id,
       contactNo: '01700000000',
       password: 'password123',
       role: 'teacher',

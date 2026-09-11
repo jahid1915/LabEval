@@ -5,7 +5,7 @@ import {
   Megaphone, Plus, Pencil, Trash2, Search, X, Loader2,
   Eye, Clock, Pin, Users
 } from 'lucide-react';
-import API from '../../utils/api';
+import api from '../../api/axios';
 
 const emptyForm = { title: '', content: '', targetAudience: 'all', priority: 'normal', isPinned: false };
 
@@ -22,7 +22,7 @@ export default function AnnouncementsPage() {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await API.get('/announcements');
+      const res = await api.get('/announcements');
       setAnnouncements(res.data.announcements || res.data || []);
     } catch { toast.error('Failed to load announcements'); }
     finally { setLoading(false); }
@@ -52,10 +52,10 @@ export default function AnnouncementsPage() {
     setSaving(true);
     try {
       if (editId) {
-        await API.put(`/announcements/${editId}`, form);
+        await api.put(`/announcements/${editId}`, form);
         toast.success('Announcement updated');
       } else {
-        await API.post('/announcements', form);
+        await api.post('/announcements', form);
         toast.success('Announcement published');
       }
       setShowModal(false);
@@ -66,7 +66,7 @@ export default function AnnouncementsPage() {
 
   const handleDelete = async () => {
     try {
-      await API.delete(`/announcements/${deleteId}`);
+      await api.delete(`/announcements/${deleteId}`);
       toast.success('Announcement deleted');
       setDeleteId(null);
       fetchAll();

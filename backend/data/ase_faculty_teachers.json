@@ -1,0 +1,700 @@
+{
+  "faculty_name": "Faculty of Applied Science & Humanities",
+  "faculty_code": "ASE_FACULTY",
+  "departments": [
+    {
+      "department_name": "Mathematics",
+      "department_code": "Math",
+      "teachers": [
+        {
+          "teacher_id": "Math-758",
+          "name": "Dr. Ismot Ara Yeasmin",
+          "name_bn": "ড. ইসমত আরা ইয়াসমিন",
+          "designation": "Professor",
+          "email": "ismot.yeasmin@yahoo.com",
+          "phone": "880-1740553758",
+          "status": "Active",
+          "office_contact": "Room No: 223 (First floor), Administrative Building (East block), RUET, Rajshahi-6204, Bangladesh."
+        },
+        {
+          "teacher_id": "Math-686",
+          "name": "Dr. Md Saifur Rahman",
+          "name_bn": "ড. মো: সাইফুর রহমান",
+          "designation": "Professor",
+          "email": "msr_math_1980@yahoo.com",
+          "phone": "880-1792557686",
+          "status": "Active",
+          "office_contact": "Room No.: 229, 1st floor, Administrative Building (East block), RUET, Rajshahi-6204, Bangladesh."
+        },
+        {
+          "teacher_id": "Math-530",
+          "name": "Dr. Md. Alal Hosen",
+          "name_bn": "ড. মোঃ আলাল হোসেন",
+          "designation": "Professor",
+          "email": "alal_ruet@yahoo.com",
+          "phone": "880-1912851530",
+          "status": "Active",
+          "office_contact": "228, 1st Floor, Administrative Building (East Block)"
+        },
+        {
+          "teacher_id": "Math-577",
+          "name": "Dr. Md. Bellal Hossain",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "hossain.bellal62@yahoo.com",
+          "phone": "880-1739497577",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Math-023",
+          "name": "Dr. Md. Feruj Alam",
+          "name_bn": "ড. মো ফিরুজ আলম",
+          "designation": "Professor",
+          "email": "ferujalam60@gmail.com",
+          "phone": "880-1552386023",
+          "status": "Retired",
+          "office_contact": "227, 1st Floor, Academic Building (East block),"
+        },
+        {
+          "teacher_id": "Math-698",
+          "name": "Dr. Md. Helal Uddin Molla",
+          "name_bn": "ড. মোঃ হেলাল উদ্দীন মোল্লা",
+          "designation": "Professor",
+          "email": "helal.mathru@yahoo.com",
+          "phone": "880-1730875698",
+          "status": "Active",
+          "office_contact": "221 (2nd floor), Administrative Building (East block), RUET, Rajshahi-6204, Bangladesh."
+        },
+        {
+          "teacher_id": "Math-116",
+          "name": "Dr. Md. Majedur Rahman",
+          "name_bn": "ড. মোঃ মাজেদুর রহমান",
+          "designation": "Professor",
+          "email": "md.majedurr@yahoo.com",
+          "phone": "880-1959089116",
+          "status": "Retired",
+          "office_contact": "Room No: 100, Ground Floor, Administrative Building (East Block)"
+        },
+        {
+          "teacher_id": "Math-132",
+          "name": "Dr. Md. Shamsul Alam",
+          "name_bn": "ড. মোঃ শামছুল আলম",
+          "designation": "Professor",
+          "email": "msalam1964@yahoo.com",
+          "phone": "880-1712352132",
+          "status": "Active",
+          "office_contact": "222 (2nd floor), Administrative Building (East block), RUET, Rajshahi-6204, Bangladesh."
+        },
+        {
+          "teacher_id": "Math-998",
+          "name": "Dr. Mohammad Kamrul Hasan",
+          "name_bn": "ড. মোহাম্মদ কামরুল হাসান",
+          "designation": "Professor",
+          "email": "mkh2502@yahoo.com",
+          "phone": "880-1915457998",
+          "status": "Active",
+          "office_contact": "123 (Ground floor), Administrative Building (East block), RUET, Rajshahi-6204, Bangladesh."
+        },
+        {
+          "teacher_id": "Math-177",
+          "name": "Md Suzan Ahamed",
+          "name_bn": "মো. সুজন আহম্মেদ",
+          "designation": "Assistant Professor",
+          "email": "mdsuzanahamed@my.unt.edu",
+          "phone": "880-1722532177",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Math-967",
+          "name": "Md. Abdul Alim",
+          "name_bn": "মোঃ আব্দুল আলীম",
+          "designation": "Assistant Professor",
+          "email": "aabdulali2-c@my.cityu.edu.hk",
+          "phone": "880-1729323967",
+          "status": "On leave",
+          "office_contact": "Room No: 221 (1st floor), Administrative Building (East block), RUET, Rajshahi-6204, Bangladesh."
+        },
+        {
+          "teacher_id": "Math-198",
+          "name": "Md. Abdur Razzak",
+          "name_bn": "মো: আব্দুর রাজ্জাক",
+          "designation": "Assistant Professor",
+          "email": "raz_ruet@yahoo.com",
+          "phone": "880-1710-441198",
+          "status": "On leave",
+          "office_contact": "On leave"
+        },
+        {
+          "teacher_id": "Math-578",
+          "name": "Md. Dalim Haque",
+          "name_bn": "মোঃ ডালিম হক",
+          "designation": "Assistant Professor",
+          "email": "dalimru10@gmail.com",
+          "phone": "880-1774015578",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Math-999",
+          "name": "Md. Nazmul Sharif",
+          "name_bn": "মোঃ নাজমুল শরীফ",
+          "designation": "Assistant Professor",
+          "email": "nazmul06024160@gmail.com",
+          "phone": "880-1717116999",
+          "status": "Active",
+          "office_contact": "Room No. 226, 1st Floor, Administrative Building (East Block)."
+        },
+        {
+          "teacher_id": "Math-434",
+          "name": "Md. Nuruzzaman",
+          "name_bn": "মোঃ নুরুজ্জামান",
+          "designation": "Assistant Professor",
+          "email": "mnuruzzaman94@gmail.com",
+          "phone": "880-1740066434",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Math-846",
+          "name": "Md. Zahangir Alam",
+          "name_bn": "মোঃ জাহাংগীর আলম",
+          "designation": "Assistant Professor",
+          "email": "zahangiramth@gmail.com",
+          "phone": "880-1722905846",
+          "status": "Active",
+          "office_contact": "Admin 226"
+        },
+        {
+          "teacher_id": "Math-568",
+          "name": "Mst. Rupale Khatun",
+          "name_bn": "মোসাঃ রুপালী খাতুন",
+          "designation": "Assistant Professor",
+          "email": "rupalemathru@gmail.com",
+          "phone": "880-1626-266568",
+          "status": "Active",
+          "office_contact": "221, Administrative Building (First floor), East Block, RUET, Rajshahi-6204, Bangladesh."
+        },
+        {
+          "teacher_id": "Math-721",
+          "name": "Tamanna Tasnim Prova",
+          "name_bn": "তামান্না তাসনিম প্রভা",
+          "designation": "Assistant Professor",
+          "email": "tprova.ku@gmail.com",
+          "phone": "880-1733520721",
+          "status": "Active",
+          "office_contact": "Seminar Room, Academic Building-2"
+        },
+        {
+          "teacher_id": "Math-551",
+          "name": "Md. Zakir Hossain",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "zakir@math.ruet.ac.bd",
+          "phone": "880-1518672551",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Math-271",
+          "name": "MOMINUL ISLAM",
+          "name_bn": "মোমিনুল ইসলাম",
+          "designation": "Lecturer",
+          "email": "mominul@math.ruet.ac.bd",
+          "phone": "880-1701543271",
+          "status": "Active",
+          "office_contact": "Administration Building, Level-1, Room#229"
+        }
+      ]
+    },
+    {
+      "department_name": "Chemistry",
+      "department_code": "Chem",
+      "teachers": [
+        {
+          "teacher_id": "Chem-858",
+          "name": "Dr. Md. Abbas Ali",
+          "name_bn": "প্রফেসর ড. মোঃ আব্বাস আলী",
+          "designation": "Professor",
+          "email": "radwiya44@yahoo.com",
+          "phone": "880-1781474858",
+          "status": "Active",
+          "office_contact": "Level-2, Administrative Building"
+        },
+        {
+          "teacher_id": "Chem-567",
+          "name": "Dr. Md. Al-Amin-Al-Azadul Islam",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "aamin@chem.ruet.ac.bd",
+          "phone": "880-1713228567",
+          "status": "Active",
+          "office_contact": "201, Level 1, Administrative Building"
+        },
+        {
+          "teacher_id": "Chem-679",
+          "name": "Dr. Md. Anwar Hossain",
+          "name_bn": "ড. মোঃ আনোয়ার হোসেন",
+          "designation": "Professor",
+          "email": "anwarruet10@gmail.com",
+          "phone": "880-1750194679",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Chem-370",
+          "name": "Dr. Md. Ashraful Alam",
+          "name_bn": "W. †gv: Avkivdzj Avjg)",
+          "designation": "Professor",
+          "email": "maalam_ruet@yahoo.com",
+          "phone": "880-1730712370",
+          "status": "Active",
+          "office_contact": "Chem Room No.117"
+        },
+        {
+          "teacher_id": "Chem-606",
+          "name": "Dr. Md. Mayeedul Islam",
+          "name_bn": "ড. মোঃ মাঈদুল ইসলাম",
+          "designation": "Professor",
+          "email": "mayeedulmst@gmail.com",
+          "phone": "880-1775093606",
+          "status": "Active",
+          "office_contact": "Administrative Building, Ground Floor, Room No. 116"
+        },
+        {
+          "teacher_id": "Chem-041",
+          "name": "Dr. Tarun Kumar Pal",
+          "name_bn": "ড. তরুন কুমার পাল",
+          "designation": "Professor",
+          "email": "tkpchem@gmail.com",
+          "phone": "880-1718140041",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Chem-109",
+          "name": "Dr. Jewel Hossen",
+          "name_bn": "ড. জুয়েল হোসেন",
+          "designation": "Associate Professor",
+          "email": "jewelhossenruet@gmail.com",
+          "phone": "880-1515283109",
+          "status": "Active",
+          "office_contact": "Room No: 201, Level 1, Administrative Building"
+        },
+        {
+          "teacher_id": "Chem-883",
+          "name": "Dr. Mst. Nahid Farha",
+          "name_bn": "ড. মোসা: নাহিদ ফারহা",
+          "designation": "Associate Professor",
+          "email": "nfarha@chem.ruet.ac.bd",
+          "phone": "880-1332748883",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Chem-579",
+          "name": "Aktarun Nahar",
+          "name_bn": "আক্তারুন নাহার",
+          "designation": "Assistant Professor",
+          "email": "a.nahar@chem.ruet.ac.bd",
+          "phone": "880-1815421579",
+          "status": "Active",
+          "office_contact": "৩০২ (ণ), প্রশাসনিক ভবন।"
+        },
+        {
+          "teacher_id": "Chem-534",
+          "name": "Md. Shamsul Alam",
+          "name_bn": "মোঃ শামসুল আলম",
+          "designation": "Assistant Professor",
+          "email": "samsul.ch34.ru@gmail.com",
+          "phone": "880-1792873534",
+          "status": "On leave",
+          "office_contact": "302-Ta (Third floor), West side, Administration building"
+        },
+        {
+          "teacher_id": "Chem-590",
+          "name": "Siddhartha Sankar Saha",
+          "name_bn": "সিদ্ধার্থ শংকর সাহা",
+          "designation": "Assistant Professor",
+          "email": "01677143500.sss@gmail.com",
+          "phone": "880-1716385590",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Chem-168",
+          "name": "Md. Abdullah Al Mamun",
+          "name_bn": "মোঃ আব্দুল্লাহ আল মামুন",
+          "designation": "Lecturer",
+          "email": "almamun723@yahoo.com",
+          "phone": "880-1633918168",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Chem-958",
+          "name": "MD. AHAD ALI",
+          "name_bn": "মোঃ আহাদ আলী",
+          "designation": "Lecturer",
+          "email": "maahaddu@gmail.com",
+          "phone": "880-1521419958",
+          "status": "Active",
+          "office_contact": "Room No.: 201 (Cha); Admin Building"
+        },
+        {
+          "teacher_id": "Chem-391",
+          "name": "Md. Ahad Ali",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "ahad@chem.ruet.ac.bd",
+          "phone": null,
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Chem-968",
+          "name": "Omeo Kumar Ghosh",
+          "name_bn": "অমিয় কুমার ঘোষ",
+          "designation": "Lecturer",
+          "email": "omeo@chem.ruet.ac.bd",
+          "phone": "880-1794823968",
+          "status": "Active",
+          "office_contact": "Ground Floor, Administration Building"
+        }
+      ]
+    },
+    {
+      "department_name": "Physics",
+      "department_code": "Phy",
+      "teachers": [
+        {
+          "teacher_id": "Phy-228",
+          "name": "Dr. Md. Abdul Kader Zilani",
+          "name_bn": "ড. মোঃ আব্দুল কাদের জিলানী",
+          "designation": "Professor",
+          "email": "zilani03@gmail.com",
+          "phone": "880-1718670228",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Phy-880",
+          "name": "Dr. Md. Johirul Islam",
+          "name_bn": "ড. মোঃ জহিরুল ইসলাম",
+          "designation": "Professor",
+          "email": "johirulap@gmail.com",
+          "phone": "880-1723216880",
+          "status": "Active",
+          "office_contact": "First Floor (East Block), Administration Building"
+        },
+        {
+          "teacher_id": "Phy-648",
+          "name": "Dr. Md. Nuruzzaman",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "nzaman79@gmail.com",
+          "phone": "880-1713228648",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Phy-534",
+          "name": "Dr. Md. Sazzad Hossain",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "sazzadphys@gmail.com",
+          "phone": "880-1713228534",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Phy-574",
+          "name": "Dr. Md. Faruk Hossain",
+          "name_bn": "ড. মোঃ ফারুক হোসেন",
+          "designation": "Associate Professor",
+          "email": "faruk.apee@gmail.com",
+          "phone": "880-1756906574",
+          "status": "Active",
+          "office_contact": "First Floor (East Block), Administration Building"
+        },
+        {
+          "teacher_id": "Phy-950",
+          "name": "Md. Abdul Hadi Shah",
+          "name_bn": "মোঃ আব্দুল হাদি শাহ্",
+          "designation": "Associate Professor",
+          "email": "hadiphys@gmail.com",
+          "phone": "880-1717591950",
+          "status": "Active",
+          "office_contact": "First Floor (South Block), Administrative Building"
+        },
+        {
+          "teacher_id": "Phy-746",
+          "name": "Al Momin Md. Tanveer Karim",
+          "name_bn": "আল মুমিন মোঃ তানভীর করিম",
+          "designation": "Assistant Professor",
+          "email": "tanveer@phy.ruet.ac.bd",
+          "phone": "880-1723006746",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Phy-576",
+          "name": "Md. Abdullah-Al-Mamun",
+          "name_bn": "মোঃ আব্দুল্লাহ-আল-মামুন",
+          "designation": "Assistant Professor",
+          "email": "mamunruphysics4304@gmail.com",
+          "phone": "880-1741768576",
+          "status": "Active",
+          "office_contact": "Administrative Building 2nd floor"
+        },
+        {
+          "teacher_id": "Phy-571",
+          "name": "Md. Ariful Islam",
+          "name_bn": "মো: আরিফুল ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "arif@phy.ruet.ac.bd",
+          "phone": "880-1724020571",
+          "status": "On leave",
+          "office_contact": "First Floor, Administrative Building, RUET"
+        },
+        {
+          "teacher_id": "Phy-266",
+          "name": "Md. Jubair",
+          "name_bn": "মোঃ জুবায়ের",
+          "designation": "Assistant Professor",
+          "email": "jubair016@gmail.com",
+          "phone": "880-1719404266",
+          "status": "Active",
+          "office_contact": "2nd Floor (West Block), Admin. Building"
+        },
+        {
+          "teacher_id": "Phy-455",
+          "name": "Md. Rahat Ali",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "rahatku44@gmail.com",
+          "phone": "880-1757820455",
+          "status": "On leave",
+          "office_contact": "Administrative Building 2nd floor"
+        },
+        {
+          "teacher_id": "Phy-715",
+          "name": "Md. Sarwar Pervez",
+          "name_bn": "মোঃ সারোয়ার পারভেজ",
+          "designation": "Assistant Professor",
+          "email": "sarwar.pervez@gmail.com",
+          "phone": "880-1750441715",
+          "status": "On leave",
+          "office_contact": "First Floor (South Block), Administrative Building"
+        },
+        {
+          "teacher_id": "Phy-391",
+          "name": "Md. Raihan Islam",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "raihan@phy.ruet.ac.bd",
+          "phone": "880-1714532391",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Phy-063",
+          "name": "Md. Sajidul Islam",
+          "name_bn": "মোঃ সাজিদুল ইসলাম",
+          "designation": "Lecturer",
+          "email": "sajidul@phy.ruet.ac.bd",
+          "phone": "880-1741915063",
+          "status": "Active",
+          "office_contact": "2nd Floor (West Block), Admin. Building"
+        }
+      ]
+    },
+    {
+      "department_name": "Humanities",
+      "department_code": "Hum",
+      "teachers": [
+        {
+          "teacher_id": "Hum-748",
+          "name": "Dr. Kaniz Fatema",
+          "name_bn": "ড. কানিজ ফাতেমা",
+          "designation": "Professor",
+          "email": "kanizfatema8220@yahoo.com",
+          "phone": "880-1715486748",
+          "status": "Active",
+          "office_contact": "Admin building -138"
+        },
+        {
+          "teacher_id": "Hum-758",
+          "name": "Dr. Md. Rabiul Islam",
+          "name_bn": "ড. মোঃ রবিউল ইসলাম",
+          "designation": "Professor",
+          "email": "rabiul@hum.ruet.ac.bd",
+          "phone": "880-1716175758",
+          "status": "Retired",
+          "office_contact": "Admin Building, Ground Floor (East)"
+        },
+        {
+          "teacher_id": "Hum-940",
+          "name": "Dr. Saila Ahmed",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "saila@hum.ruet.ac.bd",
+          "phone": "880-1793596940",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Hum-568",
+          "name": "Md. Abu Bokar Siddique",
+          "name_bn": "†gvt Avey eKi wQwÏK",
+          "designation": "Professor",
+          "email": "abshum_ruet@yahoo.com",
+          "phone": "880-1713228568",
+          "status": "Active",
+          "office_contact": "Room-106, Administrative Building East Wing"
+        },
+        {
+          "teacher_id": "Hum-364",
+          "name": "Abdulla-All-Mijan",
+          "name_bn": "আব্দুল্লা-আল-মিজান",
+          "designation": "Assistant Professor",
+          "email": "mijan89.engju@gmail.com",
+          "phone": "880-1749937364",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Hum-569",
+          "name": "Ahsan Habib",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "habib.edru@gmail.com",
+          "phone": "880-1723874569",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Hum-170",
+          "name": "Kashfia Reza Tonni",
+          "name_bn": "কাশফিয়া রেজা তন্বী",
+          "designation": "Assistant Professor",
+          "email": "kashfia.reza@gmail.com",
+          "phone": "880-1312717170",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Hum-325",
+          "name": "Md Sayeed Anwar",
+          "name_bn": "মোঃ সাঈদ আনোয়ার",
+          "designation": "Assistant Professor",
+          "email": "anwar@hum.ruet.ac.bd",
+          "phone": "880-1728427325",
+          "status": "On leave",
+          "office_contact": "Admin building east block 1st floor"
+        },
+        {
+          "teacher_id": "Hum-586",
+          "name": "Md. Golam Mostakim",
+          "name_bn": "মোঃ গোলাম মোস্তাকিম",
+          "designation": "Assistant Professor",
+          "email": "mgm1976ruet@gmail.com",
+          "phone": "880-1713228586",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Hum-431",
+          "name": "Mohammad Didar Hossain",
+          "name_bn": "মোহাম্মদ দিদার হোসেন",
+          "designation": "Assistant Professor",
+          "email": "didarhum@hum.ruet.ac.bd",
+          "phone": "880-1918703431",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Hum-228",
+          "name": "Mohammad Harun Or Rashid",
+          "name_bn": "মোহাম্মদ হারুন অর রশীদ",
+          "designation": "Assistant Professor",
+          "email": "harunmr9@gmail.com",
+          "phone": "880-1713205228",
+          "status": "On leave",
+          "office_contact": "Ground Floor, East Block,Admin Building"
+        },
+        {
+          "teacher_id": "Hum-935",
+          "name": "Monira Parvin Kona",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "monira@hum.ruet.ac.bd",
+          "phone": "880-1754350935",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Hum-724",
+          "name": "Mst. Mitu Pervin",
+          "name_bn": "মোছাঃ মিতু পারভীন",
+          "designation": "Assistant Professor",
+          "email": "mitupervin24@gmail.com",
+          "phone": "880-1715652724",
+          "status": "Active",
+          "office_contact": "1st Floor, East Block, Administration Building"
+        },
+        {
+          "teacher_id": "Hum-485",
+          "name": "Shoaib Islam",
+          "name_bn": "সোয়াইব ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "shoaibshakil78@gmail.com",
+          "phone": "880-1689997485",
+          "status": "Active",
+          "office_contact": "Ground floor of Admin Building"
+        },
+        {
+          "teacher_id": "Hum-545",
+          "name": "Tahmina Khatun",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "tahmina16swapna@gmail.com",
+          "phone": "880-1744960545",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "Hum-425",
+          "name": "Md.Muhib Ahsan Chowdhury",
+          "name_bn": "মোঃ মুহিব আহসান চৌধুরী",
+          "designation": "Lecturer",
+          "email": "muhib.ahsan@hum.ruet.ac.bd",
+          "phone": "880-1793772425",
+          "status": "Active",
+          "office_contact": "Admin building East block ground floor"
+        },
+        {
+          "teacher_id": "Hum-626",
+          "name": "Safia Ishrak",
+          "name_bn": "সাফিয়া ইশরাক",
+          "designation": "Lecturer",
+          "email": "ishraksafia@hum.ruet.ac.bd",
+          "phone": "880-1700572626",
+          "status": "Active",
+          "office_contact": "Admin building, East block, Ground floor"
+        },
+        {
+          "teacher_id": "Hum-794",
+          "name": "TAHRINA TANZIM TITHI",
+          "name_bn": "তাহরিনা তানজিম তিথি",
+          "designation": "Lecturer",
+          "email": "tahrina.tithi@hum.ruet.ac.bd",
+          "phone": "880-1789376794",
+          "status": "Active",
+          "office_contact": null
+        }
+      ]
+    }
+  ]
+}

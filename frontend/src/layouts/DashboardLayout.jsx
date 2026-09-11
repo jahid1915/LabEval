@@ -5,28 +5,61 @@ import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard, BookOpen, Activity, HelpCircle, FileCheck,
   ClipboardList, TrendingUp, LogOut, Sun, Moon, Menu,
-  Phone, Building2, ChevronDown, GraduationCap
+  Phone, Building2, ChevronDown, GraduationCap, Users,
+  Calendar, Layers, CalendarOff, Megaphone, ScrollText,
+  Search, Bell, BookMarked, FolderTree
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
+/* ── Navigation Configs ──────────────────────────── */
+
+const adminNav = [
+  { heading: 'Overview' },
+  { to: '/admin', icon: <LayoutDashboard size={18}/>, label: 'Dashboard', end: true },
+
+  { heading: 'Institution' },
+  { to: '/admin/faculties', icon: <FolderTree size={18}/>, label: 'Faculties' },
+  { to: '/admin/departments', icon: <Building2 size={18}/>, label: 'Departments' },
+  { to: '/admin/sessions', icon: <Calendar size={18}/>, label: 'Academic Sessions' },
+  { to: '/admin/series', icon: <Users size={18}/>, label: 'Series / Batches' },
+
+  { heading: 'People' },
+  { to: '/admin/teachers', icon: <GraduationCap size={18}/>, label: 'Teachers' },
+  { to: '/admin/students', icon: <Users size={18}/>, label: 'Students' },
+
+  { heading: 'Courses' },
+  { to: '/admin/course-catalog', icon: <BookMarked size={18}/>, label: 'Course Catalog' },
+  { to: '/admin/course-offerings', icon: <Layers size={18}/>, label: 'Course Offerings' },
+
+  { heading: 'Operations' },
+  { to: '/admin/leaves', icon: <CalendarOff size={18}/>, label: 'Leave Management' },
+  { to: '/admin/announcements', icon: <Megaphone size={18}/>, label: 'Announcements' },
+  { to: '/admin/audit-logs', icon: <ScrollText size={18}/>, label: 'Audit Logs' },
+];
+
 const teacherNav = [
-  { to:'/teacher',             icon:<LayoutDashboard size={18}/>, label:'Dashboard',       end:true },
-  { to:'/teacher/courses',     icon:<BookOpen size={18}/>,        label:'Courses' },
-  { to:'/teacher/attendance',  icon:<ClipboardList size={18}/>,   label:'Attendance & Report' },
-  { to:'/teacher/performance', icon:<Activity size={18}/>,        label:'Lab Performance' },
-  { to:'/teacher/quiz',        icon:<HelpCircle size={18}/>,      label:'Lab Quiz' },
-  { to:'/teacher/test',        icon:<FileCheck size={18}/>,       label:'Lab Test' },
-  { to:'/teacher/others',      icon:<ClipboardList size={18}/>,   label:'Others' },
-  { to:'/teacher/results',     icon:<TrendingUp size={18}/>,      label:'Final Result' },
+  { heading: 'Main' },
+  { to: '/teacher', icon: <LayoutDashboard size={18}/>, label: 'Dashboard', end: true },
+  { to: '/teacher/courses', icon: <BookOpen size={18}/>, label: 'Courses' },
+
+  { heading: 'Evaluation' },
+  { to: '/teacher/attendance', icon: <ClipboardList size={18}/>, label: 'Attendance & Report' },
+  { to: '/teacher/performance', icon: <Activity size={18}/>, label: 'Lab Performance' },
+  { to: '/teacher/quiz', icon: <HelpCircle size={18}/>, label: 'Lab Quiz' },
+  { to: '/teacher/test', icon: <FileCheck size={18}/>, label: 'Lab Test' },
+  { to: '/teacher/others', icon: <ClipboardList size={18}/>, label: 'Others' },
+  { to: '/teacher/results', icon: <TrendingUp size={18}/>, label: 'Final Result' },
+
+  { heading: 'Personal' },
+  { to: '/teacher/leave', icon: <CalendarOff size={18}/>, label: 'Leave Requests' },
 ];
 
 const studentNav = [
-  { to:'/student', icon:<LayoutDashboard size={18}/>, label:'My Courses', end:true },
+  { heading: 'Main' },
+  { to: '/student', icon: <LayoutDashboard size={18}/>, label: 'My Courses', end: true },
 ];
 
-const adminNav = [
-  { to:'/admin', icon:<LayoutDashboard size={18}/>, label:'Admin Hub', end:true },
-];
+/* ── Sidebar Content Component ───────────────────── */
 
 const SidebarContent = ({
   user,
@@ -122,12 +155,22 @@ const SidebarContent = ({
     </div>
 
     {/* Nav Links */}
-    <nav className="flex-1 px-3 py-2 space-y-1 overflow-y-auto">
-      {navItems.map(({ to, icon, label, end }) => (
-        <NavLink key={to} to={to} end={end} className={({ isActive }) => isActive ? activeClass : inactiveClass}>
-          {icon} {label}
-        </NavLink>
-      ))}
+    <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
+      {navItems.map((item, idx) => {
+        if (item.heading) {
+          return (
+            <p key={`h-${idx}`} className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-600 px-4 pt-4 pb-1.5 first:pt-0">
+              {item.heading}
+            </p>
+          );
+        }
+        return (
+          <NavLink key={item.to} to={item.to} end={item.end}
+            className={({ isActive }) => isActive ? activeClass : inactiveClass}>
+            {item.icon} {item.label}
+          </NavLink>
+        );
+      })}
     </nav>
 
     {/* Bottom Controls */}
@@ -145,6 +188,8 @@ const SidebarContent = ({
   </div>
   );
 };
+
+/* ── Main Layout Component ───────────────────────── */
 
 export default function DashboardLayout() {
   const { user, logout }          = useContext(AuthContext);

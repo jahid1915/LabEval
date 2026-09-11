@@ -1,0 +1,1530 @@
+{
+  "faculty_name": "Faculty of Electrical & Computer Engineering",
+  "faculty_code": "ECE_FACULTY",
+  "departments": [
+    {
+      "department_name": "Electrical & Electronic Engineering",
+      "department_code": "EEE",
+      "teachers": [
+        {
+          "teacher_id": "EEE-808",
+          "name": "Ajay Krishno Sarkar",
+          "name_bn": "ডঃ অজয় কৃষ্ণ সরকার",
+          "designation": "Professor",
+          "email": "aksarkar@eee.ruet.ac.bd",
+          "phone": "880-1792202808",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-363",
+          "name": "Dr. Abdul Khaleque",
+          "name_bn": "ডঃ আব্দুল খালেক",
+          "designation": "Professor",
+          "email": "abdul.khaleque.eee@gmail.com",
+          "phone": "880-1755986363",
+          "status": "Active",
+          "office_contact": "First floor, Academic Building 2 & Office of Director (Research & Extension)"
+        },
+        {
+          "teacher_id": "EEE-196",
+          "name": "Dr. Abu Sadat Md. Sayem",
+          "name_bn": "ড. আবু সাদাত মোঃ সায়েম",
+          "designation": "Professor",
+          "email": "sayem@eee.ruet.ac.bd",
+          "phone": "880-1318148196",
+          "status": "On leave",
+          "office_contact": "Level 1, Academic Building 2, Dept. of EEE"
+        },
+        {
+          "teacher_id": "EEE-737",
+          "name": "Dr. G.K.M. Hasanuzzaman",
+          "name_bn": "ড. জি.কে.এম. হাসানুজ্জামান",
+          "designation": "Professor",
+          "email": "g.kibria82@yahoo.com",
+          "phone": "880-1718969737",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-015",
+          "name": "Dr. Jishan-E-Giti",
+          "name_bn": "ড. জিসান-ই-গিতি",
+          "designation": "Professor",
+          "email": "jishan.e.giti@gmail.com",
+          "phone": "880-1306487015",
+          "status": "On leave",
+          "office_contact": "First floor (Level 1), Academic Building 2, Dept. of EEE"
+        },
+        {
+          "teacher_id": "EEE-595",
+          "name": "Dr. Kazi Khairul Islam",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "abc@gmail.com",
+          "phone": "880-1847301595",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-474",
+          "name": "Dr. Md . Ashraful Hoque",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "mahoque@iut-dhaka.edu",
+          "phone": "880-1735444474",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-600",
+          "name": "Dr. Md. Faruk Hossain",
+          "name_bn": "ড. মোঃ ফারুক হোসেন",
+          "designation": "Professor",
+          "email": "engr.mfhossain@eee.ruet.ac.bd",
+          "phone": "880-1778400600",
+          "status": "Active",
+          "office_contact": "Office of Head & Office of Director (Research & Extension)"
+        },
+        {
+          "teacher_id": "EEE-958",
+          "name": "Dr. Md. Fayzur Rahman",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "fayzur@eee.green.edu.bd",
+          "phone": "880-1628024958",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-535",
+          "name": "Dr. Md. Masud Rana",
+          "name_bn": "ড. মোঃ মাসুদ রানা",
+          "designation": "Professor",
+          "email": "md.masud.rana.ruet@gmail.com",
+          "phone": "880-1724550535",
+          "status": "Active",
+          "office_contact": "Room No. 10, 1st Floor, Academic Building 2, Dept. of EEE,"
+        },
+        {
+          "teacher_id": "EEE-863",
+          "name": "Dr. Md. Mortuza Ali",
+          "name_bn": "ডঃ মোঃ মর্ত্তুজা আলী",
+          "designation": "Professor",
+          "email": "mmali.ruet@gmail.com",
+          "phone": "880-1717137863",
+          "status": "Retired",
+          "office_contact": "204, Academic Building 2"
+        },
+        {
+          "teacher_id": "EEE-193",
+          "name": "Dr. Md. Rafiqul Islam Sheikh",
+          "name_bn": "ডঃ মোঃ রফিকুল ইসলাম সেখ",
+          "designation": "Professor",
+          "email": "mri.sheikh@eee.ruet.ac.bd",
+          "phone": "880-1911404193",
+          "status": "Active",
+          "office_contact": "EEE Building (3rd Floor), RUET, Rajshahi"
+        },
+        {
+          "teacher_id": "EEE-533",
+          "name": "Dr. Md. Ruhul Amin",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "prof.m.r.amin@ieee.org",
+          "phone": "880-1713228533",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-228",
+          "name": "Dr. Md. Samiul Habib",
+          "name_bn": "ড: মোঃ সামিউল হাবিব",
+          "designation": "Professor",
+          "email": "samiul.engieee@gmail.com",
+          "phone": "880-1756238228",
+          "status": "Active",
+          "office_contact": "2nd floor, Academic Buiding 2, Dept. of EEE"
+        },
+        {
+          "teacher_id": "EEE-226",
+          "name": "Dr. Md. Selim Hossain",
+          "name_bn": "ডঃ মোঃ সেলিম হোসেন",
+          "designation": "Professor",
+          "email": "engg.selim@gmail.com",
+          "phone": "880-1788122226",
+          "status": "Active",
+          "office_contact": "Room 205, 1st Floor, EEE Dept"
+        },
+        {
+          "teacher_id": "EEE-739",
+          "name": "Dr. Md. Shahidul Islam",
+          "name_bn": "ড. মোঃ শহীদুল ইসলাম",
+          "designation": "Professor",
+          "email": "siruet@gmail.com",
+          "phone": "880-1750194739",
+          "status": "On leave",
+          "office_contact": "307"
+        },
+        {
+          "teacher_id": "EEE-056",
+          "name": "Dr. Md. Shamim Anower",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "msanower@eee.ruet.ac.bd",
+          "phone": "880-1714081056",
+          "status": "On leave",
+          "office_contact": "2nd floor, EEE Building, RUET"
+        },
+        {
+          "teacher_id": "EEE-631",
+          "name": "Dr. Md. Sohel Rana",
+          "name_bn": "ড. মো: সোহেল রানা",
+          "designation": "Professor",
+          "email": "sohel.unsw@gmail.com",
+          "phone": "880-1725431631",
+          "status": "Active",
+          "office_contact": "209, First Floor, Academic Building 2"
+        },
+        {
+          "teacher_id": "EEE-647",
+          "name": "Dr. Md. Yeakub Hussain",
+          "name_bn": "ডঃ মোঃ ইয়াকুব হোসেন",
+          "designation": "Professor",
+          "email": "md.yeakubhussain@yahoo.com",
+          "phone": "880-1715139647",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-712",
+          "name": "Dr. Md. Zahurul Islam Sarkar",
+          "name_bn": "ড. মোঃ জহুরুল ইসলাম সরকার",
+          "designation": "Professor",
+          "email": "islam89118@gmail.com",
+          "phone": "880-1789538712",
+          "status": "Active",
+          "office_contact": "205, 1st Floor, Academic Building-2."
+        },
+        {
+          "teacher_id": "EEE-619",
+          "name": "Dr. Muhammad Abdul Goffar Khan",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "agmagk@gmail.com",
+          "phone": "880-1703129619",
+          "status": "Retired",
+          "office_contact": "1st floor, Administrative Building"
+        },
+        {
+          "teacher_id": "EEE-187",
+          "name": "Dr. Tanvir Ahmed",
+          "name_bn": "ডঃ তানভীর আহমেদ",
+          "designation": "Professor",
+          "email": "tanvir_eee_ruet@yahoo.com",
+          "phone": "880-1893994187",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-847",
+          "name": "Prof. A.M. Rezaul Karim Talukder",
+          "name_bn": "এ. এম. রেজাউল করিম তালুকদার",
+          "designation": "Professor",
+          "email": "rkt.946@gmail.com",
+          "phone": "880-1675021847",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-607",
+          "name": "Prof. Dr. Sumaiya Kabir",
+          "name_bn": "প্রফেসর ড. সুমাইয়া কবির",
+          "designation": "Professor",
+          "email": "sumaiyakabir_09@yahoo.com",
+          "phone": "880-1324953607",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-866",
+          "name": "S M Abdur Razzak",
+          "name_bn": "ড. এস এম আব্দুর রাজ্জাক",
+          "designation": "Professor",
+          "email": "sma.razzak@eee.ruet.ac.bd",
+          "phone": "880-1721013866",
+          "status": "Active",
+          "office_contact": "2nd Floor, EEE Building"
+        },
+        {
+          "teacher_id": "EEE-393",
+          "name": "Dr. Mohammod Abdul Motin",
+          "name_bn": null,
+          "designation": "Associate Professor",
+          "email": "m.a.motin@ieee.org",
+          "phone": "880-1712863393",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-717",
+          "name": "Alok Kumar Paul",
+          "name_bn": "অলক কুমার পাল",
+          "designation": "Assistant Professor",
+          "email": "alokeee10b@gmail.com",
+          "phone": "880-1998464717",
+          "status": "Active",
+          "office_contact": "1st Floor, Machine Lab, Acad. Build. 2, Dept. of EEE."
+        },
+        {
+          "teacher_id": "EEE-672",
+          "name": "Belal Hossain",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "belal@eee.ruet.ac.bd",
+          "phone": "880-1521482672",
+          "status": "On leave",
+          "office_contact": "1st Floor, EEE Building (Academic Building 2)"
+        },
+        {
+          "teacher_id": "EEE-491",
+          "name": "Dr. Forhad Zaman",
+          "name_bn": "Forhad",
+          "designation": "Assistant Professor",
+          "email": "m.fzaman@yahoo.com",
+          "phone": "880-1799817491",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-335",
+          "name": "kamrun nahar shushama",
+          "name_bn": "কামরুন নাহার সুষমা",
+          "designation": "Assistant Professor",
+          "email": "shushamanahar@gmail.com",
+          "phone": "880-1723220335",
+          "status": "On leave",
+          "office_contact": "2nd Floor, EEE main Building"
+        },
+        {
+          "teacher_id": "EEE-094",
+          "name": "Kusum Tara",
+          "name_bn": "কুসুম তারা",
+          "designation": "Assistant Professor",
+          "email": "kusum@eee.ruet.ac.bd",
+          "phone": "880-1738115094",
+          "status": "On leave",
+          "office_contact": "1st floor, Machine Lab"
+        },
+        {
+          "teacher_id": "EEE-078",
+          "name": "Md Firoz Mahmud",
+          "name_bn": "মোঃ ফিরোজ মাহমুদ",
+          "designation": "Assistant Professor",
+          "email": "firoz.eee13@gmail.com",
+          "phone": "880-1991402078",
+          "status": "On leave",
+          "office_contact": "Academic Building 2 (EEE Building) Ground Floor"
+        },
+        {
+          "teacher_id": "EEE-077",
+          "name": "Md. Abdul Malek",
+          "name_bn": "মোঃ আব্দুল মালেক",
+          "designation": "Assistant Professor",
+          "email": "m.a.malekb88@gmail.com",
+          "phone": "880-1755273077",
+          "status": "Active",
+          "office_contact": "1st Floor, EEE Building"
+        },
+        {
+          "teacher_id": "EEE-117",
+          "name": "Md. Ahasan Habib",
+          "name_bn": "মো: আহসান হাবিব",
+          "designation": "Assistant Professor",
+          "email": "habib.eee.116.ah@gmail.com",
+          "phone": "880-1798427117",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-310",
+          "name": "Md. Arafat Rahman",
+          "name_bn": "মোঃ আরাফাত রহমান",
+          "designation": "Assistant Professor",
+          "email": "arafat.ruet.eee@gmail.com",
+          "phone": "880-1721870310",
+          "status": "Active",
+          "office_contact": "2nd floor, EEE Department, Academic Building 2, RUET"
+        },
+        {
+          "teacher_id": "EEE-646",
+          "name": "Md. Farhamdur Reza",
+          "name_bn": "মোঃ ফারহামদুর রেজা",
+          "designation": "Assistant Professor",
+          "email": "farhamdur@eee.ruet.ac.bd",
+          "phone": "880-1729875646",
+          "status": "On leave",
+          "office_contact": "Romm: T2, 1st Floor, Machine Lab"
+        },
+        {
+          "teacher_id": "EEE-270",
+          "name": "Md. Ilias Rahman",
+          "name_bn": "মোঃ ইলিয়াস রহমান",
+          "designation": "Assistant Professor",
+          "email": "himelmohammad@gmail.com",
+          "phone": "880-1924060270",
+          "status": "On leave",
+          "office_contact": "Computer Lab 1, Electrical Building"
+        },
+        {
+          "teacher_id": "EEE-698",
+          "name": "Md. Mahmudul Hasan",
+          "name_bn": "মোঃ মাহমুদুল হাসান",
+          "designation": "Assistant Professor",
+          "email": "mh.mahmud.ruet@gmail.com",
+          "phone": "880-1837540698",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-989",
+          "name": "Md. Mamunur Rashid",
+          "name_bn": "মোঃ মামুনুর রাশিদ",
+          "designation": "Assistant Professor",
+          "email": "mrashid.eee@gmail.com",
+          "phone": "880-1719252989",
+          "status": "On leave",
+          "office_contact": "1st Floor, EEE Building"
+        },
+        {
+          "teacher_id": "EEE-724",
+          "name": "Md. Nuhi-Alamin",
+          "name_bn": "মোঃ নূহী আলামীন",
+          "designation": "Assistant Professor",
+          "email": "nuhialaminruet@gmail.com",
+          "phone": "880-1708917724",
+          "status": "Active",
+          "office_contact": "Second floor (Beside Computer Lab 1), EEE Department, RUET"
+        },
+        {
+          "teacher_id": "EEE-414",
+          "name": "Md. Rashidul Islam",
+          "name_bn": "মোঃ রাশিদুল ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "rashu_ruet@yahoo.com",
+          "phone": "880-1722261414",
+          "status": "On leave",
+          "office_contact": "Room No. T-001; 2nd Floor, Machine Lab"
+        },
+        {
+          "teacher_id": "EEE-545",
+          "name": "Md. Razon Chowdhury",
+          "name_bn": "মো : রাজন চৌধুরী",
+          "designation": "Assistant Professor",
+          "email": "razonruet@gmail.com",
+          "phone": "880-1545454545",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-901",
+          "name": "Md. Ruhul Amin Ratul",
+          "name_bn": "মোঃ রুহুল আমিন রাতুল",
+          "designation": "Assistant Professor",
+          "email": "ratuleee11@gmail.com",
+          "phone": "880-1722105901",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-892",
+          "name": "Md. Sarwar Hosen",
+          "name_bn": "মোহাঃ সারোয়ার হোসেন",
+          "designation": "Assistant Professor",
+          "email": "sarwar.eee.ruet@gmail.com",
+          "phone": "880-1737057892",
+          "status": "Active",
+          "office_contact": "Beside IoT Lab, 1st Floor of EEE, Department"
+        },
+        {
+          "teacher_id": "EEE-742",
+          "name": "Md. Shah Alam",
+          "name_bn": "মোঃ শাহ আলম",
+          "designation": "Assistant Professor",
+          "email": "sumon01146@yahoo.com",
+          "phone": "880-721750742",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-685",
+          "name": "Md. Tarek Hossein",
+          "name_bn": "মোঃ তারেক হোসেন",
+          "designation": "Assistant Professor",
+          "email": "tarek101008@gmail.com",
+          "phone": "880-1719204685",
+          "status": "On leave",
+          "office_contact": "Beside Electrical Measurement Lab, First Floor, EEE Building"
+        },
+        {
+          "teacher_id": "EEE-749",
+          "name": "Pejush Chandra Sarkar",
+          "name_bn": "পিযুস চন্দ্র সরকার",
+          "designation": "Assistant Professor",
+          "email": "pejush01@yahoo.com",
+          "phone": "880-721750749",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-510",
+          "name": "Reefat Inum",
+          "name_bn": "রিফাত ইনাম",
+          "designation": "Assistant Professor",
+          "email": "romel.eee09@gmail.com",
+          "phone": "880-1724547510",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-758",
+          "name": "Sarjana Shabab",
+          "name_bn": "সারজানা শাবাব",
+          "designation": "Assistant Professor",
+          "email": "sarjana.shabab@gmail.com",
+          "phone": "880-1674172758",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-686",
+          "name": "Sohani Munteha Hiam",
+          "name_bn": "সোহানী মুন্তেহা হিয়াম",
+          "designation": "Assistant Professor",
+          "email": "sohanimunteha.8686@gmail.com",
+          "phone": "880-1722968686",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-066",
+          "name": "Subarto Kumar Ghosh",
+          "name_bn": "সুব্রত কুমার ঘোষ",
+          "designation": "Assistant Professor",
+          "email": "ghosh.sk@eee.ruet.ac.bd",
+          "phone": "880-1729509066",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-959",
+          "name": "Sunjidah Hossain",
+          "name_bn": "সানজিদাহ হোসেন",
+          "designation": "Assistant Professor",
+          "email": "sunjidahhossain141120@gmail.com",
+          "phone": "880-1723230959",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-345",
+          "name": "Sushanto Bosak",
+          "name_bn": "সুশান্ত বসাক",
+          "designation": "Assistant Professor",
+          "email": "sushanto.ruet.eee16@gmail.com",
+          "phone": "880-1778174345",
+          "status": "Active",
+          "office_contact": "Room No.: 206, EEE Building, RUET"
+        },
+        {
+          "teacher_id": "EEE-268",
+          "name": "Tasnim Sarker Joyeeta",
+          "name_bn": "তাসনিম সরকার জয়ীতা",
+          "designation": "Assistant Professor",
+          "email": "tasnimjoyeeta@gmail.com",
+          "phone": "880-1701063268",
+          "status": "Active",
+          "office_contact": "EEE 303"
+        },
+        {
+          "teacher_id": "EEE-668",
+          "name": "Asif Zaman Rizve",
+          "name_bn": "আসিফ জামান রিজভী",
+          "designation": "Lecturer",
+          "email": "asifzamanrizve.bd@gmail.com",
+          "phone": "880-1906455668",
+          "status": "On leave",
+          "office_contact": "2nd Floor (Southern Block), EEE Building, RUET"
+        },
+        {
+          "teacher_id": "EEE-626",
+          "name": "Md. Ariful Islam",
+          "name_bn": "মো: আরিফুল ইসলাম",
+          "designation": "Lecturer",
+          "email": "arif.ruet.eee17@gmail.com",
+          "phone": "880-1701094626",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-635",
+          "name": "Md. Rakibul Islam",
+          "name_bn": "মোঃ রাকিবুল ইসলাম",
+          "designation": "Lecturer",
+          "email": "rakibul.islam@eee.ruet.ac.bd",
+          "phone": "880-1741059635",
+          "status": "Active",
+          "office_contact": "R-206, 1st Floor, EEE Building, RUET"
+        },
+        {
+          "teacher_id": "EEE-855",
+          "name": "Md. Roisul Ajom Ruku",
+          "name_bn": "মো: রইসুল আযম রুকু",
+          "designation": "Lecturer",
+          "email": "roisul.eee16.ruet@gmail.com",
+          "phone": "880-1793936855",
+          "status": "Active",
+          "office_contact": "1st Floor, Academic Building-2, RUET"
+        },
+        {
+          "teacher_id": "EEE-506",
+          "name": "Mst. Nisat Tasnim Sadhona",
+          "name_bn": "মোছাঃ নিশাত তাসনিম সাধনা",
+          "designation": "Lecturer",
+          "email": "nisat.sadhona@eee.ruet.ac.bd",
+          "phone": "880-1637957506",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-293",
+          "name": "Sakib Hossen",
+          "name_bn": "সাকিব হোসেন",
+          "designation": "Lecturer",
+          "email": "sakib.hasan1224@gmail.com",
+          "phone": "880-1765974293",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "EEE-542",
+          "name": "Zahid Hossain",
+          "name_bn": "জাহিদ হোসেন",
+          "designation": "Lecturer",
+          "email": "zahid.hossain@eee.ruet.ac.bd",
+          "phone": "880-1737756542",
+          "status": "Active",
+          "office_contact": "1st Floor (Southern Part), Academic Building 2 (EEE Dept.), RUET"
+        }
+      ]
+    },
+    {
+      "department_name": "Computer Science & Engineering",
+      "department_code": "CSE",
+      "teachers": [
+        {
+          "teacher_id": "CSE-290",
+          "name": "A H M Sarowar Sattar",
+          "name_bn": "এ এইচ এম সারোয়ার সাত্তার",
+          "designation": "Professor",
+          "email": "sarowar@cse.ruet.ac.bd",
+          "phone": "880-1761325290",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-360",
+          "name": "Dr. Md. Al Mehedi Hasan",
+          "name_bn": "ড. মোঃ আল মেহেদী হাসান",
+          "designation": "Professor",
+          "email": "mehedi_ru@yahoo.com",
+          "phone": "880-1712205360",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-278",
+          "name": "Dr. Md. Nazrul Islam Mondal",
+          "name_bn": "ডঃ মোঃ নজরুল ইসলাম মন্ডল",
+          "designation": "Professor",
+          "email": "mondal@cse.ruet.ac.bd",
+          "phone": "880-1720662278",
+          "status": "Active",
+          "office_contact": "R 202, CSE Building, RUET, Rajshahi"
+        },
+        {
+          "teacher_id": "CSE-058",
+          "name": "Dr. Md. Rabiul Islam",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "rabiul_cse@yahoo.com",
+          "phone": null,
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-137",
+          "name": "Dr. Md. Shahid Uz Zaman",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "szaman22.ruet@gmail.com",
+          "phone": "880-1707006137",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-370",
+          "name": "Dr. Mir Md. Jahangir Kabir",
+          "name_bn": "ডঃ মীর মোঃ জাহাঙ্গীর কবির",
+          "designation": "Professor",
+          "email": "mmjahangir.kabir@gmail.com",
+          "phone": "880-1737499370",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-547",
+          "name": "Prof. Dr. Boshir Ahmed",
+          "name_bn": "অধ্যাপক ডঃ বশির আহমেদ",
+          "designation": "Professor",
+          "email": "boshir78@gmail.com",
+          "phone": "880-1713228547",
+          "status": "Active",
+          "office_contact": "1st Floor, CSE Building"
+        },
+        {
+          "teacher_id": "CSE-764",
+          "name": "Prof. Dr. Md. Al Mamun",
+          "name_bn": "ড মোঃ আল মামুন, SMIEEE",
+          "designation": "Professor",
+          "email": "a.mamun@cse.ruet.ac.bd",
+          "phone": "880-1712622764",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-498",
+          "name": "Professor Dr. Md. Ali Hossain",
+          "name_bn": "অধ্যাপক ড. মোঃ আলী হোসেন",
+          "designation": "Professor",
+          "email": "ali.ruet@gmail.com",
+          "phone": "880-1959600498",
+          "status": "On leave",
+          "office_contact": "208, Levele 1 Academic Building 1 (CSE)"
+        },
+        {
+          "teacher_id": "CSE-221",
+          "name": "Dr. Julia Rahman",
+          "name_bn": "জুলিয়া রহমান",
+          "designation": "Associate Professor",
+          "email": "julia@cse.ruet.ac.bd",
+          "phone": "880-1751953221",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-969",
+          "name": "Dr. Md. Arafat Hossain",
+          "name_bn": "ড. মোঃ আরাফাত হোসেন",
+          "designation": "Associate Professor",
+          "email": "arafat.ruet03@gmail.com",
+          "phone": "880-1717450969",
+          "status": "On leave",
+          "office_contact": "Room No: 113, CSE Building"
+        },
+        {
+          "teacher_id": "CSE-122",
+          "name": "Rizoan Toufiq",
+          "name_bn": "রিজওয়ান তৌফিক",
+          "designation": "Associate Professor",
+          "email": "rizoantoufiq@yahoo.com",
+          "phone": "880-1768496122",
+          "status": "On leave",
+          "office_contact": "CSE Building, Room CSE 105"
+        },
+        {
+          "teacher_id": "CSE-183",
+          "name": "Shyla Afroge",
+          "name_bn": null,
+          "designation": "Associate Professor",
+          "email": "shyla.ruet@gmail.com",
+          "phone": "880-1723568183",
+          "status": "Active",
+          "office_contact": "Room No: 114, CSE Building, RUET, Rajshahi"
+        },
+        {
+          "teacher_id": "CSE-958",
+          "name": "A. F. M. Minhazur Rahman",
+          "name_bn": "আ. ফ. ম. মিনহাজুর রহমান",
+          "designation": "Assistant Professor",
+          "email": "m.r.saurov@gmail.com",
+          "phone": "880-1710001958",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-785",
+          "name": "Abu Sayeed",
+          "name_bn": "আবু সাঈদ",
+          "designation": "Assistant Professor",
+          "email": "abusayeed.cse@gmail.com",
+          "phone": "880-1751471785",
+          "status": "On leave",
+          "office_contact": "203, CSE Building, RUET"
+        },
+        {
+          "teacher_id": "CSE-091",
+          "name": "Barshon Sen",
+          "name_bn": "বর্ষণ সেন",
+          "designation": "Assistant Professor",
+          "email": "sen.barshon@gmail.com",
+          "phone": "880-1672340091",
+          "status": "Active",
+          "office_contact": "205, 2nd Floor, CSE Buliding, RUET, Rajshahi 6204."
+        },
+        {
+          "teacher_id": "CSE-773",
+          "name": "Bayezid Islam",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "bayezid@cse.ruet.ac.bd",
+          "phone": "880-1711903773",
+          "status": "Retired",
+          "office_contact": "116, Dept. of CSE, RUET, Kazla, Rajshahi-6204, Bangladesh"
+        },
+        {
+          "teacher_id": "CSE-166",
+          "name": "Biprodip Pal",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "biprodip@cse.ruet.ac.bd",
+          "phone": null,
+          "status": "On leave",
+          "office_contact": "(On Study Leave)"
+        },
+        {
+          "teacher_id": "CSE-748",
+          "name": "Emrana Kabir Hashi",
+          "name_bn": "ইমরানা কবির হাসি",
+          "designation": "Assistant Professor",
+          "email": "emranakabir@gmail.com",
+          "phone": "880-1767616748",
+          "status": "Active",
+          "office_contact": "Room No.: CSE109, Ground Floor, CSE Buliding, RUET, Rajshahi 6204."
+        },
+        {
+          "teacher_id": "CSE-490",
+          "name": "Firoz Mahmud",
+          "name_bn": "ফিরোজ মাহমুদ",
+          "designation": "Assistant Professor",
+          "email": "fmahmud.ruet@gmail.com",
+          "phone": "880-1912851490",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-617",
+          "name": "Mahit Kumar Paul",
+          "name_bn": "মহিত কুমার পাল",
+          "designation": "Assistant Professor",
+          "email": "mahit.cse@gmail.com",
+          "phone": "880-1745804617",
+          "status": "On leave",
+          "office_contact": "CSE 111, Ground Floor, CSE Building"
+        },
+        {
+          "teacher_id": "CSE-189",
+          "name": "Md. Azmain Yakin Srizon",
+          "name_bn": "মোঃ আজমাইন ইয়াক্বীন সৃজন",
+          "designation": "Assistant Professor",
+          "email": "azmainsrizon@gmail.com",
+          "phone": "880-1790187189",
+          "status": "Active",
+          "office_contact": "Department of CSE, RUET"
+        },
+        {
+          "teacher_id": "CSE-347",
+          "name": "Md. Farhan Shakib",
+          "name_bn": "মোঃ ফারহান সাকিব",
+          "designation": "Assistant Professor",
+          "email": "farhan.shakib@cse.ruet.ac.bd",
+          "phone": "880-1752794347",
+          "status": "Active",
+          "office_contact": "CSE 118"
+        },
+        {
+          "teacher_id": "CSE-079",
+          "name": "Md. Farukuzzaman Faruk",
+          "name_bn": "মোঃ ফারুকুজ্জামান ফারুক",
+          "designation": "Assistant Professor",
+          "email": "faarukuzzaman@gmail.com",
+          "phone": "880-1725344079",
+          "status": "On leave",
+          "office_contact": "Dept. Of CSE, RUET"
+        },
+        {
+          "teacher_id": "CSE-979",
+          "name": "Md. Nasif Osman Khansur",
+          "name_bn": "মোঃ নাসিফ ওসমান খানশূর",
+          "designation": "Assistant Professor",
+          "email": "nasifosman0210@gmail.com",
+          "phone": "880-1763761979",
+          "status": "Active",
+          "office_contact": "CSE 119 (Ground Floor)"
+        },
+        {
+          "teacher_id": "CSE-794",
+          "name": "Md. Sozib Hossain",
+          "name_bn": "মোঃ সজিব হোসেন",
+          "designation": "Assistant Professor",
+          "email": "sozibruet99@gmail.com",
+          "phone": "880-1771905794",
+          "status": "Active",
+          "office_contact": "116, Academic Building 1 (CSE)"
+        },
+        {
+          "teacher_id": "CSE-280",
+          "name": "Md. Zahirul Islam",
+          "name_bn": "মোঃ জহিরুল ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "km.zahir61@gmail.com",
+          "phone": "880-1855291280",
+          "status": "Active",
+          "office_contact": "CSE 108, Ground Floor, CSE Building, RUET, Rajshahi."
+        },
+        {
+          "teacher_id": "CSE-067",
+          "name": "Mohiuddin Ahmed",
+          "name_bn": "মহিউদ্দিন আহমেদ",
+          "designation": "Assistant Professor",
+          "email": "mohiuddin.nirob.mn@gmail.com",
+          "phone": "880-1742621067",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-307",
+          "name": "Mumu Aktar",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "mumu.ruet@gmail.com",
+          "phone": null,
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-702",
+          "name": "Nahin Ul Sadad",
+          "name_bn": "নাহিন উল সাদাত",
+          "designation": "Assistant Professor",
+          "email": "nahin@cse.ruet.ac.bd",
+          "phone": "880-1778059702",
+          "status": "On leave",
+          "office_contact": "CSE 120, Ground Floor, CSE Building, RUET, Rajshahi."
+        },
+        {
+          "teacher_id": "CSE-485",
+          "name": "S. M. Mahedy Hasan",
+          "name_bn": "এস. এম. মেহেদী হাসান",
+          "designation": "Assistant Professor",
+          "email": "mahedy@cse.ruet.ac.bd",
+          "phone": "880-1797837485",
+          "status": "On leave",
+          "office_contact": "CSE 116, Ground Floor, CSE Building, RUET."
+        },
+        {
+          "teacher_id": "CSE-608",
+          "name": "Sadia Zaman Mishu",
+          "name_bn": "সাদিয়া জামান মিশু",
+          "designation": "Assistant Professor",
+          "email": "sadia.cse09@gmail.com",
+          "phone": "880-1737365608",
+          "status": "Active",
+          "office_contact": "204, 1st floor"
+        },
+        {
+          "teacher_id": "CSE-516",
+          "name": "Suhrid Shakhar Ghosh",
+          "name_bn": "সুহৃদ শেখর ঘোষ",
+          "designation": "Assistant Professor",
+          "email": "shakhar@cse.ruet.ac.bd",
+          "phone": "880-1780764516",
+          "status": "On leave",
+          "office_contact": "CSE 117, Ground floor, CSE Building"
+        },
+        {
+          "teacher_id": "CSE-352",
+          "name": "Syed Tauhid Zuhori",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "tauhid.ruet@yahoo.com",
+          "phone": null,
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-004",
+          "name": "Utsha Das",
+          "name_bn": "উৎস দাশ",
+          "designation": "Assistant Professor",
+          "email": "utsha.das@cse.ruet.ac.bd",
+          "phone": "880-1826526004",
+          "status": "Active",
+          "office_contact": "CSE 206, 1st Floor, CSE Building ( Academic Building-1), RUET, Rajshahi-6204, Bangladesh."
+        },
+        {
+          "teacher_id": "CSE-063",
+          "name": "Khaled Zinnurine",
+          "name_bn": "খালেদ জিননুরাইন",
+          "designation": "Lecturer",
+          "email": "khaled.ruet.26@gmail.com",
+          "phone": "880-1963844063",
+          "status": "Active",
+          "office_contact": "CSE 117"
+        },
+        {
+          "teacher_id": "CSE-062",
+          "name": "Md Rakibul Haque",
+          "name_bn": "মো রাকিবুল হক",
+          "designation": "Lecturer",
+          "email": "rakibulhaq56@gmail.com",
+          "phone": "880-1717720062",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-921",
+          "name": "Md. Fahim Faisal",
+          "name_bn": "মো: ফাহিম ফয়সাল",
+          "designation": "Lecturer",
+          "email": "fahim@cse.ruet.ac.bd",
+          "phone": "880-1714461921",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-742",
+          "name": "Md. Hedayetul Islam Sovon",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "hedayet04@yahoo.com",
+          "phone": "880-721750742",
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-754",
+          "name": "Md. Mazharul Islam",
+          "name_bn": "মোঃ মাজহারুল ইসলাম",
+          "designation": "Lecturer",
+          "email": "mazharultusher111@gmail.com",
+          "phone": "880-1777095754",
+          "status": "Active",
+          "office_contact": "Department of CSE, RUET"
+        },
+        {
+          "teacher_id": "CSE-457",
+          "name": "Md. Touhidul Islam",
+          "name_bn": "মোঃ তৌহিদুল ইসলাম",
+          "designation": "Lecturer",
+          "email": "touhid@cse.ruet.ac.bd",
+          "phone": "880-1716335457",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-750",
+          "name": "Mohammad Sakif Alam",
+          "name_bn": "মোঃ সাকিফ আলম",
+          "designation": "Lecturer",
+          "email": "sakif@cse.ruet.ac.bd",
+          "phone": "880-1629124750",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "CSE-745",
+          "name": "S.M. Shovan",
+          "name_bn": "এস, এম, শোভন",
+          "designation": "Lecturer",
+          "email": "me@smshovan.com",
+          "phone": "880-1843756745",
+          "status": "On leave",
+          "office_contact": "110"
+        },
+        {
+          "teacher_id": "CSE-329",
+          "name": "Tasmia Jannat",
+          "name_bn": "তাসমিয়া জান্নাত",
+          "designation": "Lecturer",
+          "email": "jannat22tasmia@gmail.com",
+          "phone": "880-1689182329",
+          "status": "On leave",
+          "office_contact": "110"
+        }
+      ]
+    },
+    {
+      "department_name": "Electrical & Computer Engineering",
+      "department_code": "ECE",
+      "teachers": [
+        {
+          "teacher_id": "ECE-956",
+          "name": "Prof. Dr. Md. Anwar Hossain",
+          "name_bn": null,
+          "designation": "Professor",
+          "email": "anwar.hossain@ece.ruet.ac.bd",
+          "phone": "880-1707531956",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ECE-145",
+          "name": "Abdul Matin",
+          "name_bn": "আব্দুল মতিন",
+          "designation": "Assistant Professor",
+          "email": "ammuaj.cseruet@gmail.com",
+          "phone": "880-1675839145",
+          "status": "On leave",
+          "office_contact": "3rd Floor, ECE Building, RUET"
+        },
+        {
+          "teacher_id": "ECE-970",
+          "name": "Fariya Tabassum",
+          "name_bn": "ফারিয়া তাবাসসুম",
+          "designation": "Assistant Professor",
+          "email": "tabassum.fariya27@gmail.com",
+          "phone": "880-1303086970",
+          "status": "Active",
+          "office_contact": "413, Academic Building-1"
+        },
+        {
+          "teacher_id": "ECE-800",
+          "name": "Hafsa Binte Kibria",
+          "name_bn": "হাফসা বিনতে কিবরিয়া",
+          "designation": "Assistant Professor",
+          "email": "hafsabintekibria@gmail.com",
+          "phone": "880-1743289800",
+          "status": "Active",
+          "office_contact": "418, 3rd Floor, ECE Building, RUET"
+        },
+        {
+          "teacher_id": "ECE-651",
+          "name": "Md. Abu Hanif Pramanik",
+          "name_bn": "মোঃ আবু হানিফ প্রামানিক",
+          "designation": "Assistant Professor",
+          "email": "abuhanif.ruet13@gmail.com",
+          "phone": "880-1764890651",
+          "status": "On leave",
+          "office_contact": "Room No: 412, 3rd floor, ECE building, RUET"
+        },
+        {
+          "teacher_id": "ECE-045",
+          "name": "Md. Faysal Ahamed",
+          "name_bn": "মোঃ ফয়সাল আহম্মেদ",
+          "designation": "Assistant Professor",
+          "email": "faysal.ahamed@ece.ruet.ac.bd",
+          "phone": "880-1632656045",
+          "status": "Active",
+          "office_contact": "3rd floor, Academic Building-1 (CSE building), RUET"
+        },
+        {
+          "teacher_id": "ECE-865",
+          "name": "Md. Habibur Rahaman",
+          "name_bn": "মোঃ হাবিবুর রহমান",
+          "designation": "Assistant Professor",
+          "email": "habib@ece.ruet.ac.bd",
+          "phone": "880-17097659865",
+          "status": "On leave",
+          "office_contact": "(On Study leave-Canada)"
+        },
+        {
+          "teacher_id": "ECE-479",
+          "name": "Md. Mahabubur Rahman",
+          "name_bn": "মোঃ মাহবুবুর রহমান",
+          "designation": "Assistant Professor",
+          "email": "mahabubkanon@gmail.com",
+          "phone": "880-1738360479",
+          "status": "On leave",
+          "office_contact": "416, 3rd Floor, Academic Building-I, RUET."
+        },
+        {
+          "teacher_id": "ECE-843",
+          "name": "Md. Nahiduzzaman",
+          "name_bn": "মোঃ নাহিদুজ্জামান",
+          "designation": "Assistant Professor",
+          "email": "nahiduzzaman@ece.ruet.ac.bd",
+          "phone": "880-1763591843",
+          "status": "On leave",
+          "office_contact": "3rd Floor, Dept. Of ECE"
+        },
+        {
+          "teacher_id": "ECE-061",
+          "name": "Md. Omaer Faruq Goni",
+          "name_bn": "মোঃ ওমর ফারুক গনি",
+          "designation": "Assistant Professor",
+          "email": "omaerfaruq@ece.ruet.ac.bd",
+          "phone": "880-1609620061",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ECE-571",
+          "name": "Md. Robiul Islam",
+          "name_bn": "মোঃ রবিউল ইসলাম",
+          "designation": "Assistant Professor",
+          "email": "robiul@ece.ruet.ac.bd",
+          "phone": "880-1918744571",
+          "status": "On leave",
+          "office_contact": "Room # 418, 3rd Floor, ECE Building, RUET, Rajshahi, Bangladesh"
+        },
+        {
+          "teacher_id": "ECE-177",
+          "name": "Milton Kumar Kundu",
+          "name_bn": "মিল্টন কুমার কুন্ডু",
+          "designation": "Assistant Professor",
+          "email": "mkkeee002@gmail.com",
+          "phone": "880-1878048177",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ECE-101",
+          "name": "Moloy Kumar Ghosh",
+          "name_bn": "মলয় কুমার ঘোষ",
+          "designation": "Assistant Professor",
+          "email": "moloy.kumar@ece.ruet.ac.bd",
+          "phone": "880-1798185101",
+          "status": "Active",
+          "office_contact": "420, 3rd floor, Academic Building-1 (CSE building), RUET"
+        },
+        {
+          "teacher_id": "ECE-593",
+          "name": "Oishi Jyoti",
+          "name_bn": "ঐশী জ্যোতি",
+          "designation": "Assistant Professor",
+          "email": "oj.ruet@gmail.com",
+          "phone": "880-1768787593",
+          "status": "Active",
+          "office_contact": "420, ECE Building (Academic Building 1), 3rd Floor, RUET"
+        },
+        {
+          "teacher_id": "ECE-019",
+          "name": "Rakibul Hassan",
+          "name_bn": "রাকিবুল হাসান",
+          "designation": "Assistant Professor",
+          "email": "rakibul.hassan@ece.ruet.ac.bd",
+          "phone": "880-1846207019",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ECE-609",
+          "name": "Sagor Chandro Bakchy",
+          "name_bn": "সাগর চন্দ্র বাগচী",
+          "designation": "Assistant Professor",
+          "email": "sagorchandro.10@gmail.com",
+          "phone": "880-1776919609",
+          "status": "On leave",
+          "office_contact": "Room no# 425, First Academic (CSE Building) Building, RUET, Rajshahi"
+        },
+        {
+          "teacher_id": "ECE-998",
+          "name": "Tasnim Binte Shawkat",
+          "name_bn": "তাসনিম বিনতে শওকত",
+          "designation": "Assistant Professor",
+          "email": "tasnim1457@gmail.com",
+          "phone": "880-1770278998",
+          "status": "On leave",
+          "office_contact": "Room No. 423,3rd floor, ECE faculty Buliding, Rajshahi University of Engineering & Technology (RUET), Kajla, Rajshahi-6204, Bangladesh"
+        },
+        {
+          "teacher_id": "ECE-440",
+          "name": "Mst. Mazeda Noor Tasnim",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "tasnimruet@gmail.com",
+          "phone": null,
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ECE-819",
+          "name": "Mst. Mazeda Noor Tasnim",
+          "name_bn": null,
+          "designation": "Lecturer",
+          "email": "noor@ece.ruet.ac.bd",
+          "phone": "880-1316026819",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ECE-347",
+          "name": "Mst. Nafia Islam Shishir",
+          "name_bn": "মোছা: নাফিয়া ইসলাম শিশির",
+          "designation": "Lecturer",
+          "email": "nafia.shishir@ece.ruet.ac.bd",
+          "phone": "880-1733331347",
+          "status": "Active",
+          "office_contact": "3rd floor, ECE building, RUET"
+        },
+        {
+          "teacher_id": "ECE-732",
+          "name": "Nadim Reza",
+          "name_bn": "নাদিম রেজা",
+          "designation": "Lecturer",
+          "email": "nrpnadim@gmail.com",
+          "phone": "880-1770238732",
+          "status": "Active",
+          "office_contact": null
+        }
+      ]
+    },
+    {
+      "department_name": "Electronics & Telecommunication Engineering",
+      "department_code": "ETE",
+      "teachers": [
+        {
+          "teacher_id": "ETE-245",
+          "name": "Dr Md Munjure Mowla",
+          "name_bn": "ড. মোঃ মঞ্জরে মাওলা",
+          "designation": "Professor",
+          "email": "rimonece@gmail.com",
+          "phone": "880-1771930245",
+          "status": "On leave",
+          "office_contact": "2nd Floor, Academic Building-1, RUET."
+        },
+        {
+          "teacher_id": "ETE-151",
+          "name": "Dr. Md. Kamal Hosain",
+          "name_bn": "ডঃ মোঃ কামাল হোসেন",
+          "designation": "Professor",
+          "email": "kamaleteruet@gmail.com",
+          "phone": "880-1716130151",
+          "status": "Active",
+          "office_contact": "2nd Floor, Academic Building-1"
+        },
+        {
+          "teacher_id": "ETE-971",
+          "name": "Dr. Mst. Fateha Samad",
+          "name_bn": "ড: মোসা: ফাতেহা সামাদ",
+          "designation": "Professor",
+          "email": "fatehasamad@ete.ruet.ac.bd",
+          "phone": "880-1796382971",
+          "status": "Active",
+          "office_contact": "2nd Floor, Academic Building-1, RUET."
+        },
+        {
+          "teacher_id": "ETE-966",
+          "name": "Dr. Shah Ariful Hoque Chowdhury",
+          "name_bn": "ড. শাহ আরিফুল হক চৌধুরী",
+          "designation": "Professor",
+          "email": "arif.1968.ruet@gmail.com",
+          "phone": "880-1306495966",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ETE-314",
+          "name": "Dr. Md Rabiul Hasan",
+          "name_bn": "মোঃ রবিউল হাসান",
+          "designation": "Associate Professor",
+          "email": "ruetrabu@gmail.com",
+          "phone": "880-1723272314",
+          "status": "On leave",
+          "office_contact": "2nd Floor, Academic Building-1, RUET."
+        },
+        {
+          "teacher_id": "ETE-424",
+          "name": "Dr. Tushar Kanti Roy",
+          "name_bn": "ড. তুষার কান্তি রায়",
+          "designation": "Associate Professor",
+          "email": "tkroy@ete.ruet.ac.bd",
+          "phone": "880-1314210424",
+          "status": "On leave",
+          "office_contact": "Second Floor, Academic Building-1"
+        },
+        {
+          "teacher_id": "ETE-896",
+          "name": "A. S. M. Badrudduza",
+          "name_bn": "আ. স. ম. বদরুদ্দোজা",
+          "designation": "Assistant Professor",
+          "email": "asmb.kanon@gmail.com",
+          "phone": "880-1927961896",
+          "status": "On leave",
+          "office_contact": "2nd Floor, Academic Building - 01"
+        },
+        {
+          "teacher_id": "ETE-147",
+          "name": "Abdulla Al Suman",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "suman_1321@yahoo.com",
+          "phone": null,
+          "status": "Retired",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ETE-669",
+          "name": "Dr. Md. Yeakub Ali",
+          "name_bn": "ডঃ মোঃ ইয়াকুব আলী",
+          "designation": "Assistant Professor",
+          "email": "yeakub.ruet08@gmail.com",
+          "phone": "880-1722923669",
+          "status": "Active",
+          "office_contact": "2nd floor, Academic building-1, RUET, Rajshahi."
+        },
+        {
+          "teacher_id": "ETE-222",
+          "name": "Farzana Akter",
+          "name_bn": "ফারজানা আক্তার",
+          "designation": "Assistant Professor",
+          "email": "farzanaeteruet@gmail.com",
+          "phone": "880-1791282222",
+          "status": "Active",
+          "office_contact": "Room No: 01 (2nd Floor), Academic Building-I,RUET, Rajshahi-6204."
+        },
+        {
+          "teacher_id": "ETE-075",
+          "name": "Hasan Sarker",
+          "name_bn": "হাসান সরকার",
+          "designation": "Assistant Professor",
+          "email": "hasan.ruet.ete@gmail.com",
+          "phone": "880-1612707075",
+          "status": "Active",
+          "office_contact": "2nd Floor, Academic Building-1, RUET."
+        },
+        {
+          "teacher_id": "ETE-780",
+          "name": "JANNATUL ROBAIAT MOU",
+          "name_bn": null,
+          "designation": "Assistant Professor",
+          "email": "jannatulruet@gmail.com",
+          "phone": "880-1911738780",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ETE-294",
+          "name": "Md Abu Ismail Siddique",
+          "name_bn": "মোঃ আবু ইসমাইল সিদ্দিকী সাইফ",
+          "designation": "Assistant Professor",
+          "email": "saif101303@gmail.com",
+          "phone": "880-1521300294",
+          "status": "Active",
+          "office_contact": "Room No: 2nd Floor, Academic Building - 01"
+        },
+        {
+          "teacher_id": "ETE-809",
+          "name": "Md. Aslam Mollah",
+          "name_bn": "মোঃ আসলাম মোল্লা",
+          "designation": "Assistant Professor",
+          "email": "ruet10aslam@gmail.com",
+          "phone": "880-1738643809",
+          "status": "Active",
+          "office_contact": "2nd Floor, Academic Building-1, RUET."
+        },
+        {
+          "teacher_id": "ETE-555",
+          "name": "Md. Rakib Hossain",
+          "name_bn": "মোঃ রাকিব হোসেন।",
+          "designation": "Assistant Professor",
+          "email": "rakib.hossain@ete.ruet.ac.bd",
+          "phone": "880-1743293555",
+          "status": "Active",
+          "office_contact": "09 (2nd Floor), Dept. of ETE, Academic Building 01, RUET, Rajshahi - 6204, Bangladesh"
+        },
+        {
+          "teacher_id": "ETE-056",
+          "name": "Sham Datto",
+          "name_bn": "শ্যাম দত্ত",
+          "designation": "Assistant Professor",
+          "email": "shamdatto@ete.ruet.ac.bd",
+          "phone": "880-1711879056",
+          "status": "On leave",
+          "office_contact": "ETE Faculties Lounge, 2nd Floor, Academic Building-1, RUET"
+        },
+        {
+          "teacher_id": "ETE-600",
+          "name": "Sharaf Tasnim",
+          "name_bn": "সারাফ তাসনিম",
+          "designation": "Assistant Professor",
+          "email": "sharaftasnim786@gmail.com",
+          "phone": "880-1789223600",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ETE-339",
+          "name": "Shuvra Prokash Biswas",
+          "name_bn": "শুভ্র প্রকাশ বিশ্বাস",
+          "designation": "Assistant Professor",
+          "email": "spbiswas@ete.ruet.ac.bd",
+          "phone": "880-1747568339",
+          "status": "On leave",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ETE-822",
+          "name": "Md. Mahmudul Hasan",
+          "name_bn": "মো: মাহমুদুল হাসান",
+          "designation": "Lecturer",
+          "email": "mahmudul@ete.ruet.ac.bd",
+          "phone": "880-1710132822",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ETE-487",
+          "name": "Md. Rakibul Islam",
+          "name_bn": "মোঃ রাকিবুল ইসলাম",
+          "designation": "Lecturer",
+          "email": "rakibulislam@ete.ruet.ac.bd",
+          "phone": "880-1304172487",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ETE-480",
+          "name": "Md. Tarek Hassan",
+          "name_bn": "মোঃ তারেক হাসান",
+          "designation": "Lecturer",
+          "email": "tarekruet024@gmail.com",
+          "phone": "880-1767266480",
+          "status": "On leave",
+          "office_contact": "2nd Floor, Academic Building - 01"
+        },
+        {
+          "teacher_id": "ETE-534",
+          "name": "Mohammed Nazmul Islam Nahin",
+          "name_bn": "মোহাম্মদ নজমুল ইসলাম নাহিন",
+          "designation": "Lecturer",
+          "email": "nahinete.ruet@gmail.com",
+          "phone": "880-1876519534",
+          "status": "Active",
+          "office_contact": "Academic Building-I (CSE building), 2nd floor"
+        },
+        {
+          "teacher_id": "ETE-604",
+          "name": "Rifa Tabassum Mim",
+          "name_bn": "রিফাহ তাবাসসুম মিম",
+          "designation": "Lecturer",
+          "email": "rifa.mim@ete.ruet.ac.bd",
+          "phone": "880-1754320604",
+          "status": "Active",
+          "office_contact": null
+        },
+        {
+          "teacher_id": "ETE-987",
+          "name": "Rubaeat Ahammed",
+          "name_bn": "রুবায়েত আহম্মেদ",
+          "designation": "Lecturer",
+          "email": "rubaeat.ahammed@ete.ruet.ac.bd",
+          "phone": "880-1782359987",
+          "status": "Active",
+          "office_contact": null
+        }
+      ]
+    }
+  ]
+}
