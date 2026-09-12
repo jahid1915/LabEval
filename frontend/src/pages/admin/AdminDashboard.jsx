@@ -1,4 +1,4 @@
-import { useState, useEffect, useContext, useCallback } from 'react';
+import { useState, useEffect, useContext, useCallback, useRef } from 'react';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
@@ -15,11 +15,24 @@ const DEPARTMENTS = [
   'IPE', 'MSE', 'CME', 'MTE', 'BECM', 'ARCHI'
 ];
 
+// ── Debounce hook to avoid API spam on every keystroke ────────────
+function useDebounce(value, delay = 400) {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedValue(value), delay);
+    return () => clearTimeout(timer);
+  }, [value, delay]);
+  return debouncedValue;
+}
+
 export default function AdminDashboard() {
   const { user } = useContext(AuthContext);
   const [activeTab, setActiveTab] = useState('overview');
   const [stats, setStats] = useState(null);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
+
+  // Track which tabs have been loaded to avoid redundant fetches
+  const loadedTabs = useRef(new Set());
 
   // Teachers State
   const [teachers, setTeachers] = useState([]);
@@ -47,7 +60,12 @@ export default function AdminDashboard() {
   const [courseSearch, setCourseSearch] = useState('');
   const [courseDept, setCourseDept] = useState('');
 
-  // Fetch Stats
+  // Debounced search values — waits 400ms after typing stops
+  const debouncedTeacherSearch = useDebounce(teacherSearch);
+  const debouncedStudentSearch = useDebounce(studentSearch);
+  const debouncedCourseSearch = useDebounce(courseSearch);
+
+  // ── Data Fetchers (independent, no cross-dependencies) ──────────
   const fetchStats = useCallback(async () => {
     try {
       const { data } = await api.get('/admin/stats');
@@ -57,55 +75,89 @@ export default function AdminDashboard() {
     }
   }, []);
 
-  // Fetch Teachers
-  const fetchTeachers = useCallback(async () => {
+  const fetchTeachers = useCallback(async (search, dept) => {
     try {
-      let url = '/admin/teachers?';
-      if (teacherDept) url += `department=${teacherDept}&`;
-      if (teacherSearch) url += `search=${teacherSearch}&`;
-      const { data } = await api.get(url);
+      const params = new URLSearchParams();
+      if (dept) params.append('department', dept);
+      if (search) params.append('search', search);
+      const { data } = await api.get(`/admin/teachers?${params}`);
       setTeachers(data);
     } catch {
       toast.error('Failed to load teachers roster');
     }
-  }, [teacherDept, teacherSearch]);
+  }, []);
 
-  // Fetch Students
-  const fetchStudents = useCallback(async () => {
+  const fetchStudents = useCallback(async (search, dept, series) => {
     try {
-      let url = '/admin/students?';
-      if (studentDept) url += `department=${studentDept}&`;
-      if (studentSeries) url += `series=${studentSeries}&`;
-      if (studentSearch) url += `search=${studentSearch}&`;
-      const { data } = await api.get(url);
+      const params = new URLSearchParams();
+      if (dept) params.append('department', dept);
+      if (series) params.append('series', series);
+      if (search) params.append('search', search);
+      const { data } = await api.get(`/admin/students?${params}`);
       setStudents(data);
     } catch {
       toast.error('Failed to load students roster');
     }
-  }, [studentDept, studentSeries, studentSearch]);
+  }, []);
 
-  // Fetch Courses
-  const fetchCourses = useCallback(async () => {
+  const fetchCourses = useCallback(async (search, dept) => {
     try {
-      let url = '/admin/courses?';
-      if (courseDept) url += `department=${courseDept}&`;
-      if (courseSearch) url += `search=${courseSearch}&`;
-      const { data } = await api.get(url);
+      const params = new URLSearchParams();
+      if (dept) params.append('department', dept);
+      if (search) params.append('search', search);
+      const { data } = await api.get(`/admin/courses?${params}`);
       setCourses(data);
     } catch {
       toast.error('Failed to load courses');
     }
-  }, [courseDept, courseSearch]);
+  }, []);
 
-  const loadData = useCallback(async () => {
-    setLoading(true);
-    await Promise.all([fetchStats(), fetchTeachers(), fetchStudents(), fetchCourses()]);
-    setLoading(false);
-  }, [fetchStats, fetchTeachers, fetchStudents, fetchCourses]);
-
+  // ── Load ONLY the active tab's data (lazy loading) ──────────────
   useEffect(() => {
-    loadData();
-  }, [loadData]);
+    if (activeTab === 'overview' && !loadedTabs.current.has('overview')) {
+      loadedTabs.current.add('overview');
+      fetchStats();
+    }
+  }, [activeTab, fetchStats]);
+
+  // Fetch teachers only when teachers tab is active AND filters change
+  useEffect(() => {
+    if (activeTab === 'teachers') {
+      fetchTeachers(debouncedTeacherSearch, teacherDept);
+    }
+  }, [activeTab, debouncedTeacherSearch, teacherDept, fetchTeachers]);
+
+  // Fetch students only when students tab is active AND filters change
+  useEffect(() => {
+    if (activeTab === 'students') {
+      fetchStudents(debouncedStudentSearch, studentDept, studentSeries);
+    }
+  }, [activeTab, debouncedStudentSearch, studentDept, studentSeries, fetchStudents]);
+
+  // Fetch courses only when courses tab is active AND filters change
+  useEffect(() => {
+    if (activeTab === 'courses') {
+      fetchCourses(debouncedCourseSearch, courseDept);
+    }
+  }, [activeTab, debouncedCourseSearch, courseDept, fetchCourses]);
+
+  // Initial stats load
+  useEffect(() => {
+    fetchStats();
+  }, [fetchStats]);
+
+  // ── Manual Refresh ──────────────────────────────────────────────
+  const handleRefresh = async () => {
+    setLoading(true);
+    try {
+      await fetchStats();
+      if (activeTab === 'teachers') await fetchTeachers(debouncedTeacherSearch, teacherDept);
+      if (activeTab === 'students') await fetchStudents(debouncedStudentSearch, studentDept, studentSeries);
+      if (activeTab === 'courses') await fetchCourses(debouncedCourseSearch, courseDept);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   // ── TEACHER HANDLERS ────────────────────────────────────────────────
   const handleCreateTeacher = async (e) => {
@@ -115,7 +167,7 @@ export default function AdminDashboard() {
       toast.success('Teacher created successfully!');
       setShowAddTeacherModal(false);
       setTeacherForm({ name: '', teacherId: '', department: 'CSE', contactNo: '', password: '' });
-      fetchTeachers();
+      fetchTeachers(debouncedTeacherSearch, teacherDept);
       fetchStats();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create teacher');
@@ -128,7 +180,7 @@ export default function AdminDashboard() {
       await api.put(`/admin/teachers/${editTeacher._id}`, editTeacher);
       toast.success('Teacher updated successfully!');
       setEditTeacher(null);
-      fetchTeachers();
+      fetchTeachers(debouncedTeacherSearch, teacherDept);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update teacher');
     }
@@ -139,8 +191,7 @@ export default function AdminDashboard() {
     try {
       await api.delete(`/admin/teachers/${id}`);
       toast.success('Teacher removed successfully');
-      fetchTeachers();
-      fetchCourses();
+      fetchTeachers(debouncedTeacherSearch, teacherDept);
       fetchStats();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete teacher');
@@ -155,7 +206,7 @@ export default function AdminDashboard() {
       toast.success('Student created successfully!');
       setShowAddStudentModal(false);
       setStudentForm({ name: '', series: '22', rollNumber: '', department: 'CSE', contactNo: '', password: '' });
-      fetchStudents();
+      fetchStudents(debouncedStudentSearch, studentDept, studentSeries);
       fetchStats();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to create student');
@@ -168,7 +219,7 @@ export default function AdminDashboard() {
       await api.put(`/admin/students/${editStudent._id}`, editStudent);
       toast.success('Student updated successfully!');
       setEditStudent(null);
-      fetchStudents();
+      fetchStudents(debouncedStudentSearch, studentDept, studentSeries);
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to update student');
     }
@@ -179,7 +230,7 @@ export default function AdminDashboard() {
     try {
       await api.delete(`/admin/students/${id}`);
       toast.success('Student record removed');
-      fetchStudents();
+      fetchStudents(debouncedStudentSearch, studentDept, studentSeries);
       fetchStats();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete student');
@@ -192,7 +243,7 @@ export default function AdminDashboard() {
     try {
       await api.delete(`/admin/courses/${id}`);
       toast.success('Course purged successfully');
-      fetchCourses();
+      fetchCourses(debouncedCourseSearch, courseDept);
       fetchStats();
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to delete course');
@@ -229,7 +280,7 @@ export default function AdminDashboard() {
           </div>
 
           <button
-            onClick={loadData}
+            onClick={handleRefresh}
             disabled={loading}
             className="self-start md:self-center px-4 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 border border-white/10 text-xs font-bold transition-all flex items-center gap-2 backdrop-blur shadow-sm"
           >

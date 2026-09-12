@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastContainer } from 'react-toastify';
+import ErrorBoundary from './components/ErrorBoundary';
 import 'react-toastify/dist/ReactToastify.css';
 
 // Layouts
@@ -67,6 +68,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <AuthProvider>
+        <ErrorBoundary>
         <Router>
           <ToastContainer position="top-right" autoClose={3000} theme="colored" />
           <Routes>
@@ -138,6 +140,7 @@ export default function App() {
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </Router>
+        </ErrorBoundary>
       </AuthProvider>
     </ThemeProvider>
   );
