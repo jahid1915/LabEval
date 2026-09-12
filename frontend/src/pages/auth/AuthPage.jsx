@@ -79,23 +79,23 @@ export default function AuthPage() {
   const handleTeacherChange = (e) => setTeacherForm({ ...teacherForm, [e.target.name]: e.target.value });
   const handleAdminChange = (e) => setAdminForm({ ...adminForm, [e.target.name]: e.target.value });
 
-  // Autofill helpers for rapid testing/evaluation
-  const fillDemo = (targetRole) => {
-    if (targetRole === 'student') {
-      setRole('student');
-      setMode('login');
-      setStudentForm((prev) => ({ ...prev, rollNumber: '2204001', password: 'password123' }));
-      toast.info('Autofilled sample Student credentials');
-    } else if (targetRole === 'teacher') {
-      setRole('teacher');
-      setMode('login');
-      setTeacherForm((prev) => ({ ...prev, teacherId: 'T-101', password: 'password123' }));
-      toast.info('Autofilled sample Teacher credentials');
-    } else if (targetRole === 'admin') {
-      setRole('admin');
-      setMode('login');
-      setAdminForm((prev) => ({ ...prev, username: 'admin', password: 'admin123' }));
-      toast.info('Autofilled Super Admin credentials');
+  // Autofill helpers for rapid testing/evaluation — now auto-logins!
+  const fillDemo = async (targetRole) => {
+    setLoading(true);
+    try {
+      const { data } = await (await import('../../api/axios')).default.post('/auth/demo-login', { role: targetRole });
+      // Store user data and token
+      localStorage.setItem('user', JSON.stringify(data));
+      localStorage.setItem('token', data.token);
+      toast.success(`Demo ${targetRole} login successful!`);
+      // Force full page reload to pick up new auth state
+      if (targetRole === 'student') window.location.href = '/student';
+      else if (targetRole === 'teacher') window.location.href = '/teacher';
+      else if (targetRole === 'admin') window.location.href = '/admin';
+    } catch (err) {
+      toast.error(err.response?.data?.message || `Demo ${targetRole} login failed`);
+    } finally {
+      setLoading(false);
     }
   };
 

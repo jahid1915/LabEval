@@ -181,11 +181,92 @@ const loginAdmin = async (req, res) => {
   }
 };
 
+// ── Demo Login (auto-creates demo account if not exists) ────────────
+// POST /api/auth/demo-login
+const demoLogin = async (req, res) => {
+  try {
+    const { role } = req.body;
+
+    if (role === 'student') {
+      let student = await Student.findOne({ rollNumber: 'DEMO001' });
+      if (!student) {
+        student = await Student.create({
+          name: 'Demo Student',
+          series: '22',
+          rollNumber: 'DEMO001',
+          department: 'CSE',
+          contactNo: '01700000001',
+          password: 'demo123456',
+        });
+      }
+      return res.json({
+        _id: student._id,
+        name: student.name,
+        rollNumber: student.rollNumber,
+        series: student.series,
+        department: student.department,
+        contactNo: student.contactNo,
+        role: 'student',
+        token: generateToken(student._id, 'student'),
+      });
+    }
+
+    if (role === 'teacher') {
+      let teacher = await Teacher.findOne({ teacherId: 'DEMO-T' });
+      if (!teacher) {
+        teacher = await Teacher.create({
+          name: 'Demo Teacher',
+          teacherId: 'DEMO-T',
+          department: 'CSE',
+          contactNo: '01700000002',
+          password: 'demo123456',
+        });
+      }
+      return res.json({
+        _id: teacher._id,
+        name: teacher.name,
+        teacherId: teacher.teacherId,
+        department: teacher.department,
+        contactNo: teacher.contactNo,
+        role: 'teacher',
+        token: generateToken(teacher._id, 'teacher'),
+      });
+    }
+
+    if (role === 'admin') {
+      let admin = await Admin.findOne({ username: 'demo-admin' });
+      if (!admin) {
+        admin = await Admin.create({
+          name: 'Demo Admin',
+          username: 'demo-admin',
+          email: 'demo@labeval.app',
+          contactNo: '01700000003',
+          password: 'demo123456',
+        });
+      }
+      return res.json({
+        _id: admin._id,
+        name: admin.name,
+        username: admin.username,
+        email: admin.email,
+        contactNo: admin.contactNo,
+        role: 'admin',
+        token: generateToken(admin._id, 'admin'),
+      });
+    }
+
+    return res.status(400).json({ message: 'Invalid role for demo login' });
+  } catch (err) {
+    res.status(500).json({ message: err.message });
+  }
+};
+
 module.exports = {
   registerStudent,
   loginStudent,
   registerTeacher,
   loginTeacher,
   registerAdmin,
-  loginAdmin
+  loginAdmin,
+  demoLogin
 };

@@ -6,7 +6,8 @@ const {
   registerTeacher,
   loginTeacher,
   registerAdmin,
-  loginAdmin
+  loginAdmin,
+  demoLogin
 } = require('../controllers/authController');
 
 router.post('/student-register', registerStudent);
@@ -15,5 +16,7 @@ router.post('/teacher-register', registerTeacher);
 router.post('/teacher-login',    loginTeacher);
 router.post('/admin-register',   registerAdmin);
 router.post('/admin-login',      loginAdmin);
+router.post('/demo-login',       demoLogin);
 
 module.exports = router;
+
