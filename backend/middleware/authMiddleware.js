@@ -17,7 +17,7 @@ const protect = async (req, res, next) => {
         req.user = await Teacher.findById(decoded.id).select('-password');
       } else if (decoded.role === 'student') {
         req.user = await Student.findById(decoded.id).select('-password');
-      } else if (decoded.role === 'admin') {
+      } else if (['admin', 'department_head', 'super_admin'].includes(decoded.role)) {
         req.user = await Admin.findById(decoded.id).select('-password');
       }
 
@@ -54,24 +54,62 @@ const studentOnly = (req, res, next) => {
 };
 
 const adminOnly = (req, res, next) => {
-  if (req.user && req.user.role === 'admin') {
+  if (req.user && ['admin', 'department_head', 'super_admin'].includes(req.user.role)) {
     next();
   } else {
-    res.status(403).json({ message: 'Not authorized as administrator' });
+    res.status(403).json({ message: 'Not authorized as administrator or department head' });
   }
 };
 
 const adminOrTeacher = (req, res, next) => {
-  if (req.user && (req.user.role === 'admin' || req.user.role === 'teacher')) {
+  if (req.user && (['admin', 'department_head', 'super_admin'].includes(req.user.role) || req.user.role === 'teacher')) {
     next();
   } else {
     res.status(403).json({ message: 'Not authorized for this resource' });
   }
 };
 
+// Strict department data isolation middleware
+const enforceDepartmentIsolation = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ message: 'Authentication required' });
+
+  // Super admin without assigned department can manage all
+  if (req.user.role === 'super_admin' && !req.user.departmentCode) {
+    return next();
+  }
+
+  const userDept = (req.user.departmentCode || req.user.department || '').trim().toUpperCase();
+  if (!userDept) return next();
+
+  // If a department parameter or query or body is passed, it MUST match user's department
+  const paramDept = (req.params.department || req.params.departmentCode || '').trim().toUpperCase();
+  const queryDept = (req.query.department || req.query.departmentCode || '').trim().toUpperCase();
+  const bodyDept  = (req.body.department || req.body.departmentCode || '').trim().toUpperCase();
+
+  if (paramDept && paramDept !== userDept) {
+    return res.status(403).json({
+      message: `Department Isolation Violation: You are not authorized to access department '${paramDept}'. Your department is '${userDept}'.`
+    });
+  }
+  if (queryDept && queryDept !== userDept) {
+    return res.status(403).json({
+      message: `Department Isolation Violation: You are not authorized to access department '${queryDept}'. Your department is '${userDept}'.`
+    });
+  }
+  if (bodyDept && bodyDept !== userDept) {
+    return res.status(403).json({
+      message: `Department Isolation Violation: You cannot create or assign records for department '${bodyDept}'. Your department is '${userDept}'.`
+    });
+  }
+
+  // Force department filter for controllers
+  req.userDepartment = userDept;
+  next();
+};
+
 // Resource-level verification: Teacher can only access assigned course / course offering
 const requireTeacherCourseAccess = async (req, res, next) => {
-  if (req.user.role === 'admin') return next();
+  if (['admin', 'department_head', 'super_admin'].includes(req.user.role)) return next();
   if (req.user.role !== 'teacher') {
     return res.status(403).json({ message: 'Teacher credentials required' });
   }
@@ -80,11 +118,9 @@ const requireTeacherCourseAccess = async (req, res, next) => {
   if (!courseCodeOrId) return next();
 
   try {
-    // Check if courseCodeOrId is an Offering ObjectId or a courseCode string
     let isAuthorized = false;
 
     if (courseCodeOrId.match(/^[0-9a-fA-F]{24}$/)) {
-      // It's a CourseOffering or Course ID
       const assignment = await TeacherAssignment.findOne({
         courseOffering: courseCodeOrId,
         teacher: req.user._id,
@@ -93,14 +129,12 @@ const requireTeacherCourseAccess = async (req, res, next) => {
       if (assignment) isAuthorized = true;
 
       if (!isAuthorized) {
-        // Fallback: check if legacy course has matching teacherId
         const legacyCourse = await Course.findOne({ _id: courseCodeOrId, teacherId: req.user.teacherId });
         if (legacyCourse) isAuthorized = true;
       }
     }
 
     if (!isAuthorized) {
-      // Check by courseCode string
       const cleanCode = courseCodeOrId.trim().toUpperCase();
       const offerings = await CourseOffering.find({ courseCode: cleanCode });
       if (offerings.length > 0) {
@@ -113,7 +147,6 @@ const requireTeacherCourseAccess = async (req, res, next) => {
         if (assignment) isAuthorized = true;
       }
 
-      // Also check legacy allocated courses or teacherId in Course collection
       if (!isAuthorized) {
         const legacyCourse = await Course.findOne({ courseCode: cleanCode, teacherId: req.user.teacherId });
         if (legacyCourse) isAuthorized = true;
@@ -122,7 +155,7 @@ const requireTeacherCourseAccess = async (req, res, next) => {
 
     if (!isAuthorized) {
       return res.status(403).json({
-        message: 'Access Denied: You are not assigned to this course offering.'
+        message: 'Access Denied: You are not assigned to this course.'
       });
     }
 
@@ -139,5 +172,6 @@ module.exports = {
   studentOnly,
   adminOnly,
   adminOrTeacher,
+  enforceDepartmentIsolation,
   requireTeacherCourseAccess
 };

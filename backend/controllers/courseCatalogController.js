@@ -4,16 +4,26 @@ const Faculty = require('../models/Faculty');
 const CourseOffering = require('../models/CourseOffering');
 const { logAudit } = require('../middleware/auditMiddleware');
 
-// @desc Get all master courses
+// @desc Get all master courses (Department isolated)
 // @route GET /api/courses
 const getMasterCourses = async (req, res) => {
   try {
-    const { departmentCode, departmentId, search, courseType } = req.query;
+    const { departmentCode, departmentId, search, courseType, semesterLevel, isElective } = req.query;
     let query = { status: { $ne: 'archived' } };
 
-    if (departmentId) query.department = departmentId;
-    if (departmentCode) query.departmentCode = departmentCode.toUpperCase();
+    // Enforce Department Head isolation
+    if (req.user && req.user.departmentCode && req.user.role !== 'super_admin') {
+      query.departmentCode = req.user.departmentCode.toUpperCase();
+    } else if (departmentCode) {
+      query.departmentCode = departmentCode.toUpperCase();
+    } else if (departmentId) {
+      query.department = departmentId;
+    }
+
     if (courseType) query.courseType = courseType;
+    if (semesterLevel) query.semesterLevel = semesterLevel;
+    if (isElective !== undefined) query.isElective = isElective === 'true';
+
     if (search) {
       query.$or = [
         { courseCode: { $regex: search, $options: 'i' } },
@@ -24,7 +34,7 @@ const getMasterCourses = async (req, res) => {
     const courses = await Course.find(query)
       .populate('department', 'name code')
       .populate('faculty', 'name code')
-      .sort({ courseCode: 1 });
+      .sort({ semesterLevel: 1, courseCode: 1 });
 
     const enriched = await Promise.all(courses.map(async (c) => {
       const activeOfferings = await CourseOffering.countDocuments({
@@ -47,9 +57,24 @@ const getMasterCourses = async (req, res) => {
 // @route POST /api/courses
 const createMasterCourse = async (req, res) => {
   try {
-    const { courseCode, courseName, credit, department, courseType, semesterLevel, description, defaultAssessmentConfig } = req.body;
-    if (!courseCode || !courseName || !department) {
-      return res.status(400).json({ message: 'Course Code, Course Name, and Department are required' });
+    const { 
+      courseCode, 
+      courseName, 
+      credit, 
+      creditHours,
+      department, 
+      courseType, 
+      semesterLevel, 
+      description, 
+      syllabus,
+      isElective,
+      isSessional,
+      pairedCourseCode,
+      defaultAssessmentConfig 
+    } = req.body;
+
+    if (!courseCode || !courseName) {
+      return res.status(400).json({ message: 'Course Code and Course Name are required' });
     }
 
     const cleanCode = courseCode.trim().toUpperCase();
@@ -58,26 +83,40 @@ const createMasterCourse = async (req, res) => {
       return res.status(400).json({ message: `Course with code ${cleanCode} already exists` });
     }
 
-    const deptDoc = await Department.findById(department);
-    if (!deptDoc) return res.status(400).json({ message: 'Invalid department ID' });
+    // Resolve department
+    let targetDeptId = department;
+    let deptDoc = null;
+    if (req.user && req.user.departmentCode && req.user.role !== 'super_admin') {
+      deptDoc = await Department.findOne({ code: req.user.departmentCode });
+    } else if (department) {
+      deptDoc = await Department.findById(department);
+    }
+
+    if (!deptDoc) return res.status(400).json({ message: 'Valid department is required' });
 
     const course = await Course.create({
       courseCode: cleanCode,
       courseName: courseName.trim(),
-      credit: Number(credit) || 1.5,
+      credit: Number(credit) || 3.0,
+      creditHours: Number(creditHours) || 3.0,
       department: deptDoc._id,
       departmentCode: deptDoc.code,
       faculty: deptDoc.faculty,
-      courseType: courseType || 'Lab',
-      semesterLevel: semesterLevel?.trim() || '',
+      courseType: courseType || (isSessional ? 'Sessional' : 'Theory'),
+      isElective: isElective !== undefined ? !!isElective : true,
+      isSessional: !!isSessional,
+      pairedCourseCode: pairedCourseCode ? pairedCourseCode.trim().toUpperCase() : null,
+      semesterLevel: semesterLevel?.trim() || '3-2',
+      syllabus: syllabus?.trim() || '',
       description: description?.trim() || '',
       defaultAssessmentConfig: defaultAssessmentConfig || {
-        performance: 5,
-        quiz: 30,
-        report: 10,
-        attendance: 5,
-        test: 20,
-        others: 5
+        quiz: 20,
+        labReport: 15,
+        labViva: 10,
+        labTest: 20,
+        openEnded: 0,
+        attendance: 10,
+        others: 0
       }
     });
 
@@ -86,7 +125,7 @@ const createMasterCourse = async (req, res) => {
       action: 'CREATE_MASTER_COURSE',
       entity: 'Course',
       entityId: course._id,
-      details: `Created course ${course.courseCode} (${course.courseName})`,
+      details: `Created elective course ${course.courseCode} (${course.courseName})`,
       newValues: course
     });
 
@@ -103,26 +142,44 @@ const updateMasterCourse = async (req, res) => {
     const course = await Course.findById(req.params.id);
     if (!course) return res.status(404).json({ message: 'Course not found' });
 
+    // Isolation check
+    if (req.user && req.user.departmentCode && req.user.role !== 'super_admin') {
+      if (course.departmentCode !== req.user.departmentCode) {
+        return res.status(403).json({ message: 'Unauthorized: Cannot modify course from another department' });
+      }
+    }
+
     const oldValues = { ...course.toObject() };
-    const { courseCode, courseName, credit, department, courseType, semesterLevel, description, defaultAssessmentConfig, status } = req.body;
+    const { 
+      courseCode, 
+      courseName, 
+      credit, 
+      creditHours,
+      department, 
+      courseType, 
+      semesterLevel, 
+      description, 
+      syllabus,
+      isElective,
+      isSessional,
+      pairedCourseCode,
+      defaultAssessmentConfig, 
+      status 
+    } = req.body;
 
     if (courseCode) course.courseCode = courseCode.trim().toUpperCase();
     if (courseName) course.courseName = courseName.trim();
     if (credit !== undefined) course.credit = Number(credit);
+    if (creditHours !== undefined) course.creditHours = Number(creditHours);
     if (courseType) course.courseType = courseType;
     if (semesterLevel !== undefined) course.semesterLevel = semesterLevel.trim();
+    if (syllabus !== undefined) course.syllabus = syllabus.trim();
     if (description !== undefined) course.description = description.trim();
+    if (isElective !== undefined) course.isElective = !!isElective;
+    if (isSessional !== undefined) course.isSessional = !!isSessional;
+    if (pairedCourseCode !== undefined) course.pairedCourseCode = pairedCourseCode ? pairedCourseCode.trim().toUpperCase() : null;
     if (defaultAssessmentConfig) course.defaultAssessmentConfig = defaultAssessmentConfig;
     if (status) course.status = status;
-
-    if (department && department !== String(course.department)) {
-      const deptDoc = await Department.findById(department);
-      if (deptDoc) {
-        course.department = deptDoc._id;
-        course.departmentCode = deptDoc.code;
-        course.faculty = deptDoc.faculty;
-      }
-    }
 
     await course.save();
 
@@ -148,6 +205,13 @@ const deleteMasterCourse = async (req, res) => {
   try {
     const course = await Course.findById(req.params.id);
     if (!course) return res.status(404).json({ message: 'Course not found' });
+
+    // Isolation check
+    if (req.user && req.user.departmentCode && req.user.role !== 'super_admin') {
+      if (course.departmentCode !== req.user.departmentCode) {
+        return res.status(403).json({ message: 'Unauthorized: Cannot delete course from another department' });
+      }
+    }
 
     const offeringsCount = await CourseOffering.countDocuments({
       $or: [{ course: course._id }, { courseCode: course.courseCode }]

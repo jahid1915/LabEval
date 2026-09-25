@@ -31,6 +31,8 @@ import CourseOfferingsPage   from './pages/admin/CourseOfferingsPage';
 import LeaveManagementPage   from './pages/admin/LeaveManagementPage';
 import AnnouncementsPage     from './pages/admin/AnnouncementsPage';
 import AuditLogsPage         from './pages/admin/AuditLogsPage';
+import StudentImportPage     from './pages/admin/StudentImportPage';
+import ImportHistoryPage     from './pages/admin/ImportHistoryPage';
 
 // Teacher Pages
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
@@ -56,8 +58,13 @@ const ProtectedRoute = ({ children, allowedRole }) => {
     </div>
   );
   if (!user) return <Navigate to="/login" replace />;
-  if (allowedRole && user.role !== allowedRole) {
-    if (user.role === 'admin')   return <Navigate to="/admin" replace />;
+  
+  const isAuthorized = allowedRole === 'admin'
+    ? (user.role === 'admin' || user.role === 'department_head')
+    : user.role === allowedRole;
+
+  if (allowedRole && !isAuthorized) {
+    if (user.role === 'admin' || user.role === 'department_head') return <Navigate to="/admin" replace />;
     if (user.role === 'teacher') return <Navigate to="/teacher" replace />;
     return <Navigate to="/student" replace />;
   }
@@ -107,6 +114,8 @@ export default function App() {
               <Route path="leaves"          element={<LeaveManagementPage />} />
               <Route path="announcements"   element={<AnnouncementsPage />} />
               <Route path="audit-logs"      element={<AuditLogsPage />} />
+              <Route path="import"           element={<StudentImportPage />} />
+              <Route path="import-history"   element={<ImportHistoryPage />} />
             </Route>
 
             {/* ── Teacher Routes ────────────────────────────────── */}

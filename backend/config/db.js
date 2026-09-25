@@ -6,12 +6,22 @@ const connectDB = async () => {
   const primaryUri = process.env.MONGO_URI;
   const fallbackUri = 'mongodb://127.0.0.1:27017/labeval';
 
+  // Production-grade connection pool settings
+  // Tune these based on server capacity and observed load
+  const poolOptions = {
+    maxPoolSize: 20,          // Max concurrent connections (increase for higher concurrency)
+    minPoolSize: 5,           // Keep at least 5 connections warm
+    maxIdleTimeMS: 60000,     // Close idle connections after 60s
+    serverSelectionTimeoutMS: 4000,
+    socketTimeoutMS: 45000,
+    connectTimeoutMS: 10000,
+    heartbeatFrequencyMS: 10000
+  };
+
   if (primaryUri) {
     try {
-      const conn = await mongoose.connect(primaryUri, {
-        serverSelectionTimeoutMS: 4000,
-      });
-      console.log(`✅ MongoDB Connected: ${conn.connection.host}`);
+      const conn = await mongoose.connect(primaryUri, poolOptions);
+      console.log(`✅ MongoDB Connected: ${conn.connection.host} (pool: ${poolOptions.minPoolSize}-${poolOptions.maxPoolSize})`);
       return conn;
     } catch (error) {
       console.warn(`⚠️ Primary MongoDB Connection failed (${error.message}). Attempting fallback to local instance...`);

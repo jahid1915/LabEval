@@ -31,12 +31,49 @@ const adminSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    default: 'admin',
+    enum: ['super_admin', 'department_head', 'admin'],
+    default: 'department_head',
   },
+  designation: {
+    type: String,
+    default: 'Head of the Department',
+    trim: true,
+  },
+  faculty: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Faculty',
+  },
+  facultyCode: {
+    type: String,
+    uppercase: true,
+    trim: true,
+  },
+  facultyName: {
+    type: String,
+    trim: true,
+  },
+  department: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department',
+  },
+  departmentCode: {
+    type: String,
+    uppercase: true,
+    trim: true,
+  },
+  departmentName: {
+    type: String,
+    trim: true,
+  },
+  status: {
+    type: String,
+    enum: ['active', 'inactive'],
+    default: 'active',
+  }
 }, { timestamps: true });
 
 adminSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
+  if (!this.isModified('password')) return next ? next() : undefined;
   const salt = await bcrypt.genSalt(10);
   this.password = await bcrypt.hash(this.password, salt);
 });
@@ -44,5 +81,7 @@ adminSchema.pre('save', async function(next) {
 adminSchema.methods.matchPassword = async function(enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
+
+adminSchema.index({ username: 1, departmentCode: 1 });
 
 module.exports = mongoose.model('Admin', adminSchema);

@@ -133,7 +133,7 @@ export default function LeaveManagementPage() {
                     <p className="text-sm text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3">{l.reason || 'No reason provided'}</p>
                     {l.adminRemarks && (
                       <p className="text-xs text-slate-500 dark:text-slate-400 italic flex items-center gap-1.5">
-                        <MessageSquare size={12} /> Admin: {l.adminRemarks}
+                        <MessageSquare size={12} /> Department Head: {l.adminRemarks}
                       </p>
                     )}
                   </div>

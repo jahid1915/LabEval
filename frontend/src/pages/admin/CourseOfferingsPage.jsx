@@ -157,7 +157,7 @@ export default function CourseOfferingsPage() {
                     <td className="px-5 py-3">
                       <div>
                         <p className="font-semibold text-slate-800 dark:text-white">{getCourseName(o)}</p>
-                        {o.semester && <p className="text-xs text-slate-400">Semester: {o.semester}</p>}
+                        {o.semester && <p className="text-xs text-slate-400">Semester: {typeof o.semester === 'object' ? (o.semester.code || o.semester.name) : o.semester}</p>}
                       </div>
                     </td>
                     <td className="px-5 py-3">
@@ -229,8 +229,16 @@ export default function CourseOfferingsPage() {
                   </div>
                   <div>
                     <label className="block text-xs font-semibold text-slate-600 dark:text-slate-400 mb-1">Semester</label>
-                    <input value={form.semester} onChange={e => setForm({ ...form, semester: e.target.value })} placeholder="e.g. 5th"
-                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none" />
+                    <select
+                      value={form.semester}
+                      onChange={e => setForm({ ...form, semester: e.target.value })}
+                      className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-sm text-slate-800 dark:text-white focus:ring-2 focus:ring-sky-500 outline-none"
+                    >
+                      <option value="">Select Semester</option>
+                      {['1-1', '1-2', '2-1', '2-2', '3-1', '3-2', '4-1', '4-2'].map(s => (
+                        <option key={s} value={s}>{s} Semester</option>
+                      ))}
+                    </select>
                   </div>
                 </div>
                 <div className="grid grid-cols-2 gap-4">

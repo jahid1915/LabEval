@@ -4,267 +4,336 @@ import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 import {
   LayoutDashboard, BookOpen, Activity, HelpCircle, FileCheck,
-  ClipboardList, TrendingUp, LogOut, Sun, Moon, Menu,
-  Phone, Building2, ChevronDown, GraduationCap, Users,
-  Calendar, Layers, CalendarOff, Megaphone, ScrollText,
-  Search, Bell, BookMarked, FolderTree
+  ClipboardList, TrendingUp, LogOut, Sun, Moon, Menu, X,
+  Phone, Building2, ChevronRight, GraduationCap, Users,
+  Calendar, CalendarOff, FolderTree, FileText, Bell, ChevronDown,
+  Upload, History, Award, KeyRound
 } from 'lucide-react';
-import { motion, AnimatePresence } from 'framer-motion';
+import ChangePasswordModal from '../components/ChangePasswordModal';
 
-/* ── Navigation Configs ──────────────────────────── */
+/* ── Navigation Config ───────────────────────────────────── */
 
 const adminNav = [
   { heading: 'Overview' },
-  { to: '/admin', icon: <LayoutDashboard size={18}/>, label: 'Dashboard', end: true },
-
+  { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
   { heading: 'Institution' },
-  { to: '/admin/faculties', icon: <FolderTree size={18}/>, label: 'Faculties' },
-  { to: '/admin/departments', icon: <Building2 size={18}/>, label: 'Departments' },
-  { to: '/admin/sessions', icon: <Calendar size={18}/>, label: 'Academic Sessions' },
-  { to: '/admin/series', icon: <Users size={18}/>, label: 'Series / Batches' },
-
+  { to: '/admin/faculties',        icon: FolderTree,      label: 'Faculties' },
+  { to: '/admin/departments',      icon: Building2,       label: 'Departments' },
+  { to: '/admin/sessions',         icon: Calendar,        label: 'Academic Sessions' },
+  { to: '/admin/series',           icon: Users,           label: 'Series / Batches' },
+  { heading: 'Academics & Courses' },
+  { to: '/admin/course-catalog',   icon: BookOpen,        label: 'Course Catalog' },
+  { to: '/admin/course-offerings', icon: Award,           label: 'Course Offerings' },
   { heading: 'People' },
-  { to: '/admin/teachers', icon: <GraduationCap size={18}/>, label: 'Teachers' },
-  { to: '/admin/students', icon: <Users size={18}/>, label: 'Students' },
-
-  { heading: 'Courses' },
-  { to: '/admin/course-catalog', icon: <BookMarked size={18}/>, label: 'Course Catalog' },
-  { to: '/admin/course-offerings', icon: <Layers size={18}/>, label: 'Course Offerings' },
-
-  { heading: 'Operations' },
-  { to: '/admin/leaves', icon: <CalendarOff size={18}/>, label: 'Leave Management' },
-  { to: '/admin/announcements', icon: <Megaphone size={18}/>, label: 'Announcements' },
-  { to: '/admin/audit-logs', icon: <ScrollText size={18}/>, label: 'Audit Logs' },
+  { to: '/admin/teachers',         icon: GraduationCap,   label: 'Teachers' },
+  { to: '/admin/students',         icon: Users,           label: 'Students' },
+  { heading: 'Management' },
+  { to: '/admin/leaves',           icon: CalendarOff,     label: 'Leave Management' },
+  { to: '/admin/announcements',    icon: Bell,            label: 'Announcements' },
+  { to: '/admin/audit-logs',       icon: FileText,        label: 'Audit Logs' },
+  { heading: 'Data Management' },
+  { to: '/admin/import',           icon: Upload,          label: 'Import Students' },
+  { to: '/admin/import-history',   icon: History,         label: 'Import History' },
 ];
+
 
 const teacherNav = [
   { heading: 'Main' },
-  { to: '/teacher', icon: <LayoutDashboard size={18}/>, label: 'Dashboard', end: true },
-  { to: '/teacher/courses', icon: <BookOpen size={18}/>, label: 'Courses' },
-
-  { heading: 'Evaluation' },
-  { to: '/teacher/attendance', icon: <ClipboardList size={18}/>, label: 'Attendance & Report' },
-  { to: '/teacher/performance', icon: <Activity size={18}/>, label: 'Lab Performance' },
-  { to: '/teacher/quiz', icon: <HelpCircle size={18}/>, label: 'Lab Quiz' },
-  { to: '/teacher/test', icon: <FileCheck size={18}/>, label: 'Lab Test' },
-  { to: '/teacher/others', icon: <ClipboardList size={18}/>, label: 'Others' },
-  { to: '/teacher/results', icon: <TrendingUp size={18}/>, label: 'Final Result' },
-
+  { to: '/teacher',            icon: LayoutDashboard, label: 'Dashboard', end: true },
+  { to: '/teacher/courses',   icon: BookOpen,        label: 'My Courses' },
+  { heading: 'Mark Entry' },
+  { to: '/teacher/attendance', icon: ClipboardList,  label: 'Attendance & Report' },
+  { to: '/teacher/performance',icon: Activity,       label: 'Lab Performance' },
+  { to: '/teacher/quiz',      icon: HelpCircle,      label: 'Lab Quiz' },
+  { to: '/teacher/test',      icon: FileCheck,       label: 'Lab Test' },
+  { to: '/teacher/others',    icon: ClipboardList,   label: 'Others' },
+  { to: '/teacher/results',   icon: TrendingUp,      label: 'Final Result' },
   { heading: 'Personal' },
-  { to: '/teacher/leave', icon: <CalendarOff size={18}/>, label: 'Leave Requests' },
+  { to: '/teacher/leave',     icon: CalendarOff,     label: 'Leave Requests' },
 ];
 
 const studentNav = [
-  { heading: 'Main' },
-  { to: '/student', icon: <LayoutDashboard size={18}/>, label: 'My Courses', end: true },
+  { heading: 'Academic' },
+  { to: '/student', icon: LayoutDashboard, label: 'My Courses', end: true },
 ];
 
-/* ── Sidebar Content Component ───────────────────── */
+/* ── Sidebar Component ───────────────────────────────────── */
+function Sidebar({ user, navItems, isDarkMode, toggleTheme, handleLogout, onOpenChangePassword, onClose }) {
+  const [profileOpen, setProfileOpen] = useState(false);
 
-const SidebarContent = ({
-  user,
-  profileExpanded,
-  setProfileExpanded,
-  navItems,
-  activeClass,
-  inactiveClass,
-  isDarkMode,
-  toggleTheme,
-  handleLogout
-}) => {
   const getRoleBadge = () => {
-    if (user?.role === 'admin') return 'Admin Console';
-    if (user?.role === 'teacher') return 'Teacher Portal';
-    return 'Student Portal';
+    if (user?.role === 'admin' || user?.role === 'department_head') return 'Department Head';
+    if (user?.role === 'teacher') return 'Teacher';
+    return 'Student';
   };
 
-  const getPortalLink = () => {
-    if (user?.role === 'admin') return '/admin';
+  const getPortalBase = () => {
+    if (user?.role === 'admin' || user?.role === 'department_head') return '/admin';
     if (user?.role === 'teacher') return '/teacher';
     return '/student';
   };
 
-  const getSubtext = () => {
-    if (user?.role === 'admin') return user?.username || 'Administrator';
-    if (user?.role === 'teacher') return user?.teacherId || 'Faculty';
+  const getIdentifier = () => {
+    if (user?.role === 'admin' || user?.role === 'department_head') return user?.name || user?.username || 'Department Head';
+    if (user?.role === 'teacher') return user?.teacherId || 'Teacher';
     return user?.rollNumber || 'Student';
   };
 
-  return (
-  <div className="flex flex-col h-full">
-    {/* Logo */}
-    <Link to={getPortalLink()}
-      className="flex items-center gap-3 px-5 py-5 border-b border-slate-100 dark:border-slate-800">
-      <div className="w-9 h-9 rounded-full bg-white flex items-center justify-center shadow-md shadow-slate-200/50 dark:shadow-black/20 border border-slate-100 dark:border-slate-800 shrink-0">
-        <img src="/RUET.png" alt="RUET" className="w-7 h-7 object-contain"
-          onError={e => { e.target.style.display='none'; }}/>
-      </div>
-      <div>
-        <p className="font-heading font-extrabold text-sm text-slate-900 dark:text-white leading-tight">LabEval RUET</p>
-        <p className="text-xs text-slate-400 dark:text-slate-500 capitalize">{getRoleBadge()}</p>
-      </div>
-    </Link>
+  const getInitials = (name) => {
+    if (!name) return 'U';
+    return name.split(' ').map(n => n[0]).join('').slice(0, 2).toUpperCase();
+  };
 
-    {/* Profile Section */}
-    <div className="mx-3 my-3 rounded-2xl bg-slate-50 dark:bg-slate-800/50 border border-slate-100 dark:border-slate-800 overflow-hidden">
-      <button onClick={() => setProfileExpanded(!profileExpanded)}
-        className="w-full flex items-center gap-3 px-4 py-3 text-left hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-        <div className={`w-9 h-9 rounded-full flex items-center justify-center text-white font-bold text-sm shrink-0 ${
-          user?.role === 'admin' ? 'bg-gradient-to-br from-amber-500 to-orange-600' : 'bg-gradient-to-br from-primary to-accent'
-        }`}>
-          {user?.name?.charAt(0)?.toUpperCase() || 'U'}
+  return (
+    <div className="flex flex-col h-full"
+      style={{ background: isDarkMode ? '#0b132b' : '#ffffff', borderRight: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}` }}>
+
+      {/* ── Logo / Brand ── */}
+      <Link to={getPortalBase()} onClick={onClose}
+        className="flex items-center gap-3 px-5 py-4"
+        style={{ borderBottom: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}` }}>
+        <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700 bg-white flex items-center justify-center p-0.5 shadow-sm">
+          <img src="/RUET.png" alt="RUET Logo" className="w-full h-full object-contain"
+            onError={e => {
+              e.target.style.display = 'none';
+              e.target.parentElement.style.background = '#2563eb';
+              e.target.parentElement.style.display = 'flex';
+              e.target.parentElement.style.alignItems = 'center';
+              e.target.parentElement.style.justifyContent = 'center';
+              e.target.parentElement.innerHTML = '<span style="color:white;font-weight:700;font-size:12px">R</span>';
+            }} />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="font-bold text-sm text-slate-800 dark:text-white truncate">{user?.name || 'User'}</p>
-          <p className="text-xs text-slate-400 dark:text-slate-500 truncate">
-            {getSubtext()}
+          <p className="text-[13px] font-bold leading-tight truncate"
+            style={{ color: isDarkMode ? '#f8fafc' : '#0f172a' }}>
+            Lab Performance Evaluation
+          </p>
+          <p className="text-[11px] font-medium truncate" style={{ color: isDarkMode ? '#38bdf8' : '#2563eb' }}>
+            RUET Lab Performance System
           </p>
         </div>
-        <ChevronDown size={16} className={`text-slate-400 transition-transform ${profileExpanded ? 'rotate-180' : ''}`}/>
-      </button>
-      <AnimatePresence>
-        {profileExpanded && (
-          <motion.div initial={{ height:0, opacity:0 }} animate={{ height:'auto', opacity:1 }} exit={{ height:0, opacity:0 }}
-            className="overflow-hidden">
-            <div className="px-4 py-3 space-y-2 border-t border-slate-100 dark:border-slate-700/50">
-              <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                <Phone size={12} className="shrink-0"/>
-                <span className="truncate">{user?.contactNo || '—'}</span>
-              </div>
-              {user?.department && (
-                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <Building2 size={12} className="shrink-0"/>
-                  <span>{user?.department}</span>
-                </div>
-              )}
-              {user?.role === 'student' && (
-                <div className="flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
-                  <GraduationCap size={12} className="shrink-0"/>
-                  <span>Series {user?.series || '—'}</span>
-                </div>
-              )}
-              {user?.role === 'admin' && (
-                <div className="flex items-center gap-2 text-xs text-amber-600 dark:text-amber-400 font-bold">
-                  <span>Super Admin Privilege</span>
-                </div>
-              )}
-            </div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
+      </Link>
 
-    {/* Nav Links */}
-    <nav className="flex-1 px-3 py-2 space-y-0.5 overflow-y-auto">
-      {navItems.map((item, idx) => {
-        if (item.heading) {
-          return (
-            <p key={`h-${idx}`} className="text-[10px] uppercase tracking-wider font-bold text-slate-400 dark:text-slate-600 px-4 pt-4 pb-1.5 first:pt-0">
-              {item.heading}
+      {/* ── User Profile ── */}
+      <div className="px-3 pt-3 pb-1">
+        <button onClick={() => setProfileOpen(p => !p)}
+          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors"
+          style={{
+            background: isDarkMode ? '#111c38' : '#f8fafc',
+            border: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}`
+          }}>
+          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm"
+            style={{ background: 'linear-gradient(135deg, #2563eb 0%, #6366f1 100%)' }}>
+            {getInitials(user?.name)}
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-[13px] font-semibold truncate"
+              style={{ color: isDarkMode ? '#f8fafc' : '#0f172a' }}>
+              {user?.name || 'User'}
             </p>
+            <p className="text-[11px] font-medium truncate" style={{ color: isDarkMode ? '#818cf8' : '#6366f1' }}>
+              {getRoleBadge()}
+            </p>
+          </div>
+          <ChevronDown size={14}
+            style={{
+              color: isDarkMode ? '#94a3b8' : '#64748b',
+              transform: profileOpen ? 'rotate(180deg)' : 'none',
+              transition: 'transform 200ms'
+            }} />
+        </button>
+
+        {profileOpen && (
+          <div className="mt-1 px-3 py-2.5 rounded-lg text-[11px] space-y-1.5"
+            style={{
+              background: isDarkMode ? '#111c38' : '#f1f5f9',
+              border: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}`
+            }}>
+            <div className="flex items-center gap-2" style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}>
+              <GraduationCap size={11} />
+              <span className="font-mono">{getIdentifier()}</span>
+            </div>
+            {user?.department && (
+              <div className="flex items-center gap-2" style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}>
+                <Building2 size={11} />
+                <span>Dept. of {user.department}</span>
+              </div>
+            )}
+            {user?.contactNo && (
+              <div className="flex items-center gap-2" style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}>
+                <Phone size={11} />
+                <span>{user.contactNo}</span>
+              </div>
+            )}
+          </div>
+        )}
+      </div>
+
+      {/* ── Navigation ── */}
+      <nav className="flex-1 px-3 py-2 overflow-y-auto">
+        {navItems.map((item, idx) => {
+          if (item.heading) {
+            return (
+              <p key={`h-${idx}`}
+                className="text-[10px] uppercase tracking-widest font-bold px-3 pt-4 pb-1.5 first:pt-2"
+                style={{ color: isDarkMode ? '#64748b' : '#94a3b8' }}>
+                {item.heading}
+              </p>
+            );
+          }
+
+          const Icon = item.icon;
+          return (
+            <NavLink key={item.to} to={item.to} end={item.end}
+              onClick={onClose}
+              className={({ isActive }) =>
+                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-all ${
+                  isActive ? 'nav-active font-semibold' : 'nav-inactive hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
+                }`
+              }
+              style={({ isActive }) => ({
+                borderLeft: isActive ? `3px solid #2563eb` : '3px solid transparent',
+                background: isActive
+                  ? (isDarkMode ? 'linear-gradient(90deg, rgba(37,99,235,0.2) 0%, rgba(99,102,241,0.08) 100%)' : '#eff6ff')
+                  : 'transparent',
+                color: isActive
+                  ? (isDarkMode ? '#38bdf8' : '#1d4ed8')
+                  : (isDarkMode ? '#94a3b8' : '#475569'),
+              })}>
+              <Icon size={15} />
+              {item.label}
+            </NavLink>
           );
-        }
-        return (
-          <NavLink key={item.to} to={item.to} end={item.end}
-            className={({ isActive }) => isActive ? activeClass : inactiveClass}>
-            {item.icon} {item.label}
-          </NavLink>
-        );
-      })}
-    </nav>
+        })}
+      </nav>
 
-    {/* Bottom Controls */}
-    <div className="px-3 py-4 border-t border-slate-100 dark:border-slate-800 space-y-1">
-      <button onClick={toggleTheme}
-        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary dark:hover:text-primary transition-all">
-        {isDarkMode ? <Sun size={18}/> : <Moon size={18}/>}
-        {isDarkMode ? 'Light Mode' : 'Dark Mode'}
-      </button>
-      <button onClick={handleLogout}
-        className="w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-semibold text-slate-600 dark:text-slate-400 hover:bg-rose-50 dark:hover:bg-rose-950/30 hover:text-rose-500 dark:hover:text-rose-400 transition-all">
-        <LogOut size={18}/> Log Out
-      </button>
+      {/* ── Bottom Controls ── */}
+      <div className="px-3 py-3" style={{ borderTop: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}` }}>
+        <button onClick={toggleTheme}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[12px] font-medium mb-1 transition-colors"
+          style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}
+          onMouseEnter={e => e.currentTarget.style.background = isDarkMode ? '#1e293b' : '#f1f5f9'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
+          {isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+        </button>
+        <button onClick={() => { onOpenChangePassword && onOpenChangePassword(); onClose && onClose(); }}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[12px] font-medium mb-1 transition-colors"
+          style={{ color: isDarkMode ? '#38bdf8' : '#2563eb' }}
+          onMouseEnter={e => e.currentTarget.style.background = isDarkMode ? '#1e293b' : '#eff6ff'}
+          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+          <KeyRound size={14} />
+          Change Password (OTP)
+        </button>
+        <button onClick={handleLogout}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[12px] font-medium transition-colors"
+          style={{ color: '#ef4444' }}
+          onMouseEnter={e => { e.currentTarget.style.background = isDarkMode ? 'rgba(239, 68, 68, 0.12)' : '#fef2f2'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+          <LogOut size={14} />
+          Sign Out
+        </button>
+      </div>
     </div>
-  </div>
   );
-};
+}
 
-/* ── Main Layout Component ───────────────────────── */
-
+/* ── Main Layout ─────────────────────────────────────────── */
 export default function DashboardLayout() {
-  const { user, logout }          = useContext(AuthContext);
+  const { user, logout } = useContext(AuthContext);
   const { isDarkMode, toggleTheme } = useTheme();
-  const [sidebarOpen, setSidebarOpen] = useState(false);
-  const [profileExpanded, setProfileExpanded] = useState(true);
+  const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
+  const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const navigate = useNavigate();
 
   let navItems = studentNav;
   if (user?.role === 'teacher') navItems = teacherNav;
-  if (user?.role === 'admin')   navItems = adminNav;
+  if (user?.role === 'admin' || user?.role === 'department_head') navItems = adminNav;
 
   const handleLogout = () => { logout(); navigate('/'); };
 
-  const activeClass = "flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm bg-primary/10 text-primary";
-  const inactiveClass = "flex items-center gap-3 px-4 py-2.5 rounded-xl font-semibold text-sm text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800 hover:text-primary dark:hover:text-primary transition-all";
+  const bgColor    = isDarkMode ? '#0b132b' : '#f8fafc';
+  const sidebarBg  = isDarkMode ? '#0b132b' : '#ffffff';
+  const borderColor = isDarkMode ? '#1e293b' : '#e2e8f0';
+  const headerBg   = isDarkMode ? '#0b132b' : '#ffffff';
+  const headerText = isDarkMode ? '#f8fafc' : '#0f172a';
 
   return (
-    <div className="flex h-screen overflow-hidden bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-      {/* Desktop Sidebar */}
-      <aside className="hidden lg:flex flex-col w-64 shrink-0 h-full bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 overflow-y-auto">
-        <SidebarContent
+    <div className="flex h-screen overflow-hidden" style={{ background: bgColor }}>
+
+      {/* ── Desktop Sidebar ── */}
+      <aside className="hidden lg:flex flex-col w-60 shrink-0 h-full overflow-y-auto"
+        style={{ background: sidebarBg, borderRight: `1px solid ${borderColor}` }}>
+        <Sidebar
           user={user}
-          profileExpanded={profileExpanded}
-          setProfileExpanded={setProfileExpanded}
           navItems={navItems}
-          activeClass={activeClass}
-          inactiveClass={inactiveClass}
           isDarkMode={isDarkMode}
           toggleTheme={toggleTheme}
           handleLogout={handleLogout}
+          onOpenChangePassword={() => setChangePasswordOpen(true)}
+          onClose={() => {}}
         />
       </aside>
 
-      {/* Mobile Overlay */}
-      <AnimatePresence>
-        {sidebarOpen && (
-          <>
-            <motion.div initial={{ opacity:0 }} animate={{ opacity:1 }} exit={{ opacity:0 }}
-              onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 z-30 bg-black/40 backdrop-blur-sm lg:hidden"/>
-            <motion.aside initial={{ x:-288 }} animate={{ x:0 }} exit={{ x:-288 }} transition={{ type:'spring', damping:25 }}
-              className="fixed left-0 top-0 bottom-0 z-40 w-72 bg-white dark:bg-slate-900 border-r border-slate-100 dark:border-slate-800 flex flex-col lg:hidden overflow-y-auto">
-              <SidebarContent
-                user={user}
-                profileExpanded={profileExpanded}
-                setProfileExpanded={setProfileExpanded}
-                navItems={navItems}
-                activeClass={activeClass}
-                inactiveClass={inactiveClass}
-                isDarkMode={isDarkMode}
-                toggleTheme={toggleTheme}
-                handleLogout={handleLogout}
-              />
-            </motion.aside>
-          </>
-        )}
-      </AnimatePresence>
+      {/* ── Mobile: overlay + drawer ── */}
+      {mobileSidebarOpen && (
+        <>
+          <div
+            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
+            onClick={() => setMobileSidebarOpen(false)} />
+          <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 flex flex-col lg:hidden overflow-y-auto"
+            style={{ background: sidebarBg, borderRight: `1px solid ${borderColor}` }}>
+            <div className="flex items-center justify-end px-4 pt-3 pb-1">
+              <button onClick={() => setMobileSidebarOpen(false)}
+                style={{ color: isDarkMode ? '#8ba99b' : '#6b7280' }}>
+                <X size={18} />
+              </button>
+            </div>
+            <Sidebar
+              user={user}
+              navItems={navItems}
+              isDarkMode={isDarkMode}
+              toggleTheme={toggleTheme}
+              handleLogout={handleLogout}
+              onOpenChangePassword={() => setChangePasswordOpen(true)}
+              onClose={() => setMobileSidebarOpen(false)}
+            />
+          </aside>
+        </>
+      )}
 
-      {/* Main Content */}
+      {/* ── Change Password Modal ── */}
+      <ChangePasswordModal
+        isOpen={changePasswordOpen}
+        onClose={() => setChangePasswordOpen(false)}
+        currentUser={user}
+      />
+
+      {/* ── Main Content Area ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-        {/* Top Bar (mobile) */}
-        <header className="flex items-center justify-between px-5 py-4 bg-white dark:bg-slate-900 border-b border-slate-100 dark:border-slate-800 lg:hidden">
-          <button onClick={() => setSidebarOpen(true)} className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-            <Menu size={22}/>
+
+        {/* Mobile Header */}
+        <header className="flex items-center gap-3 px-4 py-3 lg:hidden"
+          style={{ background: headerBg, borderBottom: `1px solid ${borderColor}` }}>
+          <button onClick={() => setMobileSidebarOpen(true)}
+            style={{ color: isDarkMode ? '#8ba99b' : '#6b7280' }}>
+            <Menu size={20} />
           </button>
-          <span className="font-heading font-extrabold text-slate-800 dark:text-white">LabEval RUET</span>
-          <button onClick={toggleTheme} className="p-2 rounded-xl text-slate-600 dark:text-slate-300 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors">
-            {isDarkMode ? <Sun size={18}/> : <Moon size={18}/>}
-          </button>
+          <span className="text-[14px] font-semibold" style={{ color: headerText }}>
+            Lab Performance Evaluation
+          </span>
+          <div className="ml-auto">
+            <button onClick={toggleTheme} style={{ color: isDarkMode ? '#8ba99b' : '#6b7280' }}>
+              {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
+            </button>
+          </div>
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-6 lg:p-8">
-          <Outlet/>
+        <main className="flex-1 overflow-y-auto" style={{ background: bgColor }}>
+          <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-7xl 2xl:max-w-[1760px] mx-auto w-full">
+            <Outlet />
+          </div>
         </main>
       </div>
     </div>

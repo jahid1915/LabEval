@@ -10,15 +10,30 @@ const Student = require('../models/Student');
 const FinalResult = require('../models/FinalResult');
 const { logAudit } = require('../middleware/auditMiddleware');
 
+// Helper to get department isolation filter
+const getDeptFilter = (req) => {
+  if (req.user && req.user.departmentCode && req.user.role !== 'super_admin') {
+    return req.user.departmentCode.toUpperCase();
+  }
+  return null;
+};
+
 // @desc Get all course offerings with extensive filtering
 // @route GET /api/course-offerings
 const getCourseOfferings = async (req, res) => {
   try {
+    const deptFilter = getDeptFilter(req);
     const { departmentCode, seriesName, sessionName, semesterName, teacherId, search, status } = req.query;
     let query = {};
 
     if (status) query.status = status;
-    if (departmentCode) query.departmentCode = departmentCode.toUpperCase();
+
+    if (deptFilter) {
+      query.departmentCode = deptFilter;
+    } else if (departmentCode) {
+      query.departmentCode = departmentCode.toUpperCase();
+    }
+
     if (seriesName) query.seriesName = seriesName;
     if (sessionName) query.sessionName = sessionName;
     if (semesterName) query.semesterName = semesterName;
@@ -41,7 +56,7 @@ const getCourseOfferings = async (req, res) => {
     }
 
     const offerings = await CourseOffering.find(query)
-      .populate('course', 'credit courseType defaultAssessmentConfig')
+      .populate('course', 'credit creditHours courseType isElective isSessional pairedCourseCode defaultAssessmentConfig syllabus')
       .populate('department', 'name code')
       .populate('series', 'name currentSemester')
       .populate('academicSession', 'name year isCurrent')
@@ -84,6 +99,12 @@ const getCourseOfferingById = async (req, res) => {
 
     if (!offering) return res.status(404).json({ message: 'Course offering not found' });
 
+    // Isolation check
+    const deptFilter = getDeptFilter(req);
+    if (deptFilter && offering.departmentCode !== deptFilter) {
+      return res.status(403).json({ message: 'Access denied: Offering belongs to another department' });
+    }
+
     const assignments = await TeacherAssignment.find({ courseOffering: offering._id, status: 'active' })
       .populate('teacher', 'name teacherId designation department contactNo avatarUrl dutyStatus');
 
@@ -108,6 +129,7 @@ const getCourseOfferingById = async (req, res) => {
 // @route POST /api/course-offerings
 const createCourseOffering = async (req, res) => {
   try {
+    const deptFilter = getDeptFilter(req);
     const {
       courseId,
       departmentId,
@@ -137,6 +159,10 @@ const createCourseOffering = async (req, res) => {
       return res.status(400).json({ message: 'Invalid entity reference provided' });
     }
 
+    if (deptFilter && deptDoc.code !== deptFilter) {
+      return res.status(403).json({ message: `Access denied: You cannot create offerings for department '${deptDoc.code}'` });
+    }
+
     // Check duplicate offering
     const existing = await CourseOffering.findOne({
       courseCode: courseDoc.courseCode,
@@ -147,7 +173,7 @@ const createCourseOffering = async (req, res) => {
 
     if (existing) {
       return res.status(400).json({
-        message: `Course offering for ${courseDoc.courseCode} (${seriesDoc.name} Series, ${sessionDoc.name} Session) already exists.`
+        message: `Course offering for ${courseDoc.courseCode} (${seriesDoc.name} Series, ${sessionDoc.name} Session, ${semesterDoc.name}) already exists.`
       });
     }
 
@@ -162,14 +188,15 @@ const createCourseOffering = async (req, res) => {
       academicSession: sessionDoc._id,
       sessionName: sessionDoc.name,
       semester: semesterDoc._id,
-      semesterName: semesterDoc.name,
+      semesterName: semesterDoc.code || semesterDoc.name,
       assessmentConfig: courseDoc.defaultAssessmentConfig || {
-        performance: 5,
-        quiz: 30,
-        report: 10,
-        attendance: 5,
-        test: 20,
-        others: 5
+        quiz: 20,
+        labReport: 15,
+        labViva: 10,
+        labTest: 20,
+        openEnded: 0,
+        attendance: 10,
+        others: 0
       }
     });
 
@@ -180,6 +207,10 @@ const createCourseOffering = async (req, res) => {
       });
 
       if (teacherDoc) {
+        if (deptFilter && teacherDoc.department !== deptFilter) {
+          return res.status(403).json({ message: 'Cannot assign a teacher from another department' });
+        }
+
         await TeacherAssignment.create({
           courseOffering: offering._id,
           teacher: teacherDoc._id,
@@ -188,6 +219,17 @@ const createCourseOffering = async (req, res) => {
           isTemporary: !!isTemporary,
           reassignedFrom: reassignedFrom || null,
           status: 'active'
+        });
+
+        // Also update teacher's allocatedCourses
+        await Teacher.findByIdAndUpdate(teacherDoc._id, {
+          $addToSet: {
+            allocatedCourses: {
+              courseCode: offering.courseCode,
+              courseName: offering.courseName,
+              series: offering.seriesName
+            }
+          }
         });
       }
     }
@@ -207,19 +249,27 @@ const createCourseOffering = async (req, res) => {
   }
 };
 
-// @desc Assign / Reassign Teacher to Offering
+// @desc Assign / Reassign Teacher to Offering (Admin / Department Head only)
 // @route POST /api/course-offerings/:id/assign
 const assignTeacher = async (req, res) => {
   try {
+    const deptFilter = getDeptFilter(req);
     const { teacherId, role, isTemporary, startDate, endDate, reassignedFrom, notes } = req.body;
     const offering = await CourseOffering.findById(req.params.id);
     if (!offering) return res.status(404).json({ message: 'Course offering not found' });
+
+    if (deptFilter && offering.departmentCode !== deptFilter) {
+      return res.status(403).json({ message: 'Access denied: Course belongs to another department' });
+    }
 
     const teacherDoc = await Teacher.findOne({
       $or: [{ _id: teacherId.match(/^[0-9a-fA-F]{24}$/) ? teacherId : null }, { teacherId: teacherId.toUpperCase() }]
     });
 
     if (!teacherDoc) return res.status(400).json({ message: 'Teacher not found' });
+    if (deptFilter && teacherDoc.department !== deptFilter) {
+      return res.status(403).json({ message: 'Access denied: Cannot assign a teacher from another department' });
+    }
     if (teacherDoc.dutyStatus === 'INACTIVE') {
       return res.status(400).json({ message: 'Cannot assign an inactive teacher' });
     }
@@ -261,7 +311,7 @@ const assignTeacher = async (req, res) => {
       newValues: assignment
     });
 
-    res.json({ message: 'Teacher assigned successfully', assignment });
+    res.json({ message: 'Teacher assigned successfully', assignment, teacher: teacherDoc });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -271,13 +321,18 @@ const assignTeacher = async (req, res) => {
 // @route DELETE /api/course-offerings/:id/assign/:assignmentId
 const revokeAssignment = async (req, res) => {
   try {
+    const deptFilter = getDeptFilter(req);
     const assignment = await TeacherAssignment.findById(req.params.assignmentId).populate('teacher');
     if (!assignment) return res.status(404).json({ message: 'Assignment not found' });
+
+    const offering = await CourseOffering.findById(assignment.courseOffering);
+    if (deptFilter && offering && offering.departmentCode !== deptFilter) {
+      return res.status(403).json({ message: 'Access denied: Assignment belongs to another department' });
+    }
 
     assignment.status = 'revoked';
     await assignment.save();
 
-    const offering = await CourseOffering.findById(assignment.courseOffering);
     if (offering && assignment.teacher) {
       await Teacher.findByIdAndUpdate(assignment.teacher._id, {
         $pull: { allocatedCourses: { courseCode: offering.courseCode, series: offering.seriesName } }
@@ -302,9 +357,14 @@ const revokeAssignment = async (req, res) => {
 // @route PATCH /api/course-offerings/:id/publish-marks
 const togglePublishMarks = async (req, res) => {
   try {
+    const deptFilter = getDeptFilter(req);
     const { publish } = req.body;
     const offering = await CourseOffering.findById(req.params.id);
     if (!offering) return res.status(404).json({ message: 'Course offering not found' });
+
+    if (deptFilter && offering.departmentCode !== deptFilter) {
+      return res.status(403).json({ message: 'Access denied: Course belongs to another department' });
+    }
 
     offering.isMarksPublished = !!publish;
     offering.publishedAt = publish ? new Date() : null;
@@ -342,8 +402,13 @@ const togglePublishMarks = async (req, res) => {
 // @route DELETE /api/course-offerings/:id
 const deleteCourseOffering = async (req, res) => {
   try {
+    const deptFilter = getDeptFilter(req);
     const offering = await CourseOffering.findById(req.params.id);
     if (!offering) return res.status(404).json({ message: 'Course offering not found' });
+
+    if (deptFilter && offering.departmentCode !== deptFilter) {
+      return res.status(403).json({ message: 'Access denied: Course belongs to another department' });
+    }
 
     offering.status = 'archived';
     await offering.save();

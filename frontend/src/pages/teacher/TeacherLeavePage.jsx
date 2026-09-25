@@ -90,7 +90,7 @@ export default function TeacherLeavePage() {
                   </span>
                 </div>
                 <p className="text-sm text-slate-600 dark:text-slate-400 pl-7">{l.reason}</p>
-                {l.adminRemarks && <p className="text-xs text-slate-400 italic pl-7 mt-2">Admin: {l.adminRemarks}</p>}
+                {l.adminRemarks && <p className="text-xs text-slate-400 italic pl-7 mt-2">Department Head: {l.adminRemarks}</p>}
               </motion.div>
             );
           })}

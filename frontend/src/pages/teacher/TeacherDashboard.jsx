@@ -2,99 +2,86 @@ import { useState, useEffect, useContext, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
 import api from '../../api/axios';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   BookOpen, Activity, HelpCircle, FileCheck, ClipboardList,
-  TrendingUp, ChevronRight, Plus, Bell, CheckCircle, XCircle,
-  Settings, Save, AlertTriangle
+  TrendingUp, ChevronRight, Bell, CheckCircle, XCircle,
+  Settings, Save, AlertTriangle, ArrowLeft, RefreshCw,
+  Search, Award, CheckCircle2, User, Hash, FileSpreadsheet,
+  FileText, ExternalLink, Sparkles
 } from 'lucide-react';
 import { toast } from 'react-toastify';
+import { calculateRUETGrade } from '../../utils/gradeCalculator';
+import {
+  generateRUETPDFReport,
+  generateRUETXLSXReport
+} from '../../utils/ruetReportGenerator';
+import EvaluationLayoutModal from '../../components/EvaluationLayoutModal';
 
 const MODULE_CARDS = [
-  { title:'Attendance & Report', icon:<BookOpen className="w-7 h-7"/>,     color:'from-blue-500 to-cyan-400',    shadow:'shadow-blue-500/30',   path:'attendance' },
-  { title:'Lab Performance',     icon:<Activity className="w-7 h-7"/>,     color:'from-purple-500 to-fuchsia-500', shadow:'shadow-purple-500/30',path:'performance' },
-  { title:'Lab Quiz',            icon:<HelpCircle className="w-7 h-7"/>,   color:'from-pink-500 to-rose-400',    shadow:'shadow-pink-500/30',   path:'quiz' },
-  { title:'Lab Test',            icon:<FileCheck className="w-7 h-7"/>,    color:'from-indigo-500 to-blue-500',  shadow:'shadow-indigo-500/30', path:'test' },
-  { title:'Others',              icon:<ClipboardList className="w-7 h-7"/>,color:'from-orange-500 to-amber-400', shadow:'shadow-orange-500/30', path:'others' },
-  { title:'Final Result',        icon:<TrendingUp className="w-7 h-7"/>,   color:'from-emerald-500 to-teal-400', shadow:'shadow-emerald-500/30',path:'results' },
+  { title: 'Attendance & Report', icon: <BookOpen size={16} />, path: 'attendance' },
+  { title: 'Lab Performance',     icon: <Activity size={16} />, path: 'performance' },
+  { title: 'Lab Quiz',            icon: <HelpCircle size={16} />, path: 'quiz' },
+  { title: 'Lab Test',            icon: <FileCheck size={16} />, path: 'test' },
+  { title: 'Others',             icon: <ClipboardList size={16} />, path: 'others' },
+  { title: 'Final Result',        icon: <TrendingUp size={16} />, path: 'results' },
 ];
-
-const TOTAL_MARKS = 75;
-
-const CONFIG_FIELDS = [
-  { key: 'performance', label: 'Lab Performance', color: 'text-purple-600 dark:text-purple-400' },
-  { key: 'quiz',        label: 'Lab Quiz',        color: 'text-pink-600 dark:text-pink-400' },
-  { key: 'report',      label: 'Lab Report',      color: 'text-blue-600 dark:text-blue-400' },
-  { key: 'attendance',  label: 'Lab Attendance',  color: 'text-cyan-600 dark:text-cyan-400' },
-  { key: 'test',        label: 'Lab Test',        color: 'text-indigo-600 dark:text-indigo-400' },
-  { key: 'others',      label: 'Others',          color: 'text-orange-600 dark:text-orange-400' },
-];
-
-const item = { hidden:{ y:20, opacity:0 }, show:{ y:0, opacity:1, transition:{ type:'spring', stiffness:100 } } };
-const container = { hidden:{ opacity:0 }, show:{ opacity:1, transition:{ staggerChildren:0.08 } } };
 
 export default function TeacherDashboard() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [courses, setCourses]         = useState([]);
-  const [loading, setLoading]         = useState(true);
+  const [courses, setCourses] = useState([]);
+  const [loading, setLoading] = useState(true);
   const [selectedCourse, setSelected] = useState(() => {
     try { return JSON.parse(sessionStorage.getItem('selectedCourse')) || null; } catch { return null; }
   });
-  const [requests, setRequests]       = useState([]);
-  const [courseRequests, setCourseRequests] = useState([]);
+  const [showLayoutModal, setShowLayoutModal] = useState(false);
 
-  // Assessment config state
-  const [config, setConfig]       = useState(null);
-  const [configDraft, setConfigDraft] = useState(null);
-  const [configLoading, setConfigLoading] = useState(false);
-  const [configSaving, setConfigSaving]   = useState(false);
+  // Student Mark Requests State (Sections 6 & 7)
+  const [requests, setRequests] = useState([]);
+  const [requestSearch, setRequestSearch] = useState('');
+  const [requestStatusFilter, setRequestStatusFilter] = useState('All');
+  const [activeRequestModal, setActiveRequestModal] = useState(null);
+  const [marksForm, setMarksForm] = useState({
+    quiz: 18,
+    labReport: 15,
+    labViva: 9,
+    labTest: 10,
+    openEnded: 'A',
+    attendance: 10,
+    maxMarks: 65,
+    remarks: ''
+  });
+  const [processingMarks, setProcessingMarks] = useState(false);
 
-  const fetchCourses = async () => {
+  // Fetch teacher's assigned courses
+  const fetchCourses = useCallback(async () => {
     setLoading(true);
     try {
       const { data } = await api.get('/teacher/courses');
       setCourses(data);
-    } catch { toast.error('Could not load courses'); }
-    finally { setLoading(false); }
-  };
-
-  const fetchRequests = async () => {
-    try {
-      const { data } = await api.get('/teacher/requests');
-      setRequests(data.filter(r => r.status === 'Pending'));
-    } catch { /* silent */ }
-  };
-
-  const fetchCourseRequests = useCallback(async (courseCode) => {
-    try {
-      const { data } = await api.get(`/teacher/requests?course=${courseCode}`);
-      setCourseRequests(data);
-    } catch { /* silent */ }
+    } catch {
+      toast.error('Could not load assigned courses');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
-  const fetchConfig = useCallback(async (courseId) => {
-    setConfigLoading(true);
+  // Fetch mark requests directed to this teacher
+  const fetchRequests = useCallback(async () => {
     try {
-      const { data } = await api.get(`/teacher/courses/${courseId}/config`);
-      setConfig(data.config);
-      setConfigDraft({ ...data.config });
-    } catch { toast.error('Could not load assessment configuration'); }
-    finally { setConfigLoading(false); }
+      const { data } = await api.get('/teacher/requests');
+      setRequests(data);
+    } catch {
+      /* silent */
+    }
   }, []);
 
   useEffect(() => {
     fetchCourses();
     fetchRequests();
-  }, []);
-
-  useEffect(() => {
-    if (selectedCourse) {
-      fetchCourseRequests(selectedCourse.courseCode);
-      fetchConfig(selectedCourse._id);
-    }
-  }, [selectedCourse, fetchCourseRequests, fetchConfig]);
+  }, [fetchCourses, fetchRequests]);
 
   const handleCourseSelect = (course) => {
     sessionStorage.setItem('selectedCourse', JSON.stringify(course));
@@ -105,347 +92,550 @@ export default function TeacherDashboard() {
     navigate(`/teacher/${path}`, { state: { course: selectedCourse, department: user?.department } });
   };
 
-  const handleRequest = async (id, status) => {
-    try {
-      await api.patch(`/teacher/requests/${id}`, { status });
-      setRequests(prev => prev.filter(r => r._id !== id));
-      toast.success(`Request ${status}`);
-    } catch { toast.error('Failed to update request'); }
+  // Open Process Detailed Marks Modal (Section 7)
+  const handleOpenProcessModal = (req) => {
+    setActiveRequestModal(req);
+    const existing = req.detailedMarks || {};
+    setMarksForm({
+      quiz: existing.quiz ?? 16,
+      labReport: existing.labReport ?? 13,
+      labViva: existing.labViva ?? 8,
+      labTest: existing.labTest ?? 9,
+      openEnded: existing.openEnded ?? 'A',
+      attendance: existing.attendance ?? 10,
+      maxMarks: 65,
+      remarks: req.remarks || 'Verified by Course Teacher'
+    });
   };
 
-  const handleCourseRequest = async (id, status) => {
-    try {
-      const { data } = await api.patch(`/teacher/requests/${id}`, { status });
-      setCourseRequests(prev => prev.map(r => r._id === id ? data : r));
-      toast.success(`Request ${status}`);
-    } catch { toast.error('Failed to update request'); }
+  // Calculate live total, grade, and grade point for RUET standard
+  const calcTotal = () => {
+    const q = parseFloat(marksForm.quiz) || 0;
+    const r = parseFloat(marksForm.labReport) || 0;
+    const v = parseFloat(marksForm.labViva) || 0;
+    const t = parseFloat(marksForm.labTest) || 0;
+    const a = parseFloat(marksForm.attendance) || 0;
+    const oe = marksForm.openEnded === 'A' ? 0 : (parseFloat(marksForm.openEnded) || 0);
+    return Math.round((q + r + v + t + oe + a) * 100) / 100;
   };
 
-  const handleConfigChange = (key, value) => {
-    const num = parseFloat(value);
-    setConfigDraft(prev => ({ ...prev, [key]: isNaN(num) ? 0 : Math.max(0, num) }));
-  };
+  const total = calcTotal();
+  const maxMarks = parseFloat(marksForm.maxMarks) || 65;
+  const pct = maxMarks > 0 ? (total / maxMarks) * 100 : 0;
 
-  const configTotal = configDraft
-    ? Object.values(configDraft).reduce((s, v) => s + (parseFloat(v) || 0), 0)
-    : 0;
-  const configValid = Math.round(configTotal * 100) / 100 === TOTAL_MARKS;
+  // Real-time RUET letter grade & grade point
+  let letterGrade = 'F';
+  let gradePoint = 0.00;
+  if (pct >= 80) { letterGrade = 'A+'; gradePoint = 4.00; }
+  else if (pct >= 75) { letterGrade = 'A'; gradePoint = 3.75; }
+  else if (pct >= 70) { letterGrade = 'A-'; gradePoint = 3.50; }
+  else if (pct >= 65) { letterGrade = 'B+'; gradePoint = 3.25; }
+  else if (pct >= 60) { letterGrade = 'B'; gradePoint = 3.00; }
+  else if (pct >= 55) { letterGrade = 'B-'; gradePoint = 2.75; }
+  else if (pct >= 50) { letterGrade = 'C+'; gradePoint = 2.50; }
+  else if (pct >= 45) { letterGrade = 'C'; gradePoint = 2.25; }
+  else if (pct >= 40) { letterGrade = 'D'; gradePoint = 2.00; }
 
-  const handleSaveConfig = async () => {
-    if (!configValid) {
-      toast.error(`Total must equal ${TOTAL_MARKS}. Current: ${configTotal}`);
-      return;
-    }
-    setConfigSaving(true);
+  // Submit Detailed Marks and Complete Request
+  const handleSubmitDetailedMarks = async (e) => {
+    e.preventDefault();
+    if (!activeRequestModal) return;
+    setProcessingMarks(true);
     try {
-      await api.patch(`/teacher/courses/${selectedCourse._id}/config`, configDraft);
-      setConfig({ ...configDraft });
-      toast.success('Assessment configuration saved!');
+      await api.patch(`/teacher/requests/${activeRequestModal._id}`, {
+        status: 'Completed',
+        detailedMarks: {
+          quiz: parseFloat(marksForm.quiz) || 0,
+          labReport: parseFloat(marksForm.labReport) || 0,
+          labViva: parseFloat(marksForm.labViva) || 0,
+          labTest: parseFloat(marksForm.labTest) || 0,
+          openEnded: marksForm.openEnded,
+          attendance: parseFloat(marksForm.attendance) || 0,
+          maxMarks: maxMarks
+        },
+        remarks: marksForm.remarks
+      });
+      toast.success(`Detailed marks released to student ${activeRequestModal.studentRoll || activeRequestModal.student?.rollNumber}!`);
+      setActiveRequestModal(null);
+      fetchRequests();
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save configuration');
+      toast.error(err.response?.data?.message || 'Failed to submit detailed marks');
     } finally {
-      setConfigSaving(false);
+      setProcessingMarks(false);
     }
   };
 
-  // ── Course Selection Screen ────────────────────────────────────────
-  if (!selectedCourse) {
-    return (
-      <div className="max-w-6xl mx-auto space-y-8">
-        {/* Header */}
-        <div className="flex items-start justify-between">
-          <div>
-            <h1 className="text-3xl md:text-4xl font-heading font-extrabold text-slate-800 dark:text-white mb-1">
-              Welcome, <span className="text-primary">{user?.name?.split(' ')[0]}</span> 👋
-            </h1>
-            <p className="text-slate-500 dark:text-slate-400">Select a course to manage its lab sessions.</p>
-          </div>
-          <button onClick={() => navigate('/teacher/courses')}
-            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-xl font-bold text-sm shadow-md shadow-primary/25 hover:bg-primary-focus transition-all">
-            <Plus size={16}/> Add Course
-          </button>
-        </div>
+  // Filter requests
+  const filteredRequests = requests.filter(r => {
+    const matchesSearch =
+      (r.studentRoll || r.student?.rollNumber || '').toLowerCase().includes(requestSearch.toLowerCase()) ||
+      (r.studentName || r.student?.name || '').toLowerCase().includes(requestSearch.toLowerCase()) ||
+      (r.course || '').toLowerCase().includes(requestSearch.toLowerCase());
+    const matchesStatus = requestStatusFilter === 'All' || r.status === requestStatusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
-        {/* Pending Requests */}
-        {requests.length > 0 && (
-          <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-2xl p-5">
-            <h2 className="font-heading font-bold text-amber-800 dark:text-amber-300 flex items-center gap-2 mb-3">
-              <Bell size={18}/> Pending Student Requests ({requests.length})
-            </h2>
-            <div className="space-y-2">
-              {requests.filter(r => r.student).map(req => (
-                <div key={req._id} className="flex items-center justify-between bg-white dark:bg-slate-900 rounded-xl px-4 py-3 border border-amber-100 dark:border-amber-900/40">
-                  <div>
-                    <p className="font-semibold text-slate-800 dark:text-white text-sm">{req.student?.name} <span className="text-slate-400 font-normal ml-2">({req.student?.rollNumber})</span></p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">Course: <strong className="text-slate-750 dark:text-slate-350">{req.course}</strong> · {req.student?.department} · Series {req.student?.series}</p>
-                  </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => handleRequest(req._id, 'Accepted')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors">
-                      <CheckCircle size={14}/> Accept
-                    </button>
-                    <button onClick={() => handleRequest(req._id, 'Rejected')}
-                      className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-xs font-bold transition-colors">
-                      <XCircle size={14}/> Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
+  // Quick export for course
+  const handleExportCoursePDF = () => {
+    if (!selectedCourse) return;
+    toast.info('Generating official RUET Course Evaluation PDF...');
+    navigate('/teacher/results', { state: { course: selectedCourse, department: user?.department } });
+  };
 
-        {/* Courses Grid */}
-        {loading ? (
-          <div className="flex justify-center py-20"><span className="loading loading-spinner text-primary loading-lg"/></div>
-        ) : courses.length === 0 ? (
-          <div className="text-center py-20 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-700">
-            <BookOpen className="w-14 h-14 text-slate-300 dark:text-slate-600 mx-auto mb-4"/>
-            <h3 className="text-xl font-bold text-slate-700 dark:text-white mb-2">No Courses Yet</h3>
-            <p className="text-slate-500 dark:text-slate-400 mb-6">Add your first course to start managing lab sessions.</p>
-            <button onClick={() => navigate('/teacher/courses')}
-              className="px-6 py-3 bg-primary text-white rounded-xl font-bold shadow-md shadow-primary/25">
-              <Plus size={16} className="inline mr-2"/>Add Course
-            </button>
-          </div>
-        ) : (
-          <motion.div variants={container} initial="hidden" animate="show"
-            className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-            {courses.map(course => (
-              <motion.div key={course._id} variants={item}
-                onClick={() => handleCourseSelect(course)}
-                className="group cursor-pointer bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-xl hover:border-primary/30 dark:hover:border-primary/30 transition-all duration-300 p-6 relative overflow-hidden">
-                <div className="absolute top-0 left-0 h-1 w-full bg-gradient-to-r from-primary to-secondary transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"/>
-                <div className="flex items-center gap-4 mb-4">
-                  <div className="w-12 h-12 rounded-2xl bg-primary/10 group-hover:bg-primary flex items-center justify-center transition-colors duration-300">
-                    <BookOpen className="w-6 h-6 text-primary group-hover:text-white transition-colors duration-300"/>
-                  </div>
-                  <div>
-                    <h3 className="font-heading font-extrabold text-2xl text-slate-800 dark:text-white group-hover:text-primary transition-colors">{course.courseCode}</h3>
-                    <p className="text-slate-500 dark:text-slate-400 text-sm font-medium">{course.courseName}</p>
-                  </div>
-                </div>
-                <div className="flex items-center justify-between pt-4 border-t border-slate-100 dark:border-slate-800/50">
-                  <div className="flex gap-2">
-                    <span className="px-3 py-1 bg-primary/10 text-primary text-xs font-bold rounded-full">Series {course.series}</span>
-                    <span className="px-3 py-1 bg-slate-100 dark:bg-slate-800 text-slate-500 dark:text-slate-400 text-xs font-bold rounded-full">{course.department}</span>
-                  </div>
-                  <ChevronRight size={18} className="text-slate-300 dark:text-slate-600 group-hover:text-primary group-hover:translate-x-1 transition-all"/>
-                </div>
-              </motion.div>
-            ))}
-          </motion.div>
-        )}
-      </div>
-    );
-  }
-
-  // ── Module Cards Screen ────────────────────────────────────────────
   return (
-    <div className="max-w-6xl mx-auto space-y-8">
-      <div className="flex items-center gap-4 flex-wrap">
-        <button onClick={() => { setSelected(null); sessionStorage.removeItem('selectedCourse'); }}
-          className="text-sm font-semibold text-slate-500 dark:text-slate-400 hover:text-primary transition-colors flex items-center gap-1">
-          ← Back
-        </button>
-        <div>
-          <div className="flex items-center gap-3 flex-wrap">
-            <h1 className="text-3xl font-heading font-extrabold text-slate-800 dark:text-white">Lab Modules</h1>
-            <span className="px-4 py-1.5 bg-primary/10 text-primary font-bold rounded-xl text-lg">{selectedCourse.courseCode}</span>
-            <span className="text-slate-500 dark:text-slate-400 font-medium">{selectedCourse.courseName}</span>
-          </div>
-          <p className="text-slate-500 dark:text-slate-400 mt-1">Series {selectedCourse.series} · {selectedCourse.department}</p>
-        </div>
-      </div>
-
-      <motion.div variants={container} initial="hidden" animate="show"
-        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-        {MODULE_CARDS.map((card) => (
-          <motion.div key={card.title} variants={item}
-            onClick={() => handleModuleClick(card.path)}
-            className="group cursor-pointer bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm hover:shadow-2xl transition-all duration-300 p-6 relative overflow-hidden">
-            <div className={`absolute -right-8 -top-8 w-28 h-28 bg-gradient-to-br ${card.color} rounded-full blur-3xl opacity-0 group-hover:opacity-20 transition-opacity duration-500`}/>
-            <div className="relative z-10">
-              <div className="flex items-start justify-between mb-6">
-                <div className={`w-14 h-14 rounded-2xl flex items-center justify-center bg-gradient-to-br ${card.color} shadow-lg ${card.shadow} text-white transform group-hover:scale-110 group-hover:rotate-3 transition-transform duration-300`}>
-                  {card.icon}
-                </div>
-                <div className="w-8 h-8 rounded-full bg-slate-50 dark:bg-slate-800 flex items-center justify-center text-slate-400 group-hover:bg-primary group-hover:text-white transition-colors">
-                  <ChevronRight size={16}/>
-                </div>
-              </div>
-              <h3 className="font-heading font-bold text-lg text-slate-800 dark:text-white group-hover:text-primary dark:group-hover:text-primary transition-colors">{card.title}</h3>
-            </div>
-            <div className={`absolute bottom-0 left-0 h-1 w-full bg-gradient-to-r ${card.color} transform scale-x-0 group-hover:scale-x-100 transition-transform duration-500 origin-left`}/>
-          </motion.div>
-        ))}
-      </motion.div>
-
-      {/* ── Assessment Configuration Section ─────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
-        <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-primary/10 flex items-center justify-center">
-              <Settings size={18} className="text-primary" />
+    <div className="space-y-6 pb-16">
+      
+      {/* ── TEACHER PROFILE HEADER ── */}
+      <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+          <div className="flex items-center gap-4">
+            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-md shadow-indigo-500/20">
+              {user?.name?.charAt(0) || 'T'}
             </div>
             <div>
-              <h2 className="font-heading font-bold text-lg text-slate-800 dark:text-white">Assessment Configuration</h2>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Configure maximum marks for each component. Total must equal {TOTAL_MARKS}.</p>
+              <div className="flex flex-wrap items-center gap-2 mb-1">
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">
+                  Faculty Instructor
+                </span>
+                <span className="font-mono text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                  ID: {user?.teacherId || 'TEACHER'}
+                </span>
+              </div>
+              <h1 className="text-lg font-bold text-slate-900 dark:text-white tracking-tight">
+                {user?.name || 'Course Instructor'}
+              </h1>
+              <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                {user?.designation || 'Assistant Professor'} &bull; Dept. of {user?.department || 'ETE'}, Rajshahi University of Engineering & Technology
+              </p>
             </div>
           </div>
-          {/* Running total badge */}
-          <div className={`px-4 py-2 rounded-xl text-sm font-bold transition-colors ${
-            configValid
-              ? 'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400'
-              : 'bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400'
-          }`}>
-            {Math.round(configTotal * 100) / 100} / {TOTAL_MARKS}
+          <button onClick={() => { fetchCourses(); fetchRequests(); toast.success('Dashboard synced'); }}
+            disabled={loading}
+            className="px-3.5 py-2 rounded-lg bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 text-xs font-medium flex items-center gap-1.5 hover:border-blue-500 transition-colors">
+            <RefreshCw size={13} className={loading ? 'animate-spin' : ''} /> Refresh
+          </button>
+        </div>
+      </div>
+
+      {/* ── COURSE SELECTION & OVERVIEW ── */}
+      <div>
+        <div className="flex items-center justify-between mb-3">
+          <div>
+            <h2 className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <BookOpen size={16} className="text-blue-600 dark:text-blue-400" />
+              Assigned Courses ({courses.length})
+            </h2>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Assigned by Department Head &bull; Click any course to load evaluation modules
+            </p>
           </div>
         </div>
 
-        {configLoading ? (
-          <div className="p-10 flex justify-center">
-            <span className="loading loading-spinner text-primary" />
+        {loading ? (
+          <div className="flex justify-center py-10">
+            <div className="spinner" />
           </div>
-        ) : configDraft ? (
-          <div className="p-6">
-            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 mb-5">
-              {CONFIG_FIELDS.map(field => (
-                <div key={field.key} className="flex flex-col gap-1.5">
-                  <label className={`text-xs font-extrabold uppercase tracking-wider ${field.color}`}>
-                    {field.label}
-                  </label>
-                  <div className="relative">
-                    <input
-                      type="number"
-                      min="0"
-                      step="0.5"
-                      value={configDraft[field.key]}
-                      onChange={(e) => handleConfigChange(field.key, e.target.value)}
-                      className="w-full px-3 py-2.5 bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl text-center font-bold text-slate-800 dark:text-white outline-none focus:ring-2 focus:ring-primary/20 transition-all text-sm"
-                    />
+        ) : courses.length === 0 ? (
+          <div className="text-center py-10 bg-white dark:bg-slate-900 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-6">
+            <BookOpen size={28} className="text-slate-300 dark:text-slate-700 mx-auto mb-2" />
+            <p className="font-semibold text-slate-700 dark:text-slate-300 text-sm">No courses currently assigned</p>
+            <p className="text-[11px] text-slate-500 mt-1">Courses assigned by your Department Head will appear here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3.5">
+            {courses.map((course) => {
+              const isSelected = selectedCourse?._id === course._id;
+              return (
+                <div key={course._id} onClick={() => handleCourseSelect(course)}
+                  className={`cursor-pointer rounded-xl p-4 border transition-all ${
+                    isSelected
+                      ? 'bg-blue-50/60 dark:bg-blue-950/25 border-blue-500 dark:border-blue-400 shadow-md shadow-blue-500/10 ring-2 ring-blue-500/20'
+                      : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 hover:border-blue-300 dark:hover:border-blue-700 hover:shadow-sm'
+                  }`}>
+                  <div className="flex items-start justify-between gap-2 mb-2">
+                    <span className={`font-mono font-bold text-[14px] ${isSelected ? 'text-blue-600 dark:text-blue-400' : 'text-slate-900 dark:text-white'}`}>
+                      {course.courseCode}
+                    </span>
+                    <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                      Active
+                    </span>
                   </div>
-                  {config && (
-                    <p className="text-[10px] text-slate-400 text-center">
-                      Current: <span className="font-bold">{config[field.key]}</span>
-                    </p>
-                  )}
+
+                  <h3 className="text-[13px] font-semibold text-slate-800 dark:text-slate-200 line-clamp-1 mb-2.5">{course.courseName}</h3>
+
+                  <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-2.5 border-t border-slate-100 dark:border-slate-800">
+                    <span>Series {course.series} &bull; Sem: {course.semester || '3-2'}</span>
+                    <span className="font-semibold text-slate-700 dark:text-slate-300">{course.studentCount ?? '—'} Students</span>
+                  </div>
                 </div>
-              ))}
-            </div>
-
-            {/* Validation warning */}
-            {!configValid && configTotal > 0 && (
-              <div className="flex items-center gap-2 px-4 py-3 mb-4 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800/50 rounded-xl text-sm text-amber-700 dark:text-amber-400 font-semibold">
-                <AlertTriangle size={16} />
-                Total must equal {TOTAL_MARKS}. Current total: {Math.round(configTotal * 100) / 100}. Difference: {Math.round((TOTAL_MARKS - configTotal) * 100) / 100}
-              </div>
-            )}
-
-            {/* Mark distribution visual */}
-            <div className="mb-5 flex rounded-full overflow-hidden h-3">
-              {CONFIG_FIELDS.map((field, idx) => {
-                const pct = configTotal > 0 ? (configDraft[field.key] / TOTAL_MARKS) * 100 : 0;
-                const colors = ['bg-purple-500','bg-pink-500','bg-blue-500','bg-cyan-500','bg-indigo-500','bg-orange-500'];
-                return (
-                  <div
-                    key={field.key}
-                    style={{ width: `${pct}%` }}
-                    className={`${colors[idx]} transition-all duration-300`}
-                    title={`${field.label}: ${configDraft[field.key]}`}
-                  />
-                );
-              })}
-            </div>
-
-            {/* Legend */}
-            <div className="flex flex-wrap gap-x-4 gap-y-1 mb-5 text-xs text-slate-500 dark:text-slate-400">
-              {CONFIG_FIELDS.map((field, idx) => {
-                const dotColors = ['bg-purple-500','bg-pink-500','bg-blue-500','bg-cyan-500','bg-indigo-500','bg-orange-500'];
-                return (
-                  <span key={field.key} className="flex items-center gap-1.5">
-                    <span className={`w-2.5 h-2.5 rounded-full ${dotColors[idx]}`} />
-                    {field.label} ({configDraft[field.key]})
-                  </span>
-                );
-              })}
-            </div>
-
-            <button
-              onClick={handleSaveConfig}
-              disabled={!configValid || configSaving}
-              className="flex items-center gap-2 px-6 py-2.5 bg-primary text-white rounded-xl font-bold text-sm shadow-md shadow-primary/25 hover:bg-primary-focus transition-all disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              {configSaving
-                ? <span className="loading loading-spinner loading-sm" />
-                : <Save size={16} />
-              }
-              Save Configuration
-            </button>
+              );
+            })}
           </div>
-        ) : null}
+        )}
       </div>
 
-      {/* ── Student Mark Requests for this course ─────────────────── */}
-      {courseRequests.length > 0 && (
-        <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-100 dark:border-slate-800 shadow-sm overflow-hidden">
-          <div className="px-6 py-5 border-b border-slate-100 dark:border-slate-800">
-            <h2 className="font-heading font-bold text-lg text-slate-800 dark:text-white flex items-center gap-2">
-              <Bell size={18} className="text-amber-500" />
-              Student Mark Requests
-              <span className="ml-2 px-2.5 py-0.5 bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-400 text-xs font-bold rounded-full">
-                {courseRequests.filter(r => r.status === 'Pending').length} pending
-              </span>
-            </h2>
+      {/* ── COURSE EVALUATION MODULES (If Course is Selected) ── */}
+      {selectedCourse && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 space-y-4 shadow-sm">
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+            <div>
+              <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">Active Course Session</span>
+              <h3 className="text-[15px] font-bold text-slate-900 dark:text-white">
+                {selectedCourse.courseCode} &mdash; {selectedCourse.courseName}
+              </h3>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+              <button onClick={() => setShowLayoutModal(true)}
+                className="px-3.5 py-2 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-200 text-xs font-semibold flex items-center gap-1.5 hover:border-blue-500 transition-colors"
+                title="Configure evaluation criteria and layout">
+                <Settings size={13} className="text-slate-500" /> Configure Layout
+              </button>
+              <button onClick={() => navigate('/teacher/results', { state: { course: selectedCourse, department: user?.department } })}
+                className="px-3.5 py-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm shadow-blue-500/20">
+                <TrendingUp size={13} /> Final Results & Export
+              </button>
+            </div>
           </div>
-          <div className="divide-y divide-slate-50 dark:divide-slate-800">
-            {courseRequests.filter(r => r.student).map(req => (
-              <div key={req._id} className="flex items-center justify-between px-6 py-4 hover:bg-slate-50 dark:hover:bg-slate-800/30 transition-colors">
-                <div className="flex items-center gap-3">
-                  <div className="w-9 h-9 rounded-full bg-gradient-to-br from-primary to-accent flex items-center justify-center text-white font-bold text-sm shrink-0">
-                    {req.student?.name?.charAt(0)?.toUpperCase() || '?'}
-                  </div>
-                  <div>
-                    <p className="font-semibold text-sm text-slate-800 dark:text-white">
-                      {req.student?.name}
-                      <span className="text-slate-400 font-normal ml-2">({req.student?.rollNumber})</span>
-                    </p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
-                      {req.student?.department} · Series {req.student?.series}
-                    </p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-2">
-                  {req.status === 'Pending' ? (
-                    <>
-                      <button
-                        onClick={() => handleCourseRequest(req._id, 'Accepted')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-lg text-xs font-bold transition-colors"
-                      >
-                        <CheckCircle size={14} /> Accept
-                      </button>
-                      <button
-                        onClick={() => handleCourseRequest(req._id, 'Rejected')}
-                        className="flex items-center gap-1.5 px-3 py-1.5 bg-rose-500 hover:bg-rose-600 text-white rounded-lg text-xs font-bold transition-colors"
-                      >
-                        <XCircle size={14} /> Reject
-                      </button>
-                    </>
-                  ) : req.status === 'Accepted' ? (
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-400 font-semibold rounded-lg text-xs">
-                      <CheckCircle size={12} /> Accepted
-                    </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 px-3 py-1.5 bg-rose-100 dark:bg-rose-900/30 text-rose-700 dark:text-rose-400 font-semibold rounded-lg text-xs">
-                      <XCircle size={12} /> Rejected
-                    </span>
-                  )}
-                </div>
-              </div>
-            ))}
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
+            {MODULE_CARDS.map((card, idx) => {
+              const iconColors = [
+                'text-blue-600 bg-blue-50 dark:bg-blue-950/50',
+                'text-cyan-600 bg-cyan-50 dark:bg-cyan-950/50',
+                'text-violet-600 bg-violet-50 dark:bg-violet-950/50',
+                'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/50',
+                'text-amber-600 bg-amber-50 dark:bg-amber-950/50',
+                'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50'
+              ];
+              const colorCls = iconColors[idx % iconColors.length];
+
+              return (
+                <button key={card.path} onClick={() => handleModuleClick(card.path)}
+                  className="bg-white dark:bg-slate-800/80 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-sm cursor-pointer transition-all flex flex-col items-center text-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 group">
+                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${colorCls}`}>
+                    {card.icon}
+                  </span>
+                  <span>{card.title}</span>
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
+
+      {/* ── DEDICATED STUDENT MARK REQUEST PANEL (Section 6 & 7) ── */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <ClipboardList size={16} className="text-amber-600 dark:text-amber-400" />
+              <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">
+                Student Mark Request Panel
+              </h2>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Review and process student requests for detailed assessment mark breakdowns
+            </p>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="relative">
+              <Search size={13} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input type="text" placeholder="Search roll, name, course..."
+                value={requestSearch} onChange={(e) => setRequestSearch(e.target.value)}
+                className="pl-8 pr-3 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-medium text-slate-800 dark:text-slate-200 focus:outline-none focus:border-blue-500" />
+            </div>
+
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs">
+              {['All', 'Pending', 'Completed'].map((st) => (
+                <button key={st} onClick={() => setRequestStatusFilter(st)}
+                  className={`px-3 py-1 rounded-md transition-colors font-semibold ${
+                    requestStatusFilter === st
+                      ? 'bg-blue-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}>
+                  {st}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Requests Table */}
+        <div className="border border-slate-200 dark:border-slate-800 rounded-lg overflow-x-auto">
+          <table className="w-full text-left text-[12px]">
+            <thead className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800">
+              <tr>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Student Roll & Name</th>
+                <th className="px-4 py-3 text-[10px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-400">Series</th>
+                <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#6b8f77]">Semester</th>
+                <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#6b8f77]">Course</th>
+                <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#6b8f77]">Date</th>
+                <th className="px-4 py-3 text-[10px] font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#6b8f77]">Status</th>
+                <th className="px-4 py-3 text-right text-[10px] font-semibold uppercase tracking-wider text-[#6b7280] dark:text-[#6b8f77]">Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filteredRequests.length > 0 ? (
+                filteredRequests.map((req) => {
+                  const roll = req.studentRoll || req.student?.rollNumber || 'N/A';
+                  const name = req.studentName || req.student?.name || 'Student';
+                  const isDone = req.status === 'Completed' || req.status === 'Accepted';
+                  return (
+                    <tr key={req._id} className="hover:bg-slate-50 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="px-4 py-3.5">
+                        <div className="font-bold text-slate-900 dark:text-white">{name}</div>
+                        <div className="font-mono text-purple-600 dark:text-purple-400 font-bold text-[11px]">{roll}</div>
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className="px-2 py-0.5 rounded bg-blue-500/10 text-blue-600 font-bold">
+                          {req.series || '22'}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 font-bold">{req.semester || '3-2'}</td>
+                      <td className="px-4 py-3.5">
+                        <div className="font-mono font-bold text-slate-800 dark:text-slate-200">{req.course}</div>
+                        <div className="text-[11px] text-slate-400 truncate max-w-xs">{req.courseName}</div>
+                      </td>
+                      <td className="px-4 py-3.5 text-slate-500">
+                        {req.createdAt ? new Date(req.createdAt).toLocaleDateString() : 'Recent'}
+                      </td>
+                      <td className="px-4 py-3.5">
+                        <span className={`inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-[11px] font-bold ${
+                          isDone
+                            ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20'
+                            : 'bg-amber-500/10 text-amber-600 dark:text-amber-400 border border-amber-500/20 animate-pulse'
+                        }`}>
+                          {isDone ? <CheckCircle size={12} /> : <AlertTriangle size={12} />}
+                          {req.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3.5 text-right">
+                        <button
+                          onClick={() => handleOpenProcessModal(req)}
+                          className={`px-3 py-1.5 rounded-xl font-bold text-xs transition-all shadow-sm flex items-center gap-1.5 ml-auto ${
+                            isDone
+                              ? 'bg-slate-100 hover:bg-slate-200 dark:bg-slate-800 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+                              : 'bg-amber-500 hover:bg-amber-600 text-white shadow-amber-500/20'
+                          }`}
+                        >
+                          <Sparkles size={13} />
+                          {isDone ? 'Edit Marks' : 'Process & Release Marks'}
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })
+              ) : (
+                <tr>
+                  <td colSpan={7} className="text-center py-10 text-slate-400">
+                    No student mark requests found matching criteria.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* ────────────────── PROCESS REQUEST MODAL (Section 7: RUET Detailed Marks) ────────────────── */}
+      {activeRequestModal && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 max-w-xl w-full p-6 shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-2.5">
+                <div className="w-9 h-9 rounded-xl bg-amber-500/10 text-amber-600 flex items-center justify-center font-bold">
+                  <Sparkles size={18} />
+                </div>
+                <div>
+                  <h3 className="font-heading font-bold text-base text-slate-900 dark:text-white">
+                    Provide Detailed Academic Marks
+                  </h3>
+                  <p className="text-xs text-slate-400">
+                    Course: <strong>{activeRequestModal.course}</strong> &bull; {activeRequestModal.semester}
+                  </p>
+                </div>
+              </div>
+              <button onClick={() => setActiveRequestModal(null)} className="text-slate-400 hover:text-slate-600">
+                <XCircle size={18} />
+              </button>
+            </div>
+
+            {/* Student Info Tag */}
+            <div className="p-3 rounded-2xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 flex items-center justify-between text-xs">
+              <div>
+                <p className="font-bold text-slate-800 dark:text-white">
+                  {activeRequestModal.studentName || activeRequestModal.student?.name}
+                </p>
+                <p className="font-mono text-purple-600 dark:text-purple-400 font-bold">
+                  Roll: {activeRequestModal.studentRoll || activeRequestModal.student?.rollNumber} &bull; Series {activeRequestModal.series}
+                </p>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-amber-500/10 text-amber-700 dark:text-amber-300 font-bold">
+                Dept: {activeRequestModal.department || 'ETE'}
+              </span>
+            </div>
+
+            {/* Assessment Input Grid (Matches attached XLSX reference & Section 7) */}
+            <form onSubmit={handleSubmitDetailedMarks} className="space-y-4">
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                    Quiz [20]
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    step="0.5"
+                    value={marksForm.quiz}
+                    onChange={(e) => setMarksForm({ ...marksForm, quiz: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                    Lab Report [15]
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="15"
+                    step="0.5"
+                    value={marksForm.labReport}
+                    onChange={(e) => setMarksForm({ ...marksForm, labReport: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                    Lab Viva [10]
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.5"
+                    value={marksForm.labViva}
+                    onChange={(e) => setMarksForm({ ...marksForm, labViva: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                    Lab Test [20]
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="20"
+                    step="0.5"
+                    value={marksForm.labTest}
+                    onChange={(e) => setMarksForm({ ...marksForm, labTest: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                    Open Ended [0]
+                  </label>
+                  <input
+                    type="text"
+                    value={marksForm.openEnded}
+                    onChange={(e) => setMarksForm({ ...marksForm, openEnded: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                    Attendance [10]
+                  </label>
+                  <input
+                    type="number"
+                    min="0"
+                    max="10"
+                    step="0.5"
+                    value={marksForm.attendance}
+                    onChange={(e) => setMarksForm({ ...marksForm, attendance: e.target.value })}
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs font-bold text-slate-900 dark:text-white"
+                  />
+                </div>
+              </div>
+
+              {/* Total & Live RUET Grade Summary */}
+              <div className="p-3.5 rounded-2xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-between">
+                <div>
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
+                    Total Marks:
+                  </span>
+                  <span className="text-xl font-heading font-extrabold text-emerald-800 dark:text-emerald-200">
+                    {total} <span className="text-xs font-normal">/ {maxMarks}</span>
+                  </span>
+                </div>
+
+                <div className="text-right">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-700 dark:text-emerald-400 block">
+                    Calculated RUET Grade:
+                  </span>
+                  <span className="text-xl font-heading font-extrabold text-emerald-800 dark:text-emerald-200">
+                    {letterGrade} <span className="text-xs font-normal">({gradePoint.toFixed(2)})</span>
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 block mb-1">
+                  Teacher Remarks / Comments
+                </label>
+                <input
+                  type="text"
+                  placeholder="e.g. Sessional evaluation completed and released"
+                  value={marksForm.remarks}
+                  onChange={(e) => setMarksForm({ ...marksForm, remarks: e.target.value })}
+                  className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-xs text-slate-900 dark:text-white"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setActiveRequestModal(null)}
+                  className="px-4 py-2 rounded-xl text-xs font-bold text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={processingMarks}
+                  className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold shadow-md shadow-emerald-500/30 flex items-center gap-1.5"
+                >
+                  {processingMarks ? (
+                    <span className="loading loading-spinner loading-xs" />
+                  ) : (
+                    <>
+                      <CheckCircle size={14} />
+                      Save & Release Detailed Marks
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Configure Layout & Assessment Scheme Modal */}
+      <EvaluationLayoutModal
+        isOpen={showLayoutModal}
+        onClose={() => setShowLayoutModal(false)}
+        course={selectedCourse}
+      />
+
     </div>
   );
 }

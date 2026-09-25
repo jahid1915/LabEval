@@ -43,6 +43,56 @@ const teacherAssignmentSchema = new mongoose.Schema({
     enum: ['active', 'revoked', 'expired'],
     default: 'active'
   },
+  courseId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Course'
+  },
+  courseCode: {
+    type: String,
+    uppercase: true,
+    trim: true
+  },
+  courseName: {
+    type: String,
+    trim: true
+  },
+  teacherName: {
+    type: String,
+    trim: true
+  },
+  department: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Department'
+  },
+  departmentCode: {
+    type: String,
+    uppercase: true,
+    trim: true
+  },
+  semester: {
+    type: String,
+    default: '3-2'
+  },
+  academicSession: {
+    type: String,
+    default: '2024-2025'
+  },
+  series: {
+    type: String,
+    default: '22'
+  },
+  assignedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin'
+  },
+  assignedByName: {
+    type: String,
+    default: ''
+  },
+  assignedAt: {
+    type: Date,
+    default: Date.now
+  },
   notes: {
     type: String,
     default: ''

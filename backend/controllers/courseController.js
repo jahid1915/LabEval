@@ -5,27 +5,41 @@ const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
 
 const DEFAULT_CONFIG = {
+  quiz:        20,
+  labReport:   15,
+  labViva:     10,
+  labTest:     20,
+  openEnded:   0,
+  attendance:  10,
+  others:      0,
+  // legacy keys
   performance: 5,
-  quiz:        30,
   report:      10,
-  attendance:  5,
   test:        20,
-  others:      5,
 };
 
 const TOTAL_MARKS = 75;
 
-// GET /api/teacher/courses — get all assigned courses/offerings for the logged-in teacher
+// GET /api/teacher/courses — get all assigned courses for the logged-in teacher (Assigned by Department Head only)
 const getCourses = async (req, res) => {
   try {
     const teacherId = req.user.teacherId;
+    const teacherDoc = req.user;
 
-    // 1. Fetch active TeacherAssignments
-    const assignments = await TeacherAssignment.find({ teacherId, status: 'active' });
-    const offeringIds = assignments.map(a => a.courseOffering);
+    // 1. Fetch active TeacherAssignments for this teacher
+    const assignments = await TeacherAssignment.find({
+      $or: [
+        { teacherId: teacherId.toUpperCase() },
+        { teacher: teacherDoc._id }
+      ],
+      status: 'active'
+    }).populate('courseOffering');
+
+    const offeringIds = assignments.map(a => a.courseOffering?._id).filter(Boolean);
 
     const offerings = await CourseOffering.find({ _id: { $in: offeringIds }, status: 'active' })
-      .populate('course', 'credit courseType')
+      .populate('course', 'credit creditHours courseType isElective isSessional pairedCourseCode defaultAssessmentConfig syllabus semesterLevel')
+      .populate('department', 'name code')
       .sort({ createdAt: -1 });
 
     const formattedOfferings = await Promise.all(offerings.map(async (off) => {
@@ -34,6 +48,8 @@ const getCourses = async (req, res) => {
         series: off.seriesName,
         status: 'active'
       });
+
+      const assignDoc = assignments.find(a => String(a.courseOffering?._id) === String(off._id));
 
       return {
         _id: off._id,
@@ -44,131 +60,38 @@ const getCourses = async (req, res) => {
         department: off.departmentCode,
         sessionName: off.sessionName,
         semesterName: off.semesterName,
+        semesterLevel: off.course?.semesterLevel || off.semesterName,
+        credit: off.course?.credit || 3.0,
+        creditHours: off.course?.creditHours || 3.0,
+        courseType: off.course?.courseType || (off.course?.isSessional ? 'Sessional' : 'Theory'),
+        isElective: off.course?.isElective !== undefined ? off.course.isElective : true,
+        isSessional: !!off.course?.isSessional,
         assessmentConfig: off.assessmentConfig || DEFAULT_CONFIG,
         isMarksPublished: off.isMarksPublished,
         studentCount,
-        isOffering: true
+        role: assignDoc?.role || 'PRIMARY',
+        assignedAt: assignDoc?.createdAt
       };
     }));
 
-    // 2. Fallback: check legacy courses in Course collection for this teacher
-    const legacyCourses = await Course.find({ teacherId: req.user.teacherId }).sort({ createdAt: -1 });
-    const formattedLegacy = legacyCourses
-      .filter(lc => !formattedOfferings.some(fo => fo.courseCode === lc.courseCode && fo.series === lc.series))
-      .map(lc => ({
-        _id: lc._id,
-        courseCode: lc.courseCode,
-        courseName: lc.courseName,
-        series: lc.series,
-        department: lc.departmentCode || lc.department,
-        assessmentConfig: lc.assessmentConfig || DEFAULT_CONFIG,
-        studentCount: 0,
-        isOffering: false
-      }));
-
-    res.json([...formattedOfferings, ...formattedLegacy]);
+    res.json(formattedOfferings);
   } catch (err) {
     res.status(500).json({ message: err.message });
   }
 };
 
-// POST /api/teacher/courses — add a new course offering / course
+// POST /api/teacher/courses — Disabled: Teachers cannot manually add courses!
 const addCourse = async (req, res) => {
-  try {
-    const { courseCode, courseName, series, department } = req.body;
-    if (!courseCode || !courseName || !series || !department) {
-      return res.status(400).json({ message: 'All fields are required (courseCode, courseName, series, department)' });
-    }
-
-    const cleanCode = courseCode.trim().toUpperCase();
-    const cleanDept = department.trim().toUpperCase();
-    const cleanSeries = series.trim();
-
-    // Find or create Master Course
-    let masterCourse = await Course.findOne({ courseCode: cleanCode });
-    if (!masterCourse) {
-      masterCourse = await Course.create({
-        courseCode: cleanCode,
-        courseName: courseName.trim(),
-        departmentCode: cleanDept,
-        credit: 1.5,
-        defaultAssessmentConfig: DEFAULT_CONFIG
-      });
-    }
-
-    // Find or create CourseOffering
-    let offering = await CourseOffering.findOne({
-      courseCode: cleanCode,
-      seriesName: cleanSeries,
-      departmentCode: cleanDept
-    });
-
-    if (!offering) {
-      offering = await CourseOffering.create({
-        course: masterCourse._id,
-        courseCode: cleanCode,
-        courseName: courseName.trim(),
-        departmentCode: cleanDept,
-        seriesName: cleanSeries,
-        assessmentConfig: DEFAULT_CONFIG
-      });
-    }
-
-    // Assign Teacher
-    await TeacherAssignment.findOneAndUpdate(
-      { courseOffering: offering._id, teacher: req.user._id },
-      {
-        courseOffering: offering._id,
-        teacher: req.user._id,
-        teacherId: req.user.teacherId,
-        role: 'PRIMARY',
-        status: 'active'
-      },
-      { upsert: true, returnDocument: 'after' }
-    );
-
-    // Also update teacher's legacy allocatedCourses
-    await Teacher.findByIdAndUpdate(req.user._id, {
-      $addToSet: {
-        allocatedCourses: {
-          courseCode: cleanCode,
-          courseName: courseName.trim(),
-          series: cleanSeries
-        }
-      }
-    });
-
-    res.status(201).json(offering);
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  return res.status(403).json({
+    message: 'Operation Denied: Teachers cannot add or select courses. Courses are assigned strictly by the Department Head / Administrator.'
+  });
 };
 
-// DELETE /api/teacher/courses/:id — remove a course assignment
+// DELETE /api/teacher/courses/:id — Disabled: Teachers cannot self-unassign!
 const deleteCourse = async (req, res) => {
-  try {
-    const offering = await CourseOffering.findById(req.params.id);
-    if (offering) {
-      await TeacherAssignment.findOneAndUpdate(
-        { courseOffering: offering._id, teacher: req.user._id },
-        { status: 'revoked' }
-      );
-      await Teacher.findByIdAndUpdate(req.user._id, {
-        $pull: { allocatedCourses: { courseCode: offering.courseCode, series: offering.seriesName } }
-      });
-      return res.json({ message: 'Course unassigned successfully' });
-    }
-
-    const legacy = await Course.findOne({ _id: req.params.id, teacherId: req.user.teacherId });
-    if (legacy) {
-      await legacy.deleteOne();
-      return res.json({ message: 'Course deleted successfully' });
-    }
-
-    res.status(404).json({ message: 'Course not found' });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
+  return res.status(403).json({
+    message: 'Operation Denied: Only Department Head / Administrator can modify or revoke course assignments.'
+  });
 };
 
 // GET /api/teacher/courses/:id/config — get assessment config for a course/offering
@@ -180,26 +103,20 @@ const getAssessmentConfig = async (req, res) => {
     const offering = await CourseOffering.findById(id);
     if (offering && offering.assessmentConfig) {
       config = {
-        performance: offering.assessmentConfig.performance ?? DEFAULT_CONFIG.performance,
         quiz:        offering.assessmentConfig.quiz        ?? DEFAULT_CONFIG.quiz,
-        report:      offering.assessmentConfig.report      ?? DEFAULT_CONFIG.report,
+        labReport:   offering.assessmentConfig.labReport   ?? DEFAULT_CONFIG.labReport,
+        labViva:     offering.assessmentConfig.labViva     ?? DEFAULT_CONFIG.labViva,
+        labTest:     offering.assessmentConfig.labTest     ?? DEFAULT_CONFIG.labTest,
+        openEnded:   offering.assessmentConfig.openEnded   ?? DEFAULT_CONFIG.openEnded,
         attendance:  offering.assessmentConfig.attendance  ?? DEFAULT_CONFIG.attendance,
-        test:        offering.assessmentConfig.test        ?? DEFAULT_CONFIG.test,
         others:      offering.assessmentConfig.others      ?? DEFAULT_CONFIG.others,
       };
       return res.json({ config, totalMarks: TOTAL_MARKS });
     }
 
     const course = await Course.findOne({ _id: id });
-    if (course && course.assessmentConfig) {
-      config = {
-        performance: course.assessmentConfig.performance ?? DEFAULT_CONFIG.performance,
-        quiz:        course.assessmentConfig.quiz        ?? DEFAULT_CONFIG.quiz,
-        report:      course.assessmentConfig.report      ?? DEFAULT_CONFIG.report,
-        attendance:  course.assessmentConfig.attendance  ?? DEFAULT_CONFIG.attendance,
-        test:        course.assessmentConfig.test        ?? DEFAULT_CONFIG.test,
-        others:      course.assessmentConfig.others      ?? DEFAULT_CONFIG.others,
-      };
+    if (course && course.defaultAssessmentConfig) {
+      config = course.defaultAssessmentConfig;
     }
 
     res.json({ config, totalMarks: TOTAL_MARKS });
@@ -212,36 +129,20 @@ const getAssessmentConfig = async (req, res) => {
 const updateAssessmentConfig = async (req, res) => {
   try {
     const id = req.params.id;
-    const { performance, quiz, report, attendance, test, others } = req.body;
-
-    const fields = { performance, quiz, report, attendance, test, others };
-    for (const [key, val] of Object.entries(fields)) {
-      if (val === undefined || val === null || typeof val !== 'number' || val < 0) {
-        return res.status(400).json({ message: `${key} must be a non-negative number` });
-      }
-    }
-
-    const total = performance + quiz + report + attendance + test + others;
-    if (Math.round(total * 100) / 100 !== TOTAL_MARKS) {
-      return res.status(400).json({
-        message: `Total configured marks must equal ${TOTAL_MARKS}. Current total: ${total}`
-      });
-    }
-
-    const newConfig = { performance, quiz, report, attendance, test, others };
+    const body = req.body;
 
     const offering = await CourseOffering.findById(id);
     if (offering) {
-      offering.assessmentConfig = newConfig;
+      offering.assessmentConfig = { ...offering.assessmentConfig, ...body };
       await offering.save();
       return res.json({ message: 'Assessment configuration saved successfully', config: offering.assessmentConfig });
     }
 
     const course = await Course.findById(id);
     if (course) {
-      course.assessmentConfig = newConfig;
+      course.defaultAssessmentConfig = { ...course.defaultAssessmentConfig, ...body };
       await course.save();
-      return res.json({ message: 'Assessment configuration saved successfully', config: course.assessmentConfig });
+      return res.json({ message: 'Assessment configuration saved successfully', config: course.defaultAssessmentConfig });
     }
 
     res.status(404).json({ message: 'Course offering not found' });
