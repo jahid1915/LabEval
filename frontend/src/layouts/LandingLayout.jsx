@@ -51,15 +51,20 @@ export default function LandingLayout() {
 
           {/* Logo & Platform Name */}
           <Link to="/" className="flex items-center gap-3 shrink-0 group">
-            <div className="w-10 h-10 rounded-full bg-white dark:bg-[#111c38] flex items-center justify-center shadow-sm border border-slate-200 dark:border-slate-700 group-hover:scale-105 transition-transform p-0.5">
-              <img src="/RUET.png" alt="RUET" className="w-7 h-7 object-contain" />
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-transparent dark:bg-[#111c38] flex items-center justify-center shadow-sm border border-blue-200/80 dark:border-blue-900/50 group-hover:scale-105 transition-transform p-1">
+              <img src="/labeval_icon.png" alt="LabEval Logo" className="w-8 h-8 object-contain" />
             </div>
             <div>
-              <span className="font-heading font-extrabold text-sm sm:text-base tracking-tight text-slate-900 dark:text-white block">
-                RUET <span className="text-blue-600 dark:text-blue-400">Lab Performance Evaluation</span>
-              </span>
+              <div className="flex items-center gap-2">
+                <span className="font-heading font-extrabold text-base tracking-tight text-slate-900 dark:text-white">
+                  Lab<span className="text-blue-600 dark:text-blue-400">Eval</span>
+                </span>
+                <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 uppercase">
+                  RUET
+                </span>
+              </div>
               <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 tracking-wider uppercase block">
-                Academic Intelligence
+                Lab Performance Evaluation
               </span>
             </div>
           </Link>
@@ -183,15 +188,15 @@ export default function LandingLayout() {
           
           <div className="md:col-span-2 space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-full bg-white flex items-center justify-center">
-                <img src="/RUET.png" alt="RUET" className="w-6 h-6 object-contain" />
+              <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center p-1">
+                <img src="/labeval_icon.png" alt="LabEval" className="w-7 h-7 object-contain" />
               </div>
               <div>
                 <span className="font-heading font-bold text-base text-white block">
-                  RUET Lab Performance Evaluation
+                  Lab<span className="text-blue-400">Eval</span> &bull; RUET
                 </span>
                 <span className="text-[11px] text-blue-400 font-medium tracking-wide">
-                  Academic Intelligence for Modern University Management
+                  Lab Performance Evaluation System
                 </span>
               </div>
             </div>

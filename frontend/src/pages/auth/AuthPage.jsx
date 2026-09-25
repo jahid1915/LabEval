@@ -292,26 +292,40 @@ export default function AuthPage() {
           display: 'flex', alignItems: 'center', gap: 12
         }}>
           <div style={{
-            width: 42, height: 42,
-            borderRadius: '10px',
+            width: 44, height: 44,
+            borderRadius: '12px',
             border: `1px solid ${isDarkMode ? 'rgba(56,189,248,0.2)' : 'rgba(37,99,235,0.2)'}`,
             overflow: 'hidden',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
             background: isDarkMode ? '#0b132b' : '#eff6ff',
             flexShrink: 0,
+            padding: '4px',
           }}>
-            <img src="/RUET.png" alt="RUET" style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+            <img src="/labeval_icon.png" alt="LabEval Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }}
               onError={e => {
                 e.target.style.display = 'none';
-                e.target.parentElement.innerHTML = '<span style="color:#2563eb;font-weight:700;font-size:15px">R</span>';
+                e.target.parentElement.innerHTML = '<span style="color:#2563eb;font-weight:700;font-size:15px">LE</span>';
               }} />
           </div>
           <div>
-            <p style={{ fontSize: 16, fontWeight: 700, color: textMain, lineHeight: 1.2 }}>
-              Lab Performance Evaluation
-            </p>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <p style={{ fontSize: 16, fontWeight: 800, color: textMain, lineHeight: 1.2 }}>
+                Lab<span style={{ color: '#2563eb' }}>Eval</span>
+              </p>
+              <span style={{
+                fontSize: '10px',
+                fontWeight: 700,
+                padding: '1px 6px',
+                borderRadius: '4px',
+                background: isDarkMode ? 'rgba(37,99,235,0.2)' : '#dbeafe',
+                color: isDarkMode ? '#93c5fd' : '#1e40af',
+                border: `1px solid ${isDarkMode ? 'rgba(59,130,246,0.3)' : '#bfdbfe'}`,
+              }}>
+                RUET
+              </span>
+            </div>
             <p style={{ fontSize: 11, color: textMuted, marginTop: 2 }}>
-              Rajshahi University of Engineering & Technology
+              Lab Performance Evaluation System
             </p>
           </div>
         </div>

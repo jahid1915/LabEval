@@ -92,24 +92,21 @@ function Sidebar({ user, navItems, isDarkMode, toggleTheme, handleLogout, onOpen
       <Link to={getPortalBase()} onClick={onClose}
         className="flex items-center gap-3 px-5 py-4"
         style={{ borderBottom: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}` }}>
-        <div className="w-8 h-8 rounded-full overflow-hidden shrink-0 border border-slate-200 dark:border-slate-700 bg-white flex items-center justify-center p-0.5 shadow-sm">
-          <img src="/RUET.png" alt="RUET Logo" className="w-full h-full object-contain"
-            onError={e => {
-              e.target.style.display = 'none';
-              e.target.parentElement.style.background = '#2563eb';
-              e.target.parentElement.style.display = 'flex';
-              e.target.parentElement.style.alignItems = 'center';
-              e.target.parentElement.style.justifyContent = 'center';
-              e.target.parentElement.innerHTML = '<span style="color:white;font-weight:700;font-size:12px">R</span>';
-            }} />
+        <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 border border-blue-200/80 dark:border-blue-900/50 bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-transparent dark:bg-[#111c38] flex items-center justify-center p-1 shadow-sm">
+          <img src="/labeval_icon.png" alt="LabEval Logo" className="w-full h-full object-contain" />
         </div>
         <div className="flex-1 min-w-0">
-          <p className="text-[13px] font-bold leading-tight truncate"
-            style={{ color: isDarkMode ? '#f8fafc' : '#0f172a' }}>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[14px] font-bold leading-tight truncate"
+              style={{ color: isDarkMode ? '#f8fafc' : '#0f172a' }}>
+              Lab<span className="text-blue-600 dark:text-blue-400">Eval</span>
+            </span>
+            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 uppercase">
+              RUET
+            </span>
+          </div>
+          <p className="text-[11px] font-medium truncate mt-0.5" style={{ color: isDarkMode ? '#38bdf8' : '#2563eb' }}>
             Lab Performance Evaluation
-          </p>
-          <p className="text-[11px] font-medium truncate" style={{ color: isDarkMode ? '#38bdf8' : '#2563eb' }}>
-            RUET Lab Performance System
           </p>
         </div>
       </Link>
@@ -319,9 +316,12 @@ export default function DashboardLayout() {
             style={{ color: isDarkMode ? '#8ba99b' : '#6b7280' }}>
             <Menu size={20} />
           </button>
-          <span className="text-[14px] font-semibold" style={{ color: headerText }}>
-            Lab Performance Evaluation
-          </span>
+          <div className="flex items-center gap-2">
+            <img src="/labeval_icon.png" alt="LabEval" className="w-6 h-6 object-contain" />
+            <span className="text-[14px] font-bold" style={{ color: headerText }}>
+              Lab<span className="text-blue-600 dark:text-blue-400">Eval</span>
+            </span>
+          </div>
           <div className="ml-auto">
             <button onClick={toggleTheme} style={{ color: isDarkMode ? '#8ba99b' : '#6b7280' }}>
               {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}

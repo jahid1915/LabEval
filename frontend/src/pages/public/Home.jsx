@@ -153,9 +153,9 @@ export default function Home() {
               
               {/* RUET Institutional Identity Badge (Blue / Indigo) */}
               <div className="inline-flex items-center gap-2.5 px-4 py-1.5 rounded-full bg-white/90 dark:bg-[#111c38] border border-blue-200 dark:border-blue-900/60 shadow-sm">
-                <img src="/RUET.png" alt="RUET" className="w-5 h-5 object-contain" />
+                <img src="/labeval_icon.png" alt="LabEval" className="w-5 h-5 object-contain" />
                 <span className="text-[11px] font-bold tracking-wider uppercase text-blue-700 dark:text-blue-400">
-                  RUET Lab Performance Evaluation
+                  RUET Lab Performance Evaluation System
                 </span>
               </div>
 
