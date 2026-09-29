@@ -106,6 +106,28 @@ const parseUpload = async (req, res) => {
     const departments = await Department.find({ status: 'active' }).select('code name').lean();
     const deptCodes = departments.map(d => d.code);
 
+    // Auto-detect department: from admin profile, filename, or first few rolls
+    let detectedDepartment = req.user?.departmentCode || '';
+    if (!detectedDepartment && req.user?.department) {
+      const dDoc = await Department.findById(req.user.department).select('code').lean();
+      if (dDoc) detectedDepartment = dDoc.code;
+    }
+    if (!detectedDepartment && rows.length > 0) {
+      const firstRollHeader = Object.keys(autoMapping).find(k => autoMapping[k] === 'rollNumber');
+      if (firstRollHeader && rows[0][firstRollHeader]) {
+        const rStr = String(rows[0][firstRollHeader]).trim().replace(/\D/g, '');
+        if (rStr.length >= 4) {
+          const RUET_ROLL_DEPT_MAP = {
+            '01': 'CE', '02': 'EEE', '03': 'ME', '04': 'CSE', '05': 'ETE',
+            '06': 'IPE', '07': 'CME', '08': 'MTE', '09': 'CHE', '10': 'MSE',
+            '11': 'ARCH', '12': 'BECM', '13': 'URP'
+          };
+          const code = RUET_ROLL_DEPT_MAP[rStr.slice(2, 4)];
+          if (code && deptCodes.includes(code)) detectedDepartment = code;
+        }
+      }
+    }
+
     return res.json({
       success: true,
       data: {
@@ -119,6 +141,7 @@ const parseUpload = async (req, res) => {
         headers,
         autoMapping,
         detectedSeries,
+        detectedDepartment,
         detectedSession: detectedSeries ? getSessionFromSeries(detectedSeries) : '',
         detectedHeaderRow,
         candidateHeaderRows: candidateHeaderRows || [],
@@ -162,6 +185,15 @@ const previewImport = async (req, res) => {
     const departments = await Department.find({ status: 'active' }).select('code').lean();
     const validDeptCodes = departments.map(d => d.code);
 
+    let adminDeptCode = req.user?.departmentCode || '';
+    if (!adminDeptCode && req.user?.department) {
+      const adminDeptDoc = await Department.findById(req.user.department).select('code').lean();
+      if (adminDeptDoc) adminDeptCode = adminDeptDoc.code;
+    }
+    if (!overrides.department && adminDeptCode) {
+      overrides.department = adminDeptCode;
+    }
+
     // Apply selective mapping (Requirement 9: only selected fields are mapped)
     const mappedRows = applyMapping(rowsToProcess, mapping, selectedFields);
 
@@ -170,7 +202,7 @@ const previewImport = async (req, res) => {
     const rowErrors = [];
 
     for (const row of mappedRows) {
-      const { valid, data, errors } = validateRow(row, row._rowIndex, validDeptCodes, overrides);
+      const { valid, data, errors } = validateRow(row, row._rowIndex, validDeptCodes, overrides, adminDeptCode);
       if (valid) {
         validRows.push({ ...data, _rowIndex: row._rowIndex });
       } else {
@@ -379,6 +411,15 @@ const executeImport = async (req, res) => {
     departments.forEach(d => { deptMap[d.code] = d; });
     const validDeptCodes = departments.map(d => d.code);
 
+    let adminDeptCode = req.user?.departmentCode || '';
+    if (!adminDeptCode && req.user?.department) {
+      const adminDeptDoc = await Department.findById(req.user.department).select('code').lean();
+      if (adminDeptDoc) adminDeptCode = adminDeptDoc.code;
+    }
+    if (!overrides.department && adminDeptCode) {
+      overrides.department = adminDeptCode;
+    }
+
     // Apply mapping with selected fields only!
     const mappedRows = applyMapping(rowsToProcess, mapping, selectedFields);
 
@@ -387,7 +428,7 @@ const executeImport = async (req, res) => {
     let invalidCount = 0;
 
     for (const row of mappedRows) {
-      const { valid, data, errors } = validateRow(row, row._rowIndex, validDeptCodes, overrides);
+      const { valid, data, errors } = validateRow(row, row._rowIndex, validDeptCodes, overrides, adminDeptCode);
       if (valid) {
         validRows.push({ ...data, _rowIndex: row._rowIndex });
       } else {

@@ -481,7 +481,7 @@ const ALLOWED_REGULAR_STATUSES = ['Regular', 'Irregular'];
  * @param {Object} [overrides] - Admin series / department / session manual overrides
  * @returns {{ valid: boolean, data: Object|null, errors: Array<{ field: string, message: string }> }}
  */
-const validateRow = (row, rowIndex, validDepartments = [], overrides = {}) => {
+const validateRow = (row, rowIndex, validDepartments = [], overrides = {}, defaultDept = '') => {
   const errors = [];
   const data = {};
 
@@ -505,12 +505,50 @@ const validateRow = (row, rowIndex, validDepartments = [], overrides = {}) => {
     data.name = name;
   }
 
-  // department — from row or override
-  let dept = overrides.department || String(row.department || '').trim().toUpperCase();
+  // department — from row, override, auto-detect from roll, or defaultDept (admin's department)
+  let dept = (overrides.department || String(row.department || '').trim() || defaultDept || '').toUpperCase();
+
+  // If still empty, attempt RUET roll-number department code auto-detection (e.g. 2104001 -> 04 -> CSE, 2105001 -> 05 -> ETE)
+  if (!dept && data.rollNumber && data.rollNumber.length >= 4) {
+    const rollDigits = data.rollNumber.replace(/\D/g, '');
+    if (rollDigits.length >= 4) {
+      const deptCodeNum = rollDigits.slice(2, 4);
+      const RUET_ROLL_DEPT_MAP = {
+        '01': 'CE',
+        '02': 'EEE',
+        '03': 'ME',
+        '04': 'CSE',
+        '05': 'ETE',
+        '06': 'IPE',
+        '07': 'CME',
+        '08': 'MTE',
+        '09': 'CHE',
+        '10': 'MSE',
+        '11': 'ARCH',
+        '12': 'BECM',
+        '13': 'URP'
+      };
+      const candidateDept = RUET_ROLL_DEPT_MAP[deptCodeNum];
+      if (candidateDept && (validDepartments.length === 0 || validDepartments.includes(candidateDept))) {
+        dept = candidateDept;
+      }
+    }
+  }
+
+  // If still empty and validDepartments has only 1 active department, use it
+  if (!dept && validDepartments.length === 1) {
+    dept = validDepartments[0];
+  }
+
   if (!dept) {
     errors.push({ field: 'department', message: 'Department is required (or select series/dept override)' });
   } else if (validDepartments.length > 0 && !validDepartments.includes(dept)) {
-    errors.push({ field: 'department', message: `Invalid department "${dept}". Valid: ${validDepartments.join(', ')}` });
+    const matched = validDepartments.find(vd => vd.toLowerCase() === dept.toLowerCase());
+    if (matched) {
+      data.department = matched;
+    } else {
+      errors.push({ field: 'department', message: `Invalid department "${dept}". Valid: ${validDepartments.join(', ')}` });
+    }
   } else {
     data.department = dept;
   }

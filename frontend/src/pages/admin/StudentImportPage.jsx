@@ -1,4 +1,4 @@
-import { useState, useCallback, useRef, useEffect, useMemo } from 'react';
+import { useState, useCallback, useRef, useEffect, useMemo, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import api from '../../api/axios';
+import { AuthContext } from '../../context/AuthContext';
 
 // ── Core DB Fields ────────────────────────────────────────────────────────
 const DB_FIELDS = [
@@ -55,6 +56,8 @@ const STEPS = ['Upload', 'Preview', 'Column Mapping', 'Validation', 'Import'];
 
 export default function StudentImportPage() {
   const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
+  const defaultUserDept = user?.departmentCode || user?.department || '';
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
 
@@ -77,8 +80,15 @@ export default function StudentImportPage() {
   // Overrides
   const [detectedSeries, setDetectedSeries] = useState('');
   const [overrideSeries, setOverrideSeries] = useState('');
-  const [overrideDept, setOverrideDept] = useState('');
+  const [overrideDept, setOverrideDept] = useState(defaultUserDept);
   const [overrideSession, setOverrideSession] = useState('');
+
+  // Auto-sync default department from logged in user if not already set
+  useEffect(() => {
+    if (!overrideDept && defaultUserDept) {
+      setOverrideDept(defaultUserDept);
+    }
+  }, [defaultUserDept]);
 
   // Step 2: Preview & Dynamic Editing
   const [previewSearch, setPreviewSearch] = useState('');
@@ -179,6 +189,11 @@ export default function StudentImportPage() {
           setDetectedSeries(d.detectedSeries);
           setOverrideSeries(d.detectedSeries);
           setOverrideSession(d.detectedSession || '');
+        }
+        if (d.detectedDepartment) {
+          setOverrideDept(d.detectedDepartment);
+        } else if (!overrideDept && defaultUserDept) {
+          setOverrideDept(defaultUserDept);
         }
         if (d.availableDepartments?.length > 0) {
           setAvailableDepartments(d.availableDepartments);
@@ -407,7 +422,7 @@ export default function StudentImportPage() {
   };
 
   // ── Validate & Preview ──────────────────────────────────────────────────
-  const handleValidate = async () => {
+  const handleValidate = async (deptOverride = null) => {
     const mappedVals = Object.values(fullMapping).filter(Boolean);
     if (!mappedVals.includes('rollNumber')) {
       toast.error('Roll Number mapping is mandatory');
@@ -416,6 +431,11 @@ export default function StudentImportPage() {
     if (selectedRowIndices.size === 0) {
       toast.error('Select at least one row');
       return;
+    }
+
+    const deptToUse = (typeof deptOverride === 'string' && deptOverride ? deptOverride : overrideDept) || defaultUserDept || '';
+    if (deptOverride && typeof deptOverride === 'string') {
+      setOverrideDept(deptOverride);
     }
 
     setActionLoading(true);
@@ -429,7 +449,7 @@ export default function StudentImportPage() {
         importMode,
         overrides: {
           series: overrideSeries.trim(),
-          department: overrideDept.trim(),
+          department: (deptToUse || '').trim(),
           session: overrideSession.trim()
         },
         selectedRowIndices: Array.from(selectedRowIndices)
@@ -437,6 +457,9 @@ export default function StudentImportPage() {
       if (res.data.success) {
         setPreviewSummary(res.data.data);
         setStep(3);
+        if (deptOverride) {
+          toast.success(`Department "${deptToUse}" applied! ${res.data.data?.summary?.validRows || 0} valid records.`);
+        }
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Validation failed');
@@ -471,7 +494,7 @@ export default function StudentImportPage() {
         importMode,
         overrides: {
           series: overrideSeries.trim(),
-          department: overrideDept.trim(),
+          department: (overrideDept.trim() || defaultUserDept || ''),
           session: overrideSession.trim()
         },
         selectedRowIndices: Array.from(selectedRowIndices)
@@ -1011,11 +1034,22 @@ export default function StudentImportPage() {
             </h3>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
               <div>
-                <label className="text-xs font-semibold text-slate-500 mb-1 block">Department Override</label>
+                <label className="text-xs font-semibold text-slate-500 mb-1 flex items-center justify-between">
+                  <span>Department Override</span>
+                  {overrideDept && (
+                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+                      {overrideDept}
+                    </span>
+                  )}
+                </label>
                 <select value={overrideDept} onChange={e => setOverrideDept(e.target.value)}
                   className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none">
-                  <option value="">Auto-detect from data</option>
-                  {availableDepartments.map(d => <option key={d} value={d}>{d}</option>)}
+                  <option value="">Auto-detect from roll / admin</option>
+                  {availableDepartments.map(d => (
+                    <option key={d} value={d}>
+                      {d} {d === defaultUserDept ? '(Your Department)' : ''}
+                    </option>
+                  ))}
                 </select>
               </div>
               <div>
@@ -1219,6 +1253,50 @@ export default function StudentImportPage() {
               </div>
             </div>
           </div>
+
+          {/* Quick Department Fix Banner if Department error exists */}
+          {previewSummary.rowErrors && previewSummary.rowErrors.some(e => e.field === 'department') && (
+            <div className="bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/80 rounded-2xl p-5 shadow-sm">
+              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
+                    <h4 className="font-heading font-bold text-sm text-amber-900 dark:text-amber-200">
+                      Missing Department in Excel Sheet
+                    </h4>
+                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200">
+                      Quick 1-Click Fix
+                    </span>
+                  </div>
+                  <p className="text-xs text-amber-800 dark:text-amber-300 max-w-xl leading-relaxed">
+                    The uploaded Excel sheet does not have a "Department" column. Select the department for these students to resolve all {previewSummary.rowErrors.filter(e => e.field === 'department').length} errors instantly:
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 shrink-0">
+                  <select
+                    value={overrideDept || defaultUserDept || (availableDepartments[0] || 'ETE')}
+                    onChange={(e) => setOverrideDept(e.target.value)}
+                    className="px-3.5 py-2 text-xs font-bold rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-xs focus:ring-2 focus:ring-amber-500 outline-none"
+                  >
+                    <option value="">-- Choose Department --</option>
+                    {availableDepartments.map(d => (
+                      <option key={d} value={d}>
+                        {d} {d === defaultUserDept ? '(Your Department)' : ''}
+                      </option>
+                    ))}
+                  </select>
+                  <button
+                    onClick={() => handleValidate(overrideDept || defaultUserDept || (availableDepartments[0] || 'ETE'))}
+                    disabled={actionLoading}
+                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white text-xs font-bold shadow-md shadow-amber-600/20 transition-all disabled:opacity-50"
+                  >
+                    {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+                    Apply & Re-validate
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* Error Details */}
           {previewSummary.rowErrors && previewSummary.rowErrors.length > 0 && (

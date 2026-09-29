@@ -118,6 +118,108 @@
   }
 }
 
+/* ═══════════════════════════════════════════════════════════════
+   UNIVERSAL INTERACTIVE CONTROLS & BUTTON CURSOR POINTER
+   Ensures EVERY button, interactive control, and clickable element
+   displays cursor: pointer on hover, focus, and active/clicking.
+   ═══════════════════════════════════════════════════════════════ */
+button,
+[type="button"],
+[type="submit"],
+[type="reset"],
+[role="button"],
+.btn,
+a,
+select,
+summary,
+input[type="checkbox"],
+input[type="radio"],
+input[type="file"],
+label[for],
+label:has(input) {
+  cursor: pointer !important;
+}
+
+/* Ensure all child elements inside buttons and clickable roles inherit the pointer cursor */
+button *,
+[type="button"] *,
+[type="submit"] *,
+[type="reset"] *,
+[role="button"] *,
+.btn *,
+a * {
+  cursor: pointer !important;
+}
+
+/* Maintain pointer cursor during click, active, hover, and focus */
+button:hover,
+button:active,
+button:focus,
+button:focus-visible,
+[type="button"]:hover,
+[type="button"]:active,
+[type="button"]:focus,
+[type="submit"]:hover,
+[type="submit"]:active,
+[type="submit"]:focus,
+[type="reset"]:hover,
+[type="reset"]:active,
+[type="reset"]:focus,
+[role="button"]:hover,
+[role="button"]:active,
+[role="button"]:focus,
+.btn:hover,
+.btn:active,
+.btn:focus,
+a:hover,
+a:active,
+a:focus {
+  cursor: pointer !important;
+}
+
+/* Disabled buttons and disabled controls MUST display cursor: not-allowed */
+button:disabled,
+button:disabled *,
+button[disabled],
+button[disabled] *,
+[type="button"]:disabled,
+[type="button"]:disabled *,
+[type="submit"]:disabled,
+[type="submit"]:disabled *,
+[type="reset"]:disabled,
+[type="reset"]:disabled *,
+[role="button"][aria-disabled="true"],
+[role="button"][aria-disabled="true"] *,
+[aria-disabled="true"],
+[aria-disabled="true"] *,
+.btn:disabled,
+.btn:disabled *,
+.btn-disabled,
+.btn-disabled *,
+[disabled],
+[disabled] *,
+.cursor-not-allowed,
+.cursor-not-allowed * {
+  cursor: not-allowed !important;
+}
+
+/* Utility overrides */
+.cursor-default,
+.cursor-default * {
+  cursor: default !important;
+}
+
+.cursor-text,
+.cursor-text * {
+  cursor: text !important;
+}
+
+.cursor-pointer,
+.cursor-pointer * {
+  cursor: pointer !important;
+}
+
+
 /* ── Utility Classes ────────────────────────────────────────── */
 @layer utilities {
 
