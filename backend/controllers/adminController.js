@@ -340,6 +340,13 @@ const getAllStudents = async (req, res) => {
     if (semester) query.semester = semester;
     if (section) query.section = section.toUpperCase();
     if (status) query.status = status;
+    if (req.query.regularStatus) query.regularStatus = req.query.regularStatus;
+
+    // Sorting
+    const sortBy = req.query.sortBy || 'rollNumber';
+    const sortOrder = req.query.sortOrder === 'desc' || req.query.order === 'desc' ? -1 : 1;
+    const sortObj = {};
+    sortObj[sortBy] = sortOrder;
 
     // Server-side search
     if (search && search.trim()) {
@@ -356,7 +363,7 @@ const getAllStudents = async (req, res) => {
       Student.countDocuments(query),
       Student.find(query)
         .select('-password -enrolledCourses -__v')
-        .sort({ series: -1, rollNumber: 1 })
+        .sort(sortObj)
         .skip(skip)
         .limit(limitNum)
         .lean()
@@ -381,9 +388,15 @@ const getAllStudents = async (req, res) => {
 const createStudent = async (req, res) => {
   try {
     const deptFilter = getDeptFilter(req);
-    const { name, series, rollNumber, registrationNumber, department, contactNo, email, password } = req.body;
-    if (!name || !series || !rollNumber || !password) {
-      return res.status(400).json({ message: 'Name, Series, Roll Number, and Password are required' });
+    const {
+      name, series, rollNumber, registrationNumber, registrationNo,
+      department, contactNo, phone, email, password,
+      semester, session, regularStatus, status, section, batch,
+      gender, bloodGroup, address, customFields
+    } = req.body;
+
+    if (!name || !series || !rollNumber) {
+      return res.status(400).json({ message: 'Name, Series, and Roll Number are required' });
     }
 
     const targetDept = deptFilter || (department ? department.trim().toUpperCase() : 'ETE');
@@ -393,20 +406,36 @@ const createStudent = async (req, res) => {
     if (exists) return res.status(400).json({ message: 'Roll number already registered' });
 
     const deptDoc = await Department.findOne({ code: targetDept });
+    const finalPassword = password || cleanRoll || 'Student@123';
 
-    const student = await Student.create({
+    const studentData = {
       name: name.trim(),
       series: series.trim(),
       rollNumber: cleanRoll,
-      registrationNumber: registrationNumber?.trim() || '',
+      registrationNumber: (registrationNo !== undefined ? registrationNo : registrationNumber)?.trim() || '',
       department: targetDept,
       departmentRef: deptDoc ? deptDoc._id : null,
       facultyRef: deptDoc ? deptDoc.faculty : null,
-      contactNo: contactNo?.trim() || 'N/A',
+      contactNo: (phone !== undefined ? phone : contactNo)?.trim() || '',
       email: email?.trim().toLowerCase() || '',
-      password,
-      role: 'student'
-    });
+      password: finalPassword,
+      role: 'student',
+      status: status || 'active',
+      regularStatus: regularStatus || 'Regular',
+      semester: semester?.trim() || '',
+      session: session?.trim() || '',
+      section: section?.trim().toUpperCase() || '',
+      batch: batch?.trim() || '',
+      gender: gender?.trim() || '',
+      bloodGroup: bloodGroup?.trim() || '',
+      address: address?.trim() || ''
+    };
+
+    if (customFields && typeof customFields === 'object') {
+      studentData.customFields = customFields;
+    }
+
+    const student = await Student.create(studentData);
 
     await logAudit({
       req,
@@ -423,7 +452,27 @@ const createStudent = async (req, res) => {
   }
 };
 
-// PUT /api/admin/students/:id
+// GET /api/admin/students/:id
+const getStudentById = async (req, res) => {
+  try {
+    const deptFilter = getDeptFilter(req);
+    const student = await Student.findById(req.params.id)
+      .select('-password')
+      .populate('enrolledCourses.courseOffering')
+      .lean();
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    if (deptFilter && student.department !== deptFilter) {
+      return res.status(403).json({ message: 'Unauthorized: Cannot view student from another department' });
+    }
+
+    return res.json(student);
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// PUT or PATCH /api/admin/students/:id
 const updateStudent = async (req, res) => {
   try {
     const deptFilter = getDeptFilter(req);
@@ -435,19 +484,120 @@ const updateStudent = async (req, res) => {
     }
 
     const oldValues = { ...student.toObject() };
-    const { name, series, registrationNumber, contactNo, email, status, password } = req.body;
+    const changedFields = [];
 
-    if (name) student.name = name.trim();
-    if (series) student.series = series.trim();
-    if (registrationNumber !== undefined) student.registrationNumber = registrationNumber.trim();
-    if (contactNo) student.contactNo = contactNo.trim();
-    if (email !== undefined) student.email = email.trim().toLowerCase();
-    if (status) student.status = status;
+    const {
+      name, studentName,
+      rollNumber,
+      series,
+      department,
+      registrationNumber, registrationNo,
+      contactNo, phone,
+      email, studentEmail,
+      semester, currentSemester,
+      session, academicSession,
+      regularStatus,
+      status,
+      section,
+      batch,
+      gender,
+      bloodGroup,
+      address,
+      password
+    } = req.body;
+
+    const newName = (studentName || name);
+    if (newName && newName.trim() !== student.name) {
+      changedFields.push(`name: "${student.name}" -> "${newName.trim()}"`);
+      student.name = newName.trim();
+    }
+
+    if (rollNumber && rollNumber.trim().toUpperCase() !== student.rollNumber) {
+      const cleanRoll = rollNumber.trim().toUpperCase();
+      const existing = await Student.findOne({ rollNumber: cleanRoll, _id: { $ne: student._id } });
+      if (existing) {
+        return res.status(400).json({ message: `Roll number ${cleanRoll} is already registered to another student` });
+      }
+      changedFields.push(`rollNumber: "${student.rollNumber}" -> "${cleanRoll}"`);
+      student.rollNumber = cleanRoll;
+    }
+
+    if (series && series.trim() !== student.series) {
+      changedFields.push(`series: "${student.series}" -> "${series.trim()}"`);
+      student.series = series.trim();
+    }
+
+    if (department && department.trim().toUpperCase() !== student.department) {
+      changedFields.push(`department: "${student.department}" -> "${department.trim().toUpperCase()}"`);
+      student.department = department.trim().toUpperCase();
+      const deptDoc = await Department.findOne({ code: student.department });
+      if (deptDoc) {
+        student.departmentRef = deptDoc._id;
+        student.facultyRef = deptDoc.faculty;
+      }
+    }
+
+    const newReg = (registrationNo !== undefined ? registrationNo : registrationNumber);
+    if (newReg !== undefined && newReg.trim() !== student.registrationNumber) {
+      changedFields.push(`registrationNumber: "${student.registrationNumber}" -> "${newReg.trim()}"`);
+      student.registrationNumber = newReg.trim();
+    }
+
+    const newContact = (phone !== undefined ? phone : contactNo);
+    if (newContact !== undefined && newContact.trim() !== student.contactNo) {
+      changedFields.push(`contactNo: "${student.contactNo}" -> "${newContact.trim()}"`);
+      student.contactNo = newContact.trim();
+    }
+
+    const newEmail = (studentEmail !== undefined ? studentEmail : email);
+    if (newEmail !== undefined && newEmail.trim().toLowerCase() !== student.email) {
+      changedFields.push(`email: "${student.email}" -> "${newEmail.trim().toLowerCase()}"`);
+      student.email = newEmail.trim().toLowerCase();
+    }
+
+    const newSem = (currentSemester !== undefined ? currentSemester : semester);
+    if (newSem !== undefined && newSem.trim() !== student.semester) {
+      changedFields.push(`semester: "${student.semester}" -> "${newSem.trim()}"`);
+      student.semester = newSem.trim();
+    }
+
+    const newSession = (academicSession !== undefined ? academicSession : session);
+    if (newSession !== undefined && newSession.trim() !== student.session) {
+      changedFields.push(`session: "${student.session}" -> "${newSession.trim()}"`);
+      student.session = newSession.trim();
+    }
+
+    if (regularStatus && regularStatus !== student.regularStatus) {
+      changedFields.push(`regularStatus: "${student.regularStatus}" -> "${regularStatus}"`);
+      student.regularStatus = regularStatus;
+    }
+
+    if (status && status !== student.status) {
+      changedFields.push(`status: "${student.status}" -> "${status}"`);
+      student.status = status;
+    }
+
+    if (section !== undefined) student.section = section.trim().toUpperCase();
+    if (batch !== undefined) student.batch = batch.trim();
+    if (gender !== undefined) student.gender = gender.trim();
+    if (bloodGroup !== undefined) student.bloodGroup = bloodGroup.trim();
+    if (address !== undefined) student.address = address.trim();
+
+    // Custom fields support
+    if (req.body.customFields && typeof req.body.customFields === 'object') {
+      const existing = student.customFields || {};
+      student.customFields = { ...existing, ...req.body.customFields };
+      student.markModified('customFields');
+      changedFields.push('customFields updated');
+    }
+
     if (password) {
       const salt = await bcrypt.genSalt(10);
       student.password = await bcrypt.hash(password, salt);
+      changedFields.push('password updated');
     }
 
+    student.updatedAt = new Date();
     await student.save();
 
     await logAudit({
@@ -455,14 +605,119 @@ const updateStudent = async (req, res) => {
       action: 'UPDATE_STUDENT',
       entity: 'Student',
       entityId: student._id,
-      details: `Updated student ${student.name} (${student.rollNumber})`,
+      details: `Updated student ${student.name} (${student.rollNumber}). Changes: ${changedFields.join('; ') || 'details updated'}`,
       oldValues,
-      newValues: student
+      oldData: oldValues,
+      newValues: student.toObject(),
+      newData: student.toObject()
     });
 
-    res.json(student);
+    return res.json(student);
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// POST /api/admin/students/:id/deactivate
+const toggleDeactivateStudent = async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.id);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    const newStatus = req.body.status || (student.status === 'active' ? 'inactive' : 'active');
+    const oldStatus = student.status;
+    student.status = newStatus;
+    student.updatedAt = new Date();
+    await student.save();
+
+    await logAudit({
+      req,
+      action: newStatus === 'active' ? 'ACTIVATE_STUDENT' : 'DEACTIVATE_STUDENT',
+      entity: 'Student',
+      entityId: student._id,
+      details: `Changed student ${student.rollNumber} status: ${oldStatus} -> ${newStatus}`,
+      oldValues: { status: oldStatus },
+      newValues: { status: newStatus }
+    });
+
+    return res.json({ success: true, student, message: `Student status set to ${newStatus}` });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// POST /api/admin/students/:id/reset-password
+const resetStudentPassword = async (req, res) => {
+  try {
+    const student = await Student.findById(req.params.id);
+    if (!student) return res.status(404).json({ message: 'Student not found' });
+
+    const newPass = req.body.password || student.rollNumber;
+    const salt = await bcrypt.genSalt(10);
+    student.password = await bcrypt.hash(newPass, salt);
+    student.updatedAt = new Date();
+    await student.save();
+
+    await logAudit({
+      req,
+      action: 'RESET_STUDENT_PASSWORD',
+      entity: 'Student',
+      entityId: student._id,
+      details: `Reset password for student ${student.name} (${student.rollNumber}) to default/specified password`
+    });
+
+    return res.json({ success: true, message: `Password reset successfully for ${student.rollNumber}` });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
+// POST /api/admin/students/bulk-action
+const bulkStudentAction = async (req, res) => {
+  try {
+    const { studentIds, action, payload = {} } = req.body;
+    if (!studentIds || !Array.isArray(studentIds) || studentIds.length === 0) {
+      return res.status(400).json({ message: 'No students selected for bulk action' });
+    }
+
+    const deptFilter = getDeptFilter(req);
+    const filter = { _id: { $in: studentIds } };
+    if (deptFilter) filter.department = deptFilter;
+
+    let resultMessage = '';
+
+    if (action === 'delete') {
+      const resDel = await Student.deleteMany(filter);
+      resultMessage = `Deleted ${resDel.deletedCount} students`;
+    } else if (action === 'deactivate') {
+      const resUpd = await Student.updateMany(filter, { $set: { status: 'inactive', updatedAt: new Date() } });
+      resultMessage = `Deactivated ${resUpd.modifiedCount} students`;
+    } else if (action === 'activate') {
+      const resUpd = await Student.updateMany(filter, { $set: { status: 'active', updatedAt: new Date() } });
+      resultMessage = `Activated ${resUpd.modifiedCount} students`;
+    } else if (action === 'update_semester') {
+      if (!payload.semester) return res.status(400).json({ message: 'Semester is required for update_semester' });
+      const resUpd = await Student.updateMany(filter, { $set: { semester: payload.semester, updatedAt: new Date() } });
+      resultMessage = `Updated semester to ${payload.semester} for ${resUpd.modifiedCount} students`;
+    } else if (action === 'update_regular_status') {
+      if (!payload.regularStatus) return res.status(400).json({ message: 'regularStatus is required' });
+      const resUpd = await Student.updateMany(filter, { $set: { regularStatus: payload.regularStatus, updatedAt: new Date() } });
+      resultMessage = `Updated regular status to ${payload.regularStatus} for ${resUpd.modifiedCount} students`;
+    } else {
+      return res.status(400).json({ message: `Unknown bulk action "${action}"` });
+    }
+
+    await logAudit({
+      req,
+      action: 'BULK_STUDENT_ACTION',
+      entity: 'Student',
+      details: `Bulk action "${action}" on ${studentIds.length} students: ${resultMessage}`,
+      newValues: { action, studentCount: studentIds.length, payload }
+    });
+
+    return res.json({ success: true, message: resultMessage });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
   }
 };
 
@@ -478,6 +733,16 @@ const deleteStudent = async (req, res) => {
     }
 
     await student.deleteOne();
+
+    await logAudit({
+      req,
+      action: 'DELETE_STUDENT',
+      entity: 'Student',
+      entityId: student._id,
+      details: `Deleted student ${student.name} (${student.rollNumber}) from ${student.department}`,
+      oldValues: { name: student.name, rollNumber: student.rollNumber, department: student.department }
+    });
+
     res.json({ message: 'Student removed successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -810,6 +1075,114 @@ const transferHeadship = async (req, res) => {
   }
 };
 
+// ── GET /api/admin/requests ──────────────────────────────────────────
+const getAdminRequests = async (req, res) => {
+  try {
+    const deptFilter = getDeptFilter(req);
+    const { status, search } = req.query;
+    let query = {};
+    if (deptFilter) {
+      query.department = deptFilter;
+    }
+    if (status && status !== 'all') {
+      query.status = status;
+    }
+    if (search) {
+      query.$or = [
+        { studentRoll: { $regex: search.trim(), $options: 'i' } },
+        { studentName: { $regex: search.trim(), $options: 'i' } },
+        { course: { $regex: search.trim(), $options: 'i' } },
+        { courseName: { $regex: search.trim(), $options: 'i' } },
+        { teacherName: { $regex: search.trim(), $options: 'i' } }
+      ];
+    }
+    const requests = await Request.find(query)
+      .populate('student', 'name rollNumber email series section department')
+      .populate('teacherRef', 'name teacherId email designation')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    res.json({ success: true, requests, count: requests.length });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// GET /api/admin/students/stats — Live database statistics for overview cards
+const getStudentStats = async (req, res) => {
+  try {
+    const deptFilter = getDeptFilter(req);
+    const baseQuery = {};
+    if (deptFilter) baseQuery.department = deptFilter;
+
+    const [
+      totalStudents,
+      activeStudents,
+      regularStudents,
+      irregularStudents,
+      seriesDistribution,
+      departmentDistribution,
+      semesterDistribution,
+      statusDistribution,
+      sectionDistribution
+    ] = await Promise.all([
+      Student.countDocuments(baseQuery),
+      Student.countDocuments({ ...baseQuery, status: 'active' }),
+      Student.countDocuments({ ...baseQuery, regularStatus: 'Regular' }),
+      Student.countDocuments({ ...baseQuery, regularStatus: 'Irregular' }),
+      Student.aggregate([
+        ...(deptFilter ? [{ $match: { department: deptFilter } }] : []),
+        { $group: { _id: '$series', count: { $sum: 1 } } },
+        { $sort: { _id: -1 } }
+      ]),
+      Student.aggregate([
+        ...(deptFilter ? [{ $match: { department: deptFilter } }] : []),
+        { $group: { _id: '$department', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      Student.aggregate([
+        ...(deptFilter ? [{ $match: { department: deptFilter } }] : []),
+        { $group: { _id: '$semester', count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ]),
+      Student.aggregate([
+        ...(deptFilter ? [{ $match: { department: deptFilter } }] : []),
+        { $group: { _id: '$status', count: { $sum: 1 } } },
+        { $sort: { count: -1 } }
+      ]),
+      Student.aggregate([
+        ...(deptFilter ? [{ $match: { department: deptFilter } }] : []),
+        { $match: { section: { $exists: true, $ne: '' } } },
+        { $group: { _id: '$section', count: { $sum: 1 } } },
+        { $sort: { _id: 1 } }
+      ])
+    ]);
+
+    // Find most common semester (current)
+    const currentSemester = semesterDistribution.length > 0
+      ? semesterDistribution.reduce((a, b) => a.count >= b.count ? a : b)._id || 'N/A'
+      : 'N/A';
+
+    return res.json({
+      success: true,
+      stats: {
+        totalStudents,
+        activeStudents,
+        regularStudents,
+        irregularStudents,
+        currentSemester,
+        seriesDistribution: seriesDistribution.map(s => ({ series: s._id, count: s.count })),
+        departmentDistribution: departmentDistribution.map(d => ({ department: d._id, count: d.count })),
+        semesterDistribution: semesterDistribution.map(s => ({ semester: s._id || 'Unset', count: s.count })),
+        statusDistribution: statusDistribution.map(s => ({ status: s._id, count: s.count })),
+        sectionDistribution: sectionDistribution.map(s => ({ section: s._id, count: s.count }))
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ message: error.message });
+  }
+};
+
 module.exports = {
   getSystemStats,
   getAllTeachers,
@@ -817,12 +1190,18 @@ module.exports = {
   updateTeacher,
   deleteTeacher,
   getAllStudents,
+  getStudentById,
   createStudent,
   updateStudent,
   deleteStudent,
+  toggleDeactivateStudent,
+  resetStudentPassword,
+  bulkStudentAction,
   getDepartmentCourses,
   assignCourseToTeacher,
   revokeCourseAssignment,
   getTeacherAssignedCourses,
-  transferHeadship
+  transferHeadship,
+  getAdminRequests,
+  getStudentStats
 };

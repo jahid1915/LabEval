@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import ChangePasswordModal from '../../components/ChangePasswordModal';
 import CustomSelect from '../../components/CustomSelect';
+import RuetLogo from '../../components/RuetLogo';
 
 const DEPARTMENTS = ['CSE', 'EEE', 'ME', 'CIVIL', 'ETE', 'ECE', 'IPE', 'MSE', 'CME', 'MTE', 'BECM', 'ARCHI'];
 
@@ -291,22 +292,7 @@ export default function AuthPage() {
           borderTopRightRadius: 11,
           display: 'flex', alignItems: 'center', gap: 12
         }}>
-          <div style={{
-            width: 44, height: 44,
-            borderRadius: '12px',
-            border: `1px solid ${isDarkMode ? 'rgba(56,189,248,0.2)' : 'rgba(37,99,235,0.2)'}`,
-            overflow: 'hidden',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            background: isDarkMode ? '#0b132b' : '#eff6ff',
-            flexShrink: 0,
-            padding: '4px',
-          }}>
-            <img src="/labeval_icon.png" alt="LabEval Logo" style={{ width: '100%', height: '100%', objectFit: 'contain' }}
-              onError={e => {
-                e.target.style.display = 'none';
-                e.target.parentElement.innerHTML = '<span style="color:#2563eb;font-weight:700;font-size:15px">LE</span>';
-              }} />
-          </div>
+          <RuetLogo size={46} />
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <p style={{ fontSize: 16, fontWeight: 800, color: textMain, lineHeight: 1.2 }}>

@@ -17,6 +17,7 @@ import {
   generateRUETXLSXReport
 } from '../../utils/ruetReportGenerator';
 import EvaluationLayoutModal from '../../components/EvaluationLayoutModal';
+import RuetLogo from '../../components/RuetLogo';
 
 const MODULE_CARDS = [
   { title: 'Attendance & Report', icon: <BookOpen size={16} />, path: 'attendance' },
@@ -189,9 +190,7 @@ export default function TeacherDashboard() {
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-indigo-600 to-violet-600 flex items-center justify-center text-white font-bold text-lg shrink-0 shadow-md shadow-indigo-500/20">
-              {user?.name?.charAt(0) || 'T'}
-            </div>
+            <RuetLogo size={48} />
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-50 dark:bg-indigo-950/40 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 uppercase tracking-wide">

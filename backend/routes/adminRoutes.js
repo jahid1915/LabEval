@@ -7,14 +7,20 @@ const {
   updateTeacher,
   deleteTeacher,
   getAllStudents,
+  getStudentById,
   createStudent,
   updateStudent,
   deleteStudent,
+  toggleDeactivateStudent,
+  resetStudentPassword,
+  bulkStudentAction,
   getDepartmentCourses,
   assignCourseToTeacher,
   revokeCourseAssignment,
   getTeacherAssignedCourses,
-  transferHeadship
+  transferHeadship,
+  getAdminRequests,
+  getStudentStats
 } = require('../controllers/adminController');
 const { importTeachers, importStudents } = require('../controllers/dataTransferController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
@@ -24,6 +30,7 @@ router.use(adminOnly);
 
 // ── System Statistics ────────────────────────────────────────────────
 router.get('/stats', getSystemStats);
+router.get('/requests', getAdminRequests);
 
 // ── Course & Assignment Management (Section 9, 10, 11) ──────────────
 router.get('/courses', getDepartmentCourses);
@@ -43,11 +50,18 @@ router.delete('/teachers/:id', deleteTeacher);
 // ── Student Management ───────────────────────────────────────────────
 router.get('/students', getAllStudents);
 router.post('/students', createStudent);
+router.get('/students/stats', getStudentStats);  // Must be before :id
+router.get('/students/:id', getStudentById);
 router.put('/students/:id', updateStudent);
+router.patch('/students/:id', updateStudent);
 router.delete('/students/:id', deleteStudent);
+router.post('/students/:id/deactivate', toggleDeactivateStudent);
+router.post('/students/:id/reset-password', resetStudentPassword);
+router.post('/students/bulk-action', bulkStudentAction);
 
 // ── Bulk Import ──────────────────────────────────────────────────────
 router.post('/import/teachers', importTeachers);
 router.post('/import/students', importStudents);
 
 module.exports = router;
+

@@ -7,7 +7,7 @@ const auditLogSchema = new mongoose.Schema({
   },
   userRole: {
     type: String,
-    enum: ['admin', 'teacher', 'student', 'system'],
+    enum: ['admin', 'department_head', 'teacher', 'student', 'system'],
     default: 'admin'
   },
   userName: {
@@ -37,6 +37,27 @@ const auditLogSchema = new mongoose.Schema({
     default: null
   },
   newValues: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
+  adminId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Admin',
+    default: null
+  },
+  adminEmail: {
+    type: String,
+    default: ''
+  },
+  entityType: {
+    type: String,
+    default: ''
+  },
+  oldData: {
+    type: mongoose.Schema.Types.Mixed,
+    default: null
+  },
+  newData: {
     type: mongoose.Schema.Types.Mixed,
     default: null
   },

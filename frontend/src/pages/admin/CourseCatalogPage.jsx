@@ -25,19 +25,23 @@ export default function CourseCatalogPage() {
         api.get('/courses'),
         api.get('/departments')
       ]);
-      setCourses(cRes.data.courses || cRes.data || []);
-      setDepartments(dRes.data.departments || dRes.data || []);
+      setCourses(Array.isArray(cRes.data) ? cRes.data : (cRes.data.courses || []));
+      setDepartments(Array.isArray(dRes.data) ? dRes.data : (dRes.data.departments || []));
     } catch { toast.error('Failed to load courses'); }
     finally { setLoading(false); }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
-  const filtered = courses.filter(c => {
-    const matchSearch = !search ||
-      c.courseCode?.toLowerCase().includes(search.toLowerCase()) ||
-      c.courseTitle?.toLowerCase().includes(search.toLowerCase());
-    const matchType = !filterType || c.type === filterType;
+  const safeCourses = Array.isArray(courses) ? courses : [];
+  const filtered = safeCourses.filter(c => {
+    if (!c) return false;
+    const title = (c.courseTitle || c.courseName || '').toLowerCase();
+    const code = (c.courseCode || '').toLowerCase();
+    const q = search.toLowerCase();
+    const matchSearch = !search || code.includes(q) || title.includes(q);
+    const cType = (c.type || c.courseType || '').toLowerCase();
+    const matchType = !filterType || cType === filterType.toLowerCase();
     return matchSearch && matchType;
   });
 
@@ -45,9 +49,12 @@ export default function CourseCatalogPage() {
   const openEdit = (c) => {
     setEditId(c._id);
     setForm({
-      courseCode: c.courseCode || '', courseTitle: c.courseTitle || '',
-      credits: c.credits || '', department: c.department || '',
-      type: c.type || 'lab', description: c.description || ''
+      courseCode: c.courseCode || '',
+      courseTitle: c.courseTitle || c.courseName || '',
+      credits: c.credits || c.credit || '',
+      department: typeof c.department === 'object' ? (c.department?.name || c.department?.code || '') : (c.department || ''),
+      type: (c.type || c.courseType || 'lab').toLowerCase(),
+      description: c.description || ''
     });
     setShowModal(true);
   };
@@ -133,11 +140,11 @@ export default function CourseCatalogPage() {
                   <button onClick={() => setDeleteId(c._id)} className="p-1.5 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-400 hover:text-rose-500 transition-colors"><Trash2 size={14} /></button>
                 </div>
               </div>
-              <h3 className="font-bold text-slate-800 dark:text-white mb-1">{c.courseTitle}</h3>
+              <h3 className="font-bold text-slate-800 dark:text-white mb-1">{c.courseTitle || c.courseName || c.courseCode}</h3>
               <div className="space-y-1 text-xs text-slate-500 dark:text-slate-400">
                 <div className="flex items-center gap-2"><Hash size={12} /> {c.courseCode}</div>
-                <div className="flex items-center gap-2"><Layers size={12} /> {c.credits || '—'} credits</div>
-                {c.department && <div className="flex items-center gap-2"><BookOpen size={12} /> {c.department}</div>}
+                <div className="flex items-center gap-2"><Layers size={12} /> {c.credits || c.credit || '—'} credits</div>
+                {c.department && <div className="flex items-center gap-2"><BookOpen size={12} /> {typeof c.department === 'object' ? (c.department?.name || c.department?.code || '') : c.department}</div>}
               </div>
             </motion.div>
           ))}

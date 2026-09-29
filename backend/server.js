@@ -7,8 +7,10 @@ const compression = require('compression');
 const helmet = require('helmet');
 const rateLimit = require('express-rate-limit');
 const { v4: uuidv4 } = require('uuid');
+const http = require('http');
 const connectDB = require('./config/db');
 const { syncTeacherDutyStatuses } = require('./utils/dutyStatusCron');
+const { initSocket } = require('./utils/socketManager');
 
 // ── Environment Validation ────────────────────────────────────────────────────
 const REQUIRED_ENV = ['JWT_SECRET'];
@@ -84,28 +86,28 @@ app.use(morgan(logFormat));
 // Shared key generator to handle IPv4/IPv6 safely
 // express-rate-limit v7+ uses its own IP detection by default
 
-// Auth endpoints: 20 requests per 15 minutes
+// Auth endpoints: 20 requests per 15 minutes in production, 1000 in dev/test
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 20,
+  max: process.env.NODE_ENV === 'production' ? 20 : 1000,
   message: { success: false, message: 'Too many requests from this IP, please try again later.', code: 'RATE_LIMITED' },
   standardHeaders: true,
   legacyHeaders: false
 });
 
-// Import endpoints: 10 per hour (uploads are expensive)
+// Import endpoints: 10 per hour in production, 500 in dev/test
 const importLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: 10,
+  max: process.env.NODE_ENV === 'production' ? 10 : 500,
   message: { success: false, message: 'Import rate limit exceeded. Maximum 10 imports per hour.', code: 'IMPORT_RATE_LIMITED' },
   standardHeaders: true,
   legacyHeaders: false
 });
 
-// General API: 200 per 15 minutes
+// General API: 200 per 15 minutes in production, 5000 in dev/test
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: 200,
+  max: process.env.NODE_ENV === 'production' ? 200 : 5000,
   message: { success: false, message: 'Too many requests, please slow down.', code: 'RATE_LIMITED' },
   standardHeaders: true,
   legacyHeaders: false
@@ -155,6 +157,7 @@ app.use('/api/audit-logs',       generalLimiter, require('./routes/auditRoutes')
 app.use('/api/search',           generalLimiter, require('./routes/searchRoutes'));
 
 // ── Role Portals ──────────────────────────────────────────────────────────────
+app.use('/api/electives',        generalLimiter, require('./routes/electiveRoutes'));
 app.use('/api/teacher',          generalLimiter, require('./routes/teacherRoutes'));
 app.use('/api/student',          generalLimiter, require('./routes/studentRoutes'));
 
@@ -206,10 +209,13 @@ app.use((err, req, res, next) => {
   });
 });
 
-// ── Server Start ──────────────────────────────────────────────────────────────
+// ── Server Start with Socket.IO ──────────────────────────────────────────────
 const PORT = process.env.PORT || 5000;
-const server = app.listen(PORT, () => {
-  console.log(`🚀 LabEval Server v2.0 running on port ${PORT} [${process.env.NODE_ENV || 'development'}]`);
+const httpServer = http.createServer(app);
+initSocket(httpServer, allowedOrigins);
+
+const server = httpServer.listen(PORT, () => {
+  console.log(`🚀 LabEval Server v2.0 running on port ${PORT} [${process.env.NODE_ENV || 'development'}] with Real-Time Socket.IO`);
 });
 
 // ── Graceful Shutdown ─────────────────────────────────────────────────────────

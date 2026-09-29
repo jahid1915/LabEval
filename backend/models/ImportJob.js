@@ -31,6 +31,21 @@ const importJobSchema = new mongoose.Schema({
     type: String,
     default: ''
   },
+  series: {
+    type: String,
+    default: ''
+  },
+  sheetName: {
+    type: String,
+    default: ''
+  },
+  selectedFields: [{
+    type: String
+  }],
+  duplicateMatchingField: {
+    type: String,
+    default: 'rollNumber'
+  },
   // Import configuration
   importMode: {
     type: String,

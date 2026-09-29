@@ -1,4 +1,4 @@
-import React, { Suspense } from 'react';
+import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
@@ -17,6 +17,7 @@ import Contact from './pages/public/Contact';
 
 // Unified Customized Auth Page
 import AuthPage from './pages/auth/AuthPage';
+import ScrollToTop from './components/ScrollToTop';
 
 // Admin Pages
 import AdminDashboard       from './pages/admin/AdminDashboard';
@@ -28,11 +29,9 @@ import TeachersPage          from './pages/admin/TeachersPage';
 import StudentsPage          from './pages/admin/StudentsPage';
 import CourseCatalogPage     from './pages/admin/CourseCatalogPage';
 import CourseOfferingsPage   from './pages/admin/CourseOfferingsPage';
-import LeaveManagementPage   from './pages/admin/LeaveManagementPage';
-import AnnouncementsPage     from './pages/admin/AnnouncementsPage';
-import AuditLogsPage         from './pages/admin/AuditLogsPage';
 import StudentImportPage     from './pages/admin/StudentImportPage';
 import ImportHistoryPage     from './pages/admin/ImportHistoryPage';
+import ElectiveManagementPage from './pages/admin/ElectiveManagementPage';
 
 // Teacher Pages
 import TeacherDashboard from './pages/teacher/TeacherDashboard';
@@ -44,10 +43,12 @@ import Test             from './pages/teacher/Test';
 import Others           from './pages/teacher/Others';
 import FinalResult      from './pages/teacher/FinalResult';
 import TeacherLeavePage from './pages/teacher/TeacherLeavePage';
+import TeacherElectivesPage from './pages/teacher/TeacherElectivesPage';
 
 // Student Pages
 import StudentDashboard from './pages/student/StudentDashboard';
 import StudentMarksPage from './pages/student/StudentMarksPage';
+import StudentElectiveSelection from './pages/student/StudentElectiveSelection';
 
 // Protected Route guard
 const ProtectedRoute = ({ children, allowedRole }) => {
@@ -77,6 +78,7 @@ export default function App() {
       <AuthProvider>
         <ErrorBoundary>
         <Router>
+          <ScrollToTop />
           <ToastContainer position="top-right" autoClose={3000} theme="colored" />
           <Routes>
             {/* ── Public / Landing ──────────────────────────────── */}
@@ -111,11 +113,9 @@ export default function App() {
               <Route path="students"        element={<StudentsPage />} />
               <Route path="course-catalog"  element={<CourseCatalogPage />} />
               <Route path="course-offerings" element={<CourseOfferingsPage />} />
-              <Route path="leaves"          element={<LeaveManagementPage />} />
-              <Route path="announcements"   element={<AnnouncementsPage />} />
-              <Route path="audit-logs"      element={<AuditLogsPage />} />
               <Route path="import"           element={<StudentImportPage />} />
               <Route path="import-history"   element={<ImportHistoryPage />} />
+              <Route path="electives"        element={<ElectiveManagementPage />} />
             </Route>
 
             {/* ── Teacher Routes ────────────────────────────────── */}
@@ -126,6 +126,7 @@ export default function App() {
             }>
               <Route index             element={<TeacherDashboard />} />
               <Route path="courses"    element={<Courses          />} />
+              <Route path="electives"  element={<TeacherElectivesPage />} />
               <Route path="attendance" element={<Attendance       />} />
               <Route path="performance"element={<Performance      />} />
               <Route path="quiz"       element={<Quiz             />} />
@@ -142,6 +143,7 @@ export default function App() {
               </ProtectedRoute>
             }>
               <Route index element={<StudentDashboard />} />
+              <Route path="electives" element={<StudentElectiveSelection />} />
               <Route path="marks/:courseCode" element={<StudentMarksPage />} />
             </Route>
 

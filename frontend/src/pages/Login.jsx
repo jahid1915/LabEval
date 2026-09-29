@@ -5,6 +5,7 @@ import { useTheme } from '../context/ThemeContext';
 import { toast } from 'react-toastify';
 import { LogIn, UserPlus, User, GraduationCap, Building2, Phone, Hash, Type, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import RuetLogo from '../components/RuetLogo';
 
 const Login = () => {
   const [mode, setMode] = useState('login'); // 'login' or 'register'
@@ -174,13 +175,9 @@ const Login = () => {
           </div>
 
           <div className="relative z-10 my-16">
-            <motion.img 
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              transition={{ delay: 0.2 }}
-              src="https://upload.wikimedia.org/wikipedia/en/f/f7/Rajshahi_University_of_Engineering_%26_Technology_emblem.svg" alt="RUET Logo" 
-              className="w-16 h-16 object-contain mb-6 drop-shadow-lg" 
-            />
+            <div className="mb-6">
+              <RuetLogo size={64} className="drop-shadow-lg" />
+            </div>
             <h1 className="text-5xl font-heading font-extrabold mb-4 leading-tight">
               LabEval <br/> <span className="text-white/80 font-light text-3xl">RUET</span>
             </h1>

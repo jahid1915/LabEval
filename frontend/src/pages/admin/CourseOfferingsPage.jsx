@@ -33,11 +33,11 @@ export default function CourseOfferingsPage() {
         api.get('/academic/sessions'),
         api.get('/academic/series')
       ]);
-      setOfferings(oRes.data.offerings || oRes.data || []);
-      setCourses(cRes.data.courses || cRes.data || []);
-      setTeachers(tRes.data.teachers || tRes.data || []);
-      setSessions(sRes.data.sessions || sRes.data || []);
-      setSeriesList(srRes.data.series || srRes.data || []);
+      setOfferings(Array.isArray(oRes.data) ? oRes.data : (oRes.data?.offerings || []));
+      setCourses(Array.isArray(cRes.data) ? cRes.data : (cRes.data?.courses || []));
+      setTeachers(Array.isArray(tRes.data) ? tRes.data : (tRes.data?.teachers || []));
+      setSessions(Array.isArray(sRes.data) ? sRes.data : (sRes.data?.sessions || []));
+      setSeriesList(Array.isArray(srRes.data) ? srRes.data : (srRes.data?.series || []));
     } catch { toast.error('Failed to load offerings'); }
     finally { setLoading(false); }
   }, []);
@@ -45,27 +45,57 @@ export default function CourseOfferingsPage() {
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const getCourseName = (o) => {
-    if (o.course?.courseTitle) return `${o.course.courseCode} — ${o.course.courseTitle}`;
-    const c = courses.find(c => c._id === o.course);
-    return c ? `${c.courseCode} — ${c.courseTitle}` : o.course || '—';
+    if (!o) return '—';
+    if (o.courseName) return `${o.courseCode || ''} — ${o.courseName}`;
+    if (o.course?.courseName) return `${o.course.courseCode || o.courseCode || ''} — ${o.course.courseName}`;
+    if (o.course?.courseTitle) return `${o.course.courseCode || o.courseCode || ''} — ${o.course.courseTitle}`;
+    const cId = o.course?._id || o.course;
+    const c = (Array.isArray(courses) ? courses : []).find(c => c._id === cId);
+    if (c) return `${c.courseCode} — ${c.courseName || c.courseTitle || ''}`;
+    return typeof o.course === 'string' ? o.course : (o.courseCode || '—');
   };
 
   const getTeacherName = (o) => {
+    if (!o) return 'Unassigned';
+    if (Array.isArray(o.teachers) && o.teachers.length > 0) {
+      return o.teachers.map(t => (typeof t === 'object' ? (t.name || t.teacherId || '') : t)).join(', ');
+    }
     if (o.teacher?.name) return o.teacher.name;
-    const t = teachers.find(t => t._id === o.teacher);
-    return t?.name || '—';
+    const tId = o.teacher?._id || o.teacher;
+    const t = (Array.isArray(teachers) ? teachers : []).find(t => t._id === tId);
+    return t?.name || (typeof o.teacher === 'string' ? o.teacher : 'Unassigned');
   };
 
   const getSessionName = (o) => {
+    if (!o) return '—';
+    if (o.sessionName) return o.sessionName;
     if (o.session?.name) return o.session.name;
-    const s = sessions.find(s => s._id === o.session);
-    return s?.name || '—';
+    const sId = o.session?._id || o.session;
+    const s = (Array.isArray(sessions) ? sessions : []).find(s => s._id === sId);
+    return s?.name || (typeof o.session === 'string' ? o.session : (o.sessionName || '—'));
   };
 
-  const filtered = offerings.filter(o =>
-    !search || getCourseName(o).toLowerCase().includes(search.toLowerCase()) ||
-    getTeacherName(o).toLowerCase().includes(search.toLowerCase())
-  );
+  const getSeriesDisplay = (o) => {
+    if (!o) return '—';
+    const sName = o.seriesName || (typeof o.series === 'object' ? o.series?.name : o.series) || '—';
+    const sec = o.section ? ` (${o.section})` : '';
+    return `${sName}${sec}`;
+  };
+
+  const getSemesterDisplay = (o) => {
+    if (!o) return '';
+    return o.semesterName || (typeof o.semester === 'object' ? (o.semester?.name || o.semester?.code) : o.semester) || '';
+  };
+
+  const safeOfferings = Array.isArray(offerings) ? offerings : [];
+  const filtered = safeOfferings.filter(o => {
+    if (!o) return false;
+    const cName = getCourseName(o).toLowerCase();
+    const tName = getTeacherName(o).toLowerCase();
+    const sName = getSessionName(o).toLowerCase();
+    const q = search.toLowerCase();
+    return !search || cName.includes(q) || tName.includes(q) || sName.includes(q);
+  });
 
   const openAdd = () => { setEditId(null); setForm(emptyForm); setShowModal(true); };
   const openEdit = (o) => {
@@ -73,9 +103,9 @@ export default function CourseOfferingsPage() {
     setForm({
       course: o.course?._id || o.course || '',
       teacher: o.teacher?._id || o.teacher || '',
-      session: o.session?._id || o.session || '',
-      semester: o.semester || '',
-      series: o.series || '',
+      session: o.session?._id || o.session || o.sessionName || '',
+      semester: o.semesterName || o.semester || '',
+      series: o.seriesName || o.series || '',
       section: o.section || '',
       isActive: o.isActive !== false
     });
@@ -157,7 +187,7 @@ export default function CourseOfferingsPage() {
                     <td className="px-5 py-3">
                       <div>
                         <p className="font-semibold text-slate-800 dark:text-white">{getCourseName(o)}</p>
-                        {o.semester && <p className="text-xs text-slate-400">Semester: {typeof o.semester === 'object' ? (o.semester.code || o.semester.name) : o.semester}</p>}
+                        {getSemesterDisplay(o) && <p className="text-xs text-slate-400">Semester: {getSemesterDisplay(o)}</p>}
                       </div>
                     </td>
                     <td className="px-5 py-3">
@@ -169,7 +199,7 @@ export default function CourseOfferingsPage() {
                       </div>
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{getSessionName(o)}</td>
-                    <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{o.series || '—'} {o.section ? `(${o.section})` : ''}</td>
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-400">{getSeriesDisplay(o)}</td>
                     <td className="px-5 py-3">
                       {o.isActive !== false ? (
                         <span className="px-2 py-0.5 rounded-full bg-emerald-100 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300 text-xs font-bold flex items-center gap-1 w-fit"><CheckCircle size={12} /> Active</span>

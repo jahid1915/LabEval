@@ -47,8 +47,8 @@ const studentSchema = new mongoose.Schema({
   },
   contactNo: { 
     type: String, 
-    required: true,
-    trim: true 
+    trim: true,
+    default: ''
   },
   email: {
     type: String,
@@ -73,6 +73,26 @@ const studentSchema = new mongoose.Schema({
     enum: ['active', 'graduated', 'inactive', 'suspended'],
     default: 'active'
   },
+  regularStatus: {
+    type: String,
+    enum: ['Regular', 'Irregular'],
+    default: 'Regular'
+  },
+  gender: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  bloodGroup: {
+    type: String,
+    trim: true,
+    default: ''
+  },
+  address: {
+    type: String,
+    trim: true,
+    default: ''
+  },
   section: {
     type: String,
     trim: true,
@@ -94,16 +114,50 @@ const studentSchema = new mongoose.Schema({
     trim: true,
     default: ''
   },
+  customFields: {
+    type: mongoose.Schema.Types.Mixed,
+    default: {}
+  },
   enrolledCourses: [{ 
     courseCode: String,
     courseOffering: { type: mongoose.Schema.Types.ObjectId, ref: 'CourseOffering' }
   }]
-}, { timestamps: true });
+}, { 
+  timestamps: true,
+  toJSON: { virtuals: true },
+  toObject: { virtuals: true }
+});
+
+// Synchronize alias virtuals for seamless API compatibility
+studentSchema.virtual('studentName')
+  .get(function() { return this.name; })
+  .set(function(v) { this.name = v; });
+
+studentSchema.virtual('studentEmail')
+  .get(function() { return this.email; })
+  .set(function(v) { this.email = v; });
+
+studentSchema.virtual('phone')
+  .get(function() { return this.contactNo; })
+  .set(function(v) { this.contactNo = v; });
+
+studentSchema.virtual('registrationNo')
+  .get(function() { return this.registrationNumber; })
+  .set(function(v) { this.registrationNumber = v; });
+
+studentSchema.virtual('currentSemester')
+  .get(function() { return this.semester; })
+  .set(function(v) { this.semester = v; });
+
+studentSchema.virtual('academicSession')
+  .get(function() { return this.session; })
+  .set(function(v) { this.session = v; });
 
 studentSchema.pre('save', async function(next) {
-  if (!this.isModified('password')) return next();
-  const salt = await bcrypt.genSalt(10);
-  this.password = await bcrypt.hash(this.password, salt);
+  if (this.isModified('password')) {
+    const salt = await bcrypt.genSalt(10);
+    this.password = await bcrypt.hash(this.password, salt);
+  }
 });
 
 studentSchema.methods.matchPassword = async function(enteredPassword) {
@@ -116,9 +170,13 @@ studentSchema.index({ rollNumber: 1, department: 1, series: 1 });
 studentSchema.index({ department: 1 });
 studentSchema.index({ series: 1 });
 studentSchema.index({ session: 1 });
+studentSchema.index({ semester: 1 });
 studentSchema.index({ status: 1 });
+studentSchema.index({ regularStatus: 1 });
+studentSchema.index({ registrationNumber: 1 });
+studentSchema.index({ email: 1 });
 studentSchema.index({ section: 1 });
 // Text-search friendly indexes
-studentSchema.index({ name: 'text', rollNumber: 'text', registrationNumber: 'text' });
+studentSchema.index({ name: 'text', rollNumber: 'text', registrationNumber: 'text', email: 'text' });
 
 module.exports = mongoose.model('Student', studentSchema);

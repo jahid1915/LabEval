@@ -1,6 +1,11 @@
+import { useEffect } from 'react';
 import { motion } from 'framer-motion';
 
 const About = () => {
+  useEffect(() => {
+    window.scrollTo({ top: 0, left: 0, behavior: 'instant' });
+  }, []);
+
   return (
     <div className="pt-32 pb-24 max-w-4xl mx-auto px-6">
       <motion.div 

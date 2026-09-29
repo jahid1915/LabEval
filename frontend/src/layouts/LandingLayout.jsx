@@ -3,6 +3,8 @@ import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
 import { Menu, X, Sun, Moon, ArrowRight, ShieldCheck } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useTheme } from '../context/ThemeContext';
+import RuetLogo from '../components/RuetLogo';
+import PageTransition from '../components/PageTransition';
 
 export default function LandingLayout() {
   const [isScrolled, setIsScrolled] = useState(false);
@@ -51,9 +53,7 @@ export default function LandingLayout() {
 
           {/* Logo & Platform Name */}
           <Link to="/" className="flex items-center gap-3 shrink-0 group">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-transparent dark:bg-[#111c38] flex items-center justify-center shadow-sm border border-blue-200/80 dark:border-blue-900/50 group-hover:scale-105 transition-transform p-1">
-              <img src="/labeval_icon.png" alt="LabEval Logo" className="w-8 h-8 object-contain" />
-            </div>
+            <RuetLogo size={42} />
             <div>
               <div className="flex items-center gap-2">
                 <span className="font-heading font-extrabold text-base tracking-tight text-slate-900 dark:text-white">
@@ -178,8 +178,12 @@ export default function LandingLayout() {
       </AnimatePresence>
 
       {/* ── Page Content ───────────────────────────────────────────── */}
-      <main className="flex-1 flex flex-col">
-        <Outlet />
+      <main className="flex-1 flex flex-col overflow-x-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          <PageTransition key={location.pathname}>
+            <Outlet />
+          </PageTransition>
+        </AnimatePresence>
       </main>
 
       {/* ── Footer (Multi-Color Accents) ───────────────────────────── */}
@@ -188,9 +192,7 @@ export default function LandingLayout() {
           
           <div className="md:col-span-2 space-y-3">
             <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-white/10 border border-white/10 flex items-center justify-center p-1">
-                <img src="/labeval_icon.png" alt="LabEval" className="w-7 h-7 object-contain" />
-              </div>
+              <RuetLogo size={38} />
               <div>
                 <span className="font-heading font-bold text-base text-white block">
                   Lab<span className="text-blue-400">Eval</span> &bull; RUET

@@ -19,7 +19,7 @@ const loadLogoBase64 = async () => {
         resolve(canvas.toDataURL('image/png'));
       };
       img.onerror = (e) => reject(e);
-      img.src = '/RUET.png';
+      img.src = '/RUETLOGO.png';
     });
   } catch {
     return null;
@@ -38,7 +38,7 @@ export const generateRUETPDFReport = async ({
   courseName = 'Sessional based on EEE 3153',
   department = 'ETE',
   departmentName = 'Electronics & Telecommunication Engineering',
-  facultyName = 'Faculty of Electrical & Computer Engineering',
+  _facultyName = 'Faculty of Electrical & Computer Engineering',
   series = '22',
   semester = '3-1',
   session = '2024-2025',
@@ -308,7 +308,7 @@ export const generateRUETXLSXReport = ({
   courseName = 'Sessional Based on EEE 3153',
   department = 'ETE',
   departmentName = 'Electronics & Telecommunication Engineering',
-  facultyName = 'Faculty of Electrical & Computer Engineering',
+  _facultyName = 'Faculty of Electrical & Computer Engineering',
   series = '22',
   semester = '3-1',
   session = '2024-2025',

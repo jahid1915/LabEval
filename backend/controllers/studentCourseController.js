@@ -10,6 +10,7 @@ const Performance = require('../models/Performance');
 const Quiz = require('../models/Quiz');
 const Test = require('../models/Test');
 const Others = require('../models/Others');
+const FinalEnrollment = require('../models/FinalEnrollment');
 
 // @desc Get student courses organized semester-wise, with real assigned teachers and grades
 // @route GET /api/student/courses
@@ -60,11 +61,19 @@ const getStudentCourses = async (req, res) => {
       }
     });
 
-    // 4. Collect student's final results and requests
-    const [finalResults, requests] = await Promise.all([
+    // 4. Collect student's final results, requests, and approved elective enrollments
+    const [finalResults, requests, finalEnrollments] = await Promise.all([
       FinalResult.find({ student: student._id }),
-      Request.find({ student: student._id })
+      Request.find({ student: student._id }),
+      FinalEnrollment.find({ studentId: student._id, status: 'active' }).populate('courseId offeringId')
     ]);
+
+    const approvedElectiveCourseMap = new Map();
+    finalEnrollments.forEach(fe => {
+      if (fe.courseId) {
+        approvedElectiveCourseMap.set(fe.courseId.courseCode || fe.courseCode, fe);
+      }
+    });
 
     const resultMap = {};
     finalResults.forEach(r => {
@@ -84,9 +93,17 @@ const getStudentCourses = async (req, res) => {
     const combined = [];
     const seenCourseCodes = new Set();
 
-    // Add active offerings first
+    // Add active offerings first (Only include core courses, or electives if approved/finalized for this student)
     for (const off of offerings) {
       const courseCode = off.courseCode;
+      const isElectiveCourse = off.course?.isElective !== undefined ? off.course.isElective : false;
+      const isApprovedElective = approvedElectiveCourseMap.has(courseCode);
+
+      // Do NOT include elective courses in active courses unless finalized for this student
+      if (isElectiveCourse && !isApprovedElective) {
+        continue;
+      }
+
       seenCourseCodes.add(courseCode);
 
       const assign = assignmentByOfferingId[off._id.toString()] || assignmentByCourseCode[courseCode];
@@ -102,7 +119,8 @@ const getStudentCourses = async (req, res) => {
         courseType: off.course?.courseType || (off.course?.isSessional ? 'Sessional' : 'Theory'),
         credit: off.course?.credit || 3.0,
         creditHours: off.course?.creditHours || 3.0,
-        isElective: off.course?.isElective !== undefined ? off.course.isElective : true,
+        isElective: isElectiveCourse,
+        isApprovedElective,
         isSessional: !!off.course?.isSessional,
         semester,
         academicSession: off.sessionName || '2024-2025',
@@ -133,8 +151,66 @@ const getStudentCourses = async (req, res) => {
       });
     }
 
-    // Add remaining master elective courses for semester view completeness
+    // Add finalized electives from FinalEnrollment if not already in offerings
+    for (const fe of finalEnrollments) {
+      if (!fe.courseId) continue;
+      const courseCode = fe.courseCode || fe.courseId.courseCode;
+      if (!seenCourseCodes.has(courseCode)) {
+        seenCourseCodes.add(courseCode);
+        const cDoc = fe.courseId;
+        const coDoc = fe.courseOfferingId;
+        const assign = (coDoc && assignmentByOfferingId[coDoc._id?.toString()]) || assignmentByCourseCode[courseCode];
+        const semester = coDoc?.semesterName || cDoc.semesterLevel || '3-2';
+        const result = resultMap[`${courseCode}_${semester}`] || resultMap[courseCode];
+        const reqDoc = requestMap[`${courseCode}_${semester}`] || requestMap[courseCode];
+
+        combined.push({
+          _id: coDoc?._id || cDoc._id,
+          offeringId: coDoc?._id || null,
+          courseCode: cDoc.courseCode,
+          courseName: cDoc.courseName,
+          courseType: cDoc.courseType || (cDoc.isSessional ? 'Sessional' : 'Theory'),
+          credit: cDoc.credit || 3.0,
+          creditHours: cDoc.creditHours || 3.0,
+          isElective: true,
+          isApprovedElective: true,
+          isSessional: !!cDoc.isSessional,
+          semester,
+          academicSession: coDoc?.sessionName || '2024-2025',
+          series: coDoc?.seriesName || student.series,
+          department: coDoc?.departmentCode || student.department,
+          teacher: assign && assign.teacher ? {
+            _id: assign.teacher._id,
+            teacherId: assign.teacher.teacherId,
+            name: assign.teacher.name,
+            designation: assign.teacher.designation,
+            email: assign.teacher.email,
+            department: assign.teacher.department
+          } : null,
+          grade: result?.grade || '',
+          gradePoint: result?.gradePoint !== undefined ? result.gradePoint : null,
+          totalMarks: result?.totalMarks || null,
+          maxTotalMarks: result?.maxTotalMarks || 65,
+          detailedMarks: (reqDoc?.status === 'Accepted' || reqDoc?.status === 'Completed' || result?.isPublished)
+            ? (reqDoc?.detailedMarks || result?.detailedMarks)
+            : null,
+          request: reqDoc ? {
+            _id: reqDoc._id,
+            status: reqDoc.status,
+            requestDate: reqDoc.requestDate,
+            processedAt: reqDoc.processedAt,
+            detailedMarks: reqDoc.detailedMarks
+          } : null
+        });
+      }
+    }
+
+    // Add remaining master core courses only (exclude unapproved electives)
     for (const mc of masterCourses) {
+      if (mc.isElective && !approvedElectiveCourseMap.has(mc.courseCode)) {
+        continue; // Do not add unfinalized electives
+      }
+
       if (!seenCourseCodes.has(mc.courseCode)) {
         seenCourseCodes.add(mc.courseCode);
         const courseCode = mc.courseCode;
@@ -151,7 +227,8 @@ const getStudentCourses = async (req, res) => {
           courseType: mc.courseType || (mc.isSessional ? 'Sessional' : 'Theory'),
           credit: mc.credit,
           creditHours: mc.creditHours,
-          isElective: mc.isElective,
+          isElective: !!mc.isElective,
+          isApprovedElective: approvedElectiveCourseMap.has(courseCode),
           isSessional: mc.isSessional,
           semester,
           academicSession: '2024-2025',

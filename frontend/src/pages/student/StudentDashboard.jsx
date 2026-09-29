@@ -11,6 +11,7 @@ import {
   ShieldCheck, AlertCircle, CheckCircle2, Download
 } from 'lucide-react';
 import { generateStudentAcademicTranscriptPDF } from '../../utils/ruetReportGenerator';
+import RuetLogo from '../../components/RuetLogo';
 
 const ALL_SEMESTERS = ['1-1', '1-2', '2-1', '2-2', '3-1', '3-2', '4-1', '4-2'];
 const SEMESTERS = ALL_SEMESTERS;
@@ -95,9 +96,7 @@ export default function StudentDashboard() {
       <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-5 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-3.5">
-            <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-cyan-600 flex items-center justify-center text-white shrink-0 shadow-md shadow-blue-500/20">
-              <GraduationCap size={20} />
-            </div>
+            <RuetLogo size={48} />
             <div>
               <div className="flex flex-wrap items-center gap-2 mb-1">
                 <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-cyan-50 dark:bg-cyan-950/40 border border-cyan-200 dark:border-cyan-800 text-cyan-700 dark:text-cyan-300 uppercase tracking-wide">

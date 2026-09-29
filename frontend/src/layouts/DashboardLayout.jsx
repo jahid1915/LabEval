@@ -1,13 +1,16 @@
 import { useState, useContext } from 'react';
-import { Outlet, NavLink, Link, useNavigate } from 'react-router-dom';
+import { Outlet, NavLink, Link, useNavigate, useLocation } from 'react-router-dom';
+import { AnimatePresence } from 'framer-motion';
 import { AuthContext } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
+import RuetLogo from '../components/RuetLogo';
+import PageTransition from '../components/PageTransition';
 import {
   LayoutDashboard, BookOpen, Activity, HelpCircle, FileCheck,
   ClipboardList, TrendingUp, LogOut, Sun, Moon, Menu, X,
   Phone, Building2, ChevronRight, GraduationCap, Users,
   Calendar, CalendarOff, FolderTree, FileText, Bell, ChevronDown,
-  Upload, History, Award, KeyRound
+  Upload, History, Award, KeyRound, Sparkles, CheckSquare, Layers
 } from 'lucide-react';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 
@@ -16,31 +19,32 @@ import ChangePasswordModal from '../components/ChangePasswordModal';
 const adminNav = [
   { heading: 'Overview' },
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
+  
+  { heading: 'Student Management' },
+  { to: '/admin/students',         icon: Users,           label: 'All Students' },
+  { to: '/admin/import',           icon: Upload,          label: 'Import Students' },
+  { to: '/admin/import-history',   icon: History,         label: 'Import History' },
+
+  { heading: 'Elective Courses' },
+  { to: '/admin/electives',        icon: Sparkles,        label: 'Elective Management' },
+
+  { heading: 'Academics & Courses' },
+  { to: '/admin/course-catalog',   icon: BookOpen,        label: 'Course Catalog' },
+  { to: '/admin/course-offerings', icon: Award,           label: 'Course Offerings' },
+  { to: '/admin/teachers',         icon: GraduationCap,   label: 'All Teachers' },
+
   { heading: 'Institution' },
   { to: '/admin/faculties',        icon: FolderTree,      label: 'Faculties' },
   { to: '/admin/departments',      icon: Building2,       label: 'Departments' },
   { to: '/admin/sessions',         icon: Calendar,        label: 'Academic Sessions' },
-  { to: '/admin/series',           icon: Users,           label: 'Series / Batches' },
-  { heading: 'Academics & Courses' },
-  { to: '/admin/course-catalog',   icon: BookOpen,        label: 'Course Catalog' },
-  { to: '/admin/course-offerings', icon: Award,           label: 'Course Offerings' },
-  { heading: 'People' },
-  { to: '/admin/teachers',         icon: GraduationCap,   label: 'Teachers' },
-  { to: '/admin/students',         icon: Users,           label: 'Students' },
-  { heading: 'Management' },
-  { to: '/admin/leaves',           icon: CalendarOff,     label: 'Leave Management' },
-  { to: '/admin/announcements',    icon: Bell,            label: 'Announcements' },
-  { to: '/admin/audit-logs',       icon: FileText,        label: 'Audit Logs' },
-  { heading: 'Data Management' },
-  { to: '/admin/import',           icon: Upload,          label: 'Import Students' },
-  { to: '/admin/import-history',   icon: History,         label: 'Import History' },
+  { to: '/admin/series',           icon: Layers,          label: 'Series / Batches' },
 ];
-
 
 const teacherNav = [
   { heading: 'Main' },
   { to: '/teacher',            icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/teacher/courses',   icon: BookOpen,        label: 'My Courses' },
+  { to: '/teacher/electives', icon: Sparkles,        label: 'Elective Rosters' },
   { heading: 'Mark Entry' },
   { to: '/teacher/attendance', icon: ClipboardList,  label: 'Attendance & Report' },
   { to: '/teacher/performance',icon: Activity,       label: 'Lab Performance' },
@@ -55,6 +59,7 @@ const teacherNav = [
 const studentNav = [
   { heading: 'Academic' },
   { to: '/student', icon: LayoutDashboard, label: 'My Courses', end: true },
+  { to: '/student/electives', icon: Sparkles, label: 'Elective Selection' },
 ];
 
 /* ── Sidebar Component ───────────────────────────────────── */
@@ -92,20 +97,17 @@ function Sidebar({ user, navItems, isDarkMode, toggleTheme, handleLogout, onOpen
       <Link to={getPortalBase()} onClick={onClose}
         className="flex items-center gap-3 px-5 py-4"
         style={{ borderBottom: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}` }}>
-        <div className="w-9 h-9 rounded-xl overflow-hidden shrink-0 border border-blue-200/80 dark:border-blue-900/50 bg-gradient-to-br from-blue-500/10 via-cyan-500/10 to-transparent dark:bg-[#111c38] flex items-center justify-center p-1 shadow-sm">
-          <img src="/labeval_icon.png" alt="LabEval Logo" className="w-full h-full object-contain" />
-        </div>
+        <RuetLogo size={40} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="text-[14px] font-bold leading-tight truncate"
-              style={{ color: isDarkMode ? '#f8fafc' : '#0f172a' }}>
+            <span className="font-heading text-[15px] font-extrabold leading-tight tracking-tight truncate text-slate-900 dark:text-white">
               Lab<span className="text-blue-600 dark:text-blue-400">Eval</span>
             </span>
-            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded bg-blue-100 dark:bg-blue-950/80 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/60 uppercase">
+            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/90 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80 uppercase tracking-wide">
               RUET
             </span>
           </div>
-          <p className="text-[11px] font-medium truncate mt-0.5" style={{ color: isDarkMode ? '#38bdf8' : '#2563eb' }}>
+          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate mt-0.5">
             Lab Performance Evaluation
           </p>
         </div>
@@ -242,6 +244,7 @@ export default function DashboardLayout() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
   const navigate = useNavigate();
+  const location = useLocation();
 
   let navItems = studentNav;
   if (user?.role === 'teacher') navItems = teacherNav;
@@ -317,7 +320,7 @@ export default function DashboardLayout() {
             <Menu size={20} />
           </button>
           <div className="flex items-center gap-2">
-            <img src="/labeval_icon.png" alt="LabEval" className="w-6 h-6 object-contain" />
+            <RuetLogo size={26} />
             <span className="text-[14px] font-bold" style={{ color: headerText }}>
               Lab<span className="text-blue-600 dark:text-blue-400">Eval</span>
             </span>
@@ -330,9 +333,13 @@ export default function DashboardLayout() {
         </header>
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto" style={{ background: bgColor }}>
+        <main className="flex-1 overflow-y-auto overflow-x-hidden" style={{ background: bgColor }}>
           <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-7xl 2xl:max-w-[1760px] mx-auto w-full">
-            <Outlet />
+            <AnimatePresence mode="wait" initial={false}>
+              <PageTransition key={location.pathname}>
+                <Outlet />
+              </PageTransition>
+            </AnimatePresence>
           </div>
         </main>
       </div>

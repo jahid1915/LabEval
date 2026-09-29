@@ -1,17 +1,48 @@
-const Student    = require('../models/Student');
+const mongoose = require('mongoose');
+const Student = require('../models/Student');
+const FinalEnrollment = require('../models/FinalEnrollment');
+const Course = require('../models/Course');
 const Attendance = require('../models/Attendance');
-const Report     = require('../models/Report');
+const Report = require('../models/Report');
 const Performance = require('../models/Performance');
-const Quiz       = require('../models/Quiz');
-const Test       = require('../models/Test');
-const Others     = require('../models/Others');
+const Quiz = require('../models/Quiz');
+const Test = require('../models/Test');
+const Others = require('../models/Others');
 
-// @desc  Get students by dept + series query
-// @route GET /api/teacher/students/any?department=ETE&series=22
+// @desc  Get students by dept + series query or by course enrollment roster
+// @route GET /api/teacher/students/any?department=ETE&series=22&courseId=ETE3221
 // @route GET /api/teacher/students/:courseId (legacy)
 const getStudentsByCourse = async (req, res) => {
   try {
-    const { department, series } = req.query;
+    const { department, series, courseId: queryCourseId } = req.query;
+    const courseId = req.params.courseId || queryCourseId;
+
+    // If a course is specified, check if it has approved elective enrollments in FinalEnrollment
+    if (courseId && courseId !== 'any') {
+      const cleanCourse = courseId.trim();
+      const courseDoc = await Course.findOne({
+        $or: [
+          ...(mongoose.Types.ObjectId.isValid(cleanCourse) ? [{ _id: cleanCourse }] : []),
+          { courseCode: cleanCourse.toUpperCase() }
+        ]
+      });
+
+      if (courseDoc) {
+        const enrollments = await FinalEnrollment.find({
+          courseId: courseDoc._id,
+          status: 'active'
+        }).populate('studentId').lean();
+
+        if (enrollments.length > 0) {
+          const enrolledStudents = enrollments
+            .map(e => e.studentId)
+            .filter(Boolean)
+            .sort((a, b) => (a.rollNumber > b.rollNumber ? 1 : -1));
+          return res.json(enrolledStudents);
+        }
+      }
+    }
+
     let query = {};
     if (department) query.department = department.toUpperCase();
     if (series)     query.series     = series;
