@@ -2,7 +2,8 @@
  * LabEval — Automated QA, API Testing, Integration & Cross-Check Suite
  * Tests actual running application and API endpoints at http://127.0.0.1:5000
  */
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const mongoose = require('mongoose');
 
 const BASE_URL = 'http://127.0.0.1:5000';
@@ -120,7 +121,7 @@ async function runTestSuite() {
     // Admin Valid Login
     const admLogin = await api('/api/auth/admin-login', {
       method: 'POST',
-      body: JSON.stringify({ username: 'admin', password: 'admin123' })
+      body: JSON.stringify({ username: 'admin', password: 'adminpassword' })
     });
     recordTest('Auth', 'Admin Valid Login', admLogin.status === 200 && !!admLogin.data?.token);
     adminToken = admLogin.data?.token || '';

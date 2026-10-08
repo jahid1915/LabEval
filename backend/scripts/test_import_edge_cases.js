@@ -6,7 +6,8 @@
  * - Update existing
  * - Missing password / username
  */
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const mongoose = require('mongoose');
 
 const API_BASE = 'http://localhost:5000/api';
@@ -22,7 +23,7 @@ async function testEdgeCases() {
   const loginRes = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier: 'admin', password: 'admin123' })
+    body: JSON.stringify({ identifier: 'admin', password: 'adminpassword' })
   });
   const { token } = await loginRes.json();
 

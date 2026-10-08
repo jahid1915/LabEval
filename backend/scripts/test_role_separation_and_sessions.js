@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const mongoose = require('mongoose');
 
 const BASE_URL = 'http://127.0.0.1:5000';
@@ -160,16 +161,28 @@ async function run() {
     }
   };
 
-  const importRes = await api('/api/import/students/execute', {
+  // Verify Head is strictly forbidden from importing master data (Requirement 8)
+  const headImportRes = await api('/api/import/students/execute', {
     method: 'POST',
     headers: { Authorization: `Bearer ${headToken}` },
+    body: JSON.stringify(importPayload)
+  });
+  if (headImportRes.status !== 403) {
+    throw new Error(`Expected Head import to be rejected with 403, got ${headImportRes.status}`);
+  }
+  console.log('✅ PASS: Department Head is strictly forbidden from importing students (403 Forbidden).');
+
+  // Admin executes master data import
+  const importRes = await api('/api/import/students/execute', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${adminToken}` },
     body: JSON.stringify(importPayload)
   });
 
   if (!importRes.ok) {
     throw new Error(`Import failed: ${JSON.stringify(importRes.data)}`);
   }
-  console.log(`✅ Student Import executed successfully: Inserted ${importRes.data.stats?.inserted} students.`);
+  console.log(`✅ Student Import executed by Admin: Inserted ${importRes.data.stats?.inserted} students.`);
 
   // ── 5. Database Direct Verification ────────────────────────────────
   console.log('\n--- 5. Verifying Database Relationships ---');

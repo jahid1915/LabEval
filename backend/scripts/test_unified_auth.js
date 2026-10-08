@@ -1,4 +1,5 @@
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const mongoose = require('mongoose');
 
 const BASE_URL = 'http://127.0.0.1:5000';
@@ -264,7 +265,7 @@ async function runAuthTests() {
     // 5.4 Admin Login using ADMIN
     const aLogin = await api('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ identifier: 'ADMIN', password: 'admin123' })
+      body: JSON.stringify({ identifier: 'ADMIN', password: 'adminpassword' })
     });
     recordTest('Admin Unified Login by ADMIN', aLogin.status === 200 && (aLogin.data?.user?.role === 'admin' || aLogin.data?.user?.role === 'super_admin'));
     adminToken = aLogin.data?.token || '';
@@ -272,7 +273,7 @@ async function runAuthTests() {
     // 5.5 Admin Case-Insensitive Login (admin)
     const aLoginLower = await api('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ identifier: 'admin', password: 'admin123' })
+      body: JSON.stringify({ identifier: 'admin', password: 'adminpassword' })
     });
     recordTest('Admin Case-Insensitive Login', aLoginLower.status === 200);
 
@@ -418,13 +419,19 @@ async function runAuthTests() {
     });
     recordTest('Department Head Blocked from Other Departments (403 Department Isolation Violation)', hCrossDept.status === 403);
 
-    // 9.5 Department Head Accessing Own Department Allowed
-    const hOwnDept = await api('/api/admin/students?department=ETE', {
+    // 9.5 Department Head Blocked from Admin APIs (403 Forbidden - Requirement 6)
+    const hAdminAccess = await api('/api/admin/students?department=ETE', {
       headers: { Authorization: `Bearer ${headToken}` }
     });
-    recordTest('Department Head Access to Own Department Allowed (200 OK)', hOwnDept.status === 200);
+    recordTest('Department Head Blocked from Admin Endpoints (403 Forbidden)', hAdminAccess.status === 403);
 
-    // 9.6 Global Admin Accessing All Departments Allowed
+    // 9.6 Department Head Access to Own Department via Head API Allowed (200 OK)
+    const hOwnDept = await api('/api/head/students', {
+      headers: { Authorization: `Bearer ${headToken}` }
+    });
+    recordTest('Department Head Access to Own Department via Head API (200 OK)', hOwnDept.status === 200);
+
+    // 9.7 Global Admin Accessing All Departments Allowed (200 OK)
     const admCrossDept = await api('/api/admin/students?department=CSE', {
       headers: { Authorization: `Bearer ${adminToken}` }
     });

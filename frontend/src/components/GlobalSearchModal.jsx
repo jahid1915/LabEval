@@ -1,10 +1,12 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useContext } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import { AuthContext } from '../context/AuthContext';
 import { Search, X, Users, BookOpen, GraduationCap, Building2, Calendar, ArrowRight, Loader2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 
 export default function GlobalSearchModal({ isOpen, onClose }) {
+  const { user } = useContext(AuthContext);
   const [query, setQuery] = useState('');
   const [results, setResults] = useState({ teachers: [], students: [], courses: [], offerings: [], departments: [] });
   const [loading, setLoading] = useState(false);
@@ -43,6 +45,15 @@ export default function GlobalSearchModal({ isOpen, onClose }) {
 
   const handleSelect = (url) => {
     onClose();
+    // Scope route to role
+    if (user?.role === 'department_head') {
+      if (url.startsWith('/admin/students')) return navigate('/head/students');
+      if (url.startsWith('/admin/teachers')) return navigate('/head/teachers');
+      if (url.startsWith('/admin/course-catalog') || url.startsWith('/admin/courses')) return navigate('/head/courses');
+      if (url.startsWith('/admin/course-offerings')) return navigate('/head/courses');
+      if (url.startsWith('/admin/sessions')) return navigate('/head/academic-sessions');
+      return navigate('/head');
+    }
     navigate(url);
   };
 

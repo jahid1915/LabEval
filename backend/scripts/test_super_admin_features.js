@@ -48,7 +48,7 @@ async function run() {
     headers: { 'Content-Type': 'application/json' }
   }, {
     identifier: 'ADMIN',
-    password: 'admin123'
+    password: 'adminpassword'
   });
 
   assert(adminLoginRes.status === 200 && adminLoginRes.data?.token, 'Admin login succeeded');

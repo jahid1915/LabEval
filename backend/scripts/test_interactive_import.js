@@ -9,7 +9,8 @@
  * 6. Verifying student authentication via POST /api/auth/login
  * 7. Duplicate handling verification ('skip', 'update', 'stop')
  */
-require('dotenv').config();
+const path = require('path');
+require('dotenv').config({ path: path.resolve(__dirname, '../.env') });
 const mongoose = require('mongoose');
 const bcrypt = require('bcryptjs');
 const XLSX = require('xlsx');
@@ -31,7 +32,7 @@ async function runTests() {
   const loginRes = await fetch(`${API_BASE}/auth/login`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ identifier: 'admin', password: 'admin123' })
+    body: JSON.stringify({ identifier: 'admin', password: 'adminpassword' })
   });
   const loginData = await loginRes.json();
   if (!loginData.success || !loginData.token) {
