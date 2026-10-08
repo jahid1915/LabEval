@@ -404,21 +404,23 @@ const previewImport = async (req, res) => {
       const { valid, data, errors } = validateRow(row, row._rowIndex, validDeptCodes, overrides, adminDeptCode);
 
       // Validate selected credential fields exist on this row (Requirement 23, 24)
-      const usernameVal = data[credentialConfig.usernameField] || row[credentialConfig.usernameField];
+      const uField = credentialConfig?.usernameField || 'rollNumber';
+      const pField = credentialConfig?.passwordField || 'registrationNumber';
+      const usernameVal = (data && data[uField]) || row[uField] || row.rollNumber || '';
       if (!usernameVal || String(usernameVal).trim() === '') {
         errors.push({
           row: row._rowIndex,
-          field: credentialConfig.usernameField,
-          message: `Missing student username (Field "${credentialConfig.usernameField}" is empty)`
+          field: uField,
+          message: `Missing student username (Field "${uField}" is empty)`
         });
       }
 
-      const passwordVal = data[credentialConfig.passwordField] || row[credentialConfig.passwordField];
+      const passwordVal = (data && data[pField]) || row[pField] || row.registrationNumber || row.rollNumber || '';
       if (!passwordVal || String(passwordVal).trim() === '') {
         errors.push({
           row: row._rowIndex,
-          field: credentialConfig.passwordField,
-          message: `Missing initial password value (Field "${credentialConfig.passwordField}" is empty)`
+          field: pField,
+          message: `Missing initial password value (Field "${pField}" is empty)`
         });
       }
 
@@ -703,29 +705,38 @@ const executeImport = async (req, res) => {
     let invalidCount = 0;
 
     for (const row of mappedRows) {
+      // Skip completely empty rows
+      const values = Object.entries(row)
+        .filter(([k]) => k !== '_rowIndex')
+        .map(([, v]) => String(v || '').trim())
+        .filter(Boolean);
+      if (values.length === 0) continue;
+
       const { valid, data, errors } = validateRow(row, row._rowIndex, validDeptCodes, overrides, adminDeptCode);
 
-      // Validate credential fields exist
-      const usernameVal = data[credentialConfig.usernameField] || row[credentialConfig.usernameField];
+      // Validate credential fields exist safely
+      const uField = credentialConfig?.usernameField || 'rollNumber';
+      const pField = credentialConfig?.passwordField || 'registrationNumber';
+      const usernameVal = (data && data[uField]) || row[uField] || row.rollNumber || '';
       if (!usernameVal || String(usernameVal).trim() === '') {
         errors.push({
           row: row._rowIndex,
-          field: credentialConfig.usernameField,
-          message: `Missing student username (Field "${credentialConfig.usernameField}" is empty)`
+          field: uField,
+          message: `Missing student username (Field "${uField}" is empty)`
         });
       }
 
-      const passwordVal = data[credentialConfig.passwordField] || row[credentialConfig.passwordField];
+      const passwordVal = (data && data[pField]) || row[pField] || row.registrationNumber || row.rollNumber || '';
       if (!passwordVal || String(passwordVal).trim() === '') {
         errors.push({
           row: row._rowIndex,
-          field: credentialConfig.passwordField,
-          message: `Missing initial password value (Field "${credentialConfig.passwordField}" is empty)`
+          field: pField,
+          message: `Missing initial password value (Field "${pField}" is empty)`
         });
       }
 
       if (valid && errors.length === 0) {
-        validRows.push({ ...data, _rowIndex: row._rowIndex });
+        validRows.push({ ...(data || {}), _rowIndex: row._rowIndex });
       } else {
         invalidCount++;
         errors.forEach(e => {
@@ -782,9 +793,9 @@ const executeImport = async (req, res) => {
 
     await Promise.all(
       newItems.map(async (item) => {
-        const defaultPass = item[passField] ? String(item[passField]).trim() : '';
+        const defaultPass = (item[passField] && String(item[passField]).trim()) || item.registrationNumber || item.rollNumber || '';
         if (!defaultPass) {
-          throw new Error(`Student "${item.rollNumber || item.name}" is missing required initial password value in column mapped to "${passField}".`);
+          throw new Error(`Student "${item.rollNumber || item.name}" is missing required initial password value.`);
         }
         if (!passwordHashMap[item.rollNumber]) {
           passwordHashMap[item.rollNumber] = await bcrypt.hash(defaultPass, 10);

@@ -508,22 +508,50 @@ export default function StudentImportPage() {
 
     try {
       // Build mapping dictionary
-      const mappingDict = {};
+      const mappingDict = {
+        rollNumber: 'rollNumber',
+        name: 'name',
+        registrationNumber: 'registrationNumber',
+        department: 'department',
+        series: 'series',
+        session: 'session'
+      };
       columns.forEach(c => {
         if (c.mappedField) mappingDict[c.name] = c.mappedField;
       });
 
-      // Rows matching column names
-      const rawRowsToSend = rows.map((r, idx) => {
+      // Filter only student rows that have at least student roll/name (skip blank trailing rows)
+      const targetRows = rows.filter(r => {
+        const rollVal = rollCol ? String(r[rollCol.id] || '').trim() : '';
+        const nameVal = nameCol ? String(r[nameCol.id] || '').trim() : '';
+        return rollVal !== '' && nameVal !== '';
+      });
+
+      // Prepare rows with column names and canonical db fields
+      const regCol = columns.find(c => c.mappedField === 'registrationNumber') || columns.find(c => c.id === passwordColId);
+
+      const rawRowsToSend = targetRows.map((r, idx) => {
         const item = { _rowIndex: idx + 1 };
         columns.forEach(c => {
-          item[c.name] = String(r[c.id] || '').trim();
+          const val = String(r[c.id] || '').trim();
+          item[c.name] = val;
+          if (c.mappedField) item[c.mappedField] = val;
         });
+
+        // Ensure canonical fields are set
+        if (rollCol) item.rollNumber = String(r[rollCol.id] || '').trim();
+        if (nameCol) item.name = String(r[nameCol.id] || '').trim();
+        if (regCol) {
+          item.registrationNumber = String(r[regCol.id] || '').trim();
+        } else if (rollCol) {
+          item.registrationNumber = String(r[rollCol.id] || '').trim();
+        }
+
         return item;
       });
 
-      const userTargetField = rollCol?.mappedField || 'rollNumber';
-      const passTargetField = columns.find(c => c.id === passwordColId)?.mappedField || 'registrationNumber';
+      const userTargetField = 'rollNumber';
+      const passTargetField = regCol ? 'registrationNumber' : 'rollNumber';
 
       const payload = {
         fileName: fileName || 'students.xlsx',

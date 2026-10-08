@@ -453,18 +453,28 @@ const parseXlsxBuffer = (buffer, targetSheetName = null, userHeaderRowIdx = null
  * @param {string[]} [selectedFields] - Optional array of dbFields chosen by Admin
  * @returns {Object[]} - Mapped rows containing only selected dbField keys
  */
-const applyMapping = (rows, mapping, selectedFields = null) => {
+const applyMapping = (rows, mapping = {}, selectedFields = null) => {
   const selectedSet = selectedFields && Array.isArray(selectedFields) && selectedFields.length > 0
     ? new Set(selectedFields)
     : null;
 
   return rows.map(row => {
     const mapped = { _rowIndex: row._rowIndex };
-    for (const [excelHeader, dbField] of Object.entries(mapping)) {
-      if (dbField && row[excelHeader] !== undefined) {
-        // If selectedFields is specified, only include fields that are checked
-        if (!selectedSet || selectedSet.has(dbField)) {
-          mapped[dbField] = row[excelHeader];
+    // Preserve existing direct keys if present and not internal
+    for (const [key, val] of Object.entries(row)) {
+      if (key !== '_rowIndex' && val !== undefined) {
+        if (!selectedSet || selectedSet.has(key)) {
+          mapped[key] = val;
+        }
+      }
+    }
+    // Apply explicit mappings from mapping object
+    if (mapping && typeof mapping === 'object') {
+      for (const [excelHeader, dbField] of Object.entries(mapping)) {
+        if (dbField && row[excelHeader] !== undefined) {
+          if (!selectedSet || selectedSet.has(dbField)) {
+            mapped[dbField] = row[excelHeader];
+          }
         }
       }
     }
@@ -674,7 +684,7 @@ const validateRow = (row, rowIndex, validDepartments = [], overrides = {}, defau
 
   return {
     valid: errors.length === 0,
-    data: errors.length === 0 ? data : null,
+    data: data || {},
     errors
   };
 };
