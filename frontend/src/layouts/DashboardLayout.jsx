@@ -10,7 +10,7 @@ import {
   ClipboardList, TrendingUp, LogOut, Sun, Moon, Menu, X,
   Phone, Building2, ChevronRight, GraduationCap, Users,
   Calendar, CalendarOff, FolderTree, FileText, Bell, ChevronDown,
-  Upload, History, Award, KeyRound, Sparkles, CheckSquare, Layers
+  Upload, History, Award, KeyRound, Sparkles, CheckSquare, Layers, Shield
 } from 'lucide-react';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 
