@@ -20,7 +20,20 @@ const {
   getTeacherAssignedCourses,
   transferHeadship,
   getAdminRequests,
-  getStudentStats
+  getStudentStats,
+  getFacultiesSummary,
+  getDepartmentOverview,
+  getDepartmentHeadHistory,
+  assignDepartmentHead,
+  removeDepartmentHead,
+  getCurrentTeachingAssignments,
+  getTeacherTeachingOverview,
+  getCourseTeachingRoster,
+  createTeachingAssignment,
+  updateTeachingAssignment,
+  deleteTeachingAssignment,
+  getSystemSettings,
+  updateSystemSettings
 } = require('../controllers/adminController');
 const { importTeachers, importStudents } = require('../controllers/dataTransferController');
 const { protect, adminOrHead, enforceDepartmentIsolation } = require('../middleware/authMiddleware');
@@ -29,17 +42,34 @@ router.use(protect);
 router.use(adminOrHead);
 router.use(enforceDepartmentIsolation);
 
-// ── System Statistics ────────────────────────────────────────────────
+// ── System Statistics & Settings ─────────────────────────────────────
 router.get('/stats', getSystemStats);
 router.get('/requests', getAdminRequests);
+router.get('/system-settings', getSystemSettings);
+router.put('/system-settings', updateSystemSettings);
 
-// ── Course & Assignment Management (Section 9, 10, 11) ──────────────
+// ── Hierarchical Navigation (Faculty -> Department -> Head/Teachers) ─
+router.get('/faculties-summary', getFacultiesSummary);
+router.get('/departments/:deptCode/overview', getDepartmentOverview);
+router.get('/departments/:deptCode/head-history', getDepartmentHeadHistory);
+router.post('/departments/:deptCode/assign-head', assignDepartmentHead);
+router.post('/departments/:deptCode/remove-head', removeDepartmentHead);
+
+// ── Course & Assignment Management ───────────────────────────────────
 router.get('/courses', getDepartmentCourses);
 router.post('/assign-course', assignCourseToTeacher);
 router.delete('/revoke-assignment/:id', revokeCourseAssignment);
 router.get('/teacher-assignments/:teacherId', getTeacherAssignedCourses);
 
-// ── Department Headship Transfer ─────────────────────────────────────
+// ── Current Teacher–Course Assignments & Workload (ADD-ON) ────────────
+router.get('/teaching-assignments/current', getCurrentTeachingAssignments);
+router.post('/teaching-assignments', createTeachingAssignment);
+router.patch('/teaching-assignments/:id', updateTeachingAssignment);
+router.delete('/teaching-assignments/:id', deleteTeachingAssignment);
+router.get('/teachers/:id/teaching-overview', getTeacherTeachingOverview);
+router.get('/courses/:id/teaching-roster', getCourseTeachingRoster);
+
+// ── Department Headship Transfer (Legacy & Dedicated) ────────────────
 router.post('/transfer-headship', transferHeadship);
 
 // ── Teacher Management ───────────────────────────────────────────────

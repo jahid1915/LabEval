@@ -17,6 +17,7 @@ import StatDetailModal from './AdminDashboard/StatDetailModal';
 import { AssignCourseModal, ViewSyllabusModal } from './AdminDashboard/CourseModals';
 import { TeacherProfileModal, AddTeacherModal, EditTeacherModal } from './AdminDashboard/TeacherModals';
 import { AddStudentModal, EditStudentModal } from './AdminDashboard/StudentModals';
+import FacultyHierarchyView from './AdminDashboard/FacultyHierarchyView';
 
 const DEPARTMENTS = [
   'CSE', 'EEE', 'ME', 'CIVIL', 'ETE', 'ECE',
@@ -38,6 +39,8 @@ export default function AdminDashboard() {
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(false);
   const [showTransferHeadModal, setShowTransferHeadModal] = useState(false);
+  const isSuperAdmin = user?.role === 'admin' || user?.role === 'super_admin';
+  const [adminViewMode, setAdminViewMode] = useState(isSuperAdmin ? 'hierarchy' : 'department');
 
   const deptCode = user?.departmentCode || user?.department || 'ETE';
   const deptName = user?.departmentName || (deptCode === 'ETE' ? 'Electronics & Telecommunication Engineering' : `${deptCode} Department`);
@@ -401,8 +404,49 @@ export default function AdminDashboard() {
   return (
     <div className="space-y-6 pb-16">
       
-      {/* ── DEPARTMENT HEAD HEADER ── */}
-      <div className="bg-white dark:bg-[#111c38] border border-slate-200 dark:border-[#1e293b] rounded-xl p-5 shadow-sm">
+      {/* ── SUPER ADMIN VIEW SWITCHER ── */}
+      {isSuperAdmin && (
+        <div className="bg-white dark:bg-[#111c38] border border-slate-200 dark:border-[#1e293b] rounded-xl p-3 shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="px-2.5 py-1 rounded-md bg-blue-100 dark:bg-blue-950 text-blue-700 dark:text-blue-300 text-[10px] font-extrabold uppercase tracking-wider border border-blue-200 dark:border-blue-800">
+              Super Admin Console
+            </span>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              {adminViewMode === 'hierarchy' ? 'Institutional Academic Hierarchy' : `Single Department Console (${deptCode})`}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-1 bg-slate-100 dark:bg-slate-900 p-1 rounded-xl text-xs font-semibold self-start sm:self-auto">
+            <button
+              onClick={() => setAdminViewMode('hierarchy')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                adminViewMode === 'hierarchy'
+                  ? 'bg-white dark:bg-[#111c38] text-blue-600 dark:text-blue-400 shadow-sm font-bold'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              🏛️ Faculty Hierarchy (Primary)
+            </button>
+            <button
+              onClick={() => setAdminViewMode('department')}
+              className={`px-3 py-1.5 rounded-lg transition-all ${
+                adminViewMode === 'department'
+                  ? 'bg-white dark:bg-[#111c38] text-blue-600 dark:text-blue-400 shadow-sm font-bold'
+                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
+              }`}
+            >
+              📋 Department Console ({deptCode})
+            </button>
+          </div>
+        </div>
+      )}
+
+      {isSuperAdmin && adminViewMode === 'hierarchy' ? (
+        <FacultyHierarchyView />
+      ) : (
+        <>
+          {/* ── DEPARTMENT HEAD HEADER ── */}
+          <div className="bg-white dark:bg-[#111c38] border border-slate-200 dark:border-[#1e293b] rounded-xl p-5 shadow-sm">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div className="flex items-center gap-4">
             <RuetLogo size={48} />
@@ -996,6 +1040,8 @@ export default function AdminDashboard() {
         selectedRequestDetail={selectedRequestDetail}
         setSelectedRequestDetail={setSelectedRequestDetail}
       />
+        </>
+      )}
 
     </div>
   );

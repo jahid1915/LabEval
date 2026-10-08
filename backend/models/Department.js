@@ -19,14 +19,31 @@ const departmentSchema = new mongoose.Schema({
     ref: 'Faculty',
     required: true
   },
+  facultyCode: {
+    type: String,
+    uppercase: true,
+    trim: true,
+    default: ''
+  },
   headName: {
     type: String,
     trim: true,
     default: ''
   },
+  headId: {
+    type: String,
+    trim: true,
+    uppercase: true,
+    default: ''
+  },
   headTeacher: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Teacher',
+    default: null
+  },
+  headUser: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
     default: null
   },
   contactEmail: {

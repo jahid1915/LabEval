@@ -16,6 +16,9 @@ const Test = require('../models/Test');
 const Others = require('../models/Others');
 const Request = require('../models/Request');
 const LeaveRequest = require('../models/LeaveRequest');
+const User = require('../models/User');
+const DepartmentHeadHistory = require('../models/DepartmentHeadHistory');
+const FinalEnrollment = require('../models/FinalEnrollment');
 const { logAudit } = require('../middleware/auditMiddleware');
 const bcrypt = require('bcryptjs');
 
@@ -218,6 +221,33 @@ const createTeacher = async (req, res) => {
       dutyStatus: dutyStatus || 'ON_DUTY',
       joiningDate: joiningDate || new Date()
     });
+
+    // Create / link unified User record
+    try {
+      let userDoc = await User.findOne({ loginIdentifierLower: cleanId.toLowerCase() });
+      if (!userDoc) {
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(password, salt);
+        userDoc = await User.create({
+          loginIdentifier: cleanId,
+          loginIdentifierLower: cleanId.toLowerCase(),
+          passwordHash,
+          role: 'teacher',
+          status: 'ACTIVE',
+          name: name.trim(),
+          email: email?.trim().toLowerCase() || '',
+          phone: contactNo?.trim() || '',
+          department: targetDept,
+          departmentRef: deptDoc ? deptDoc._id : null,
+          profileRef: teacher._id,
+          profileModel: 'Teacher'
+        });
+        teacher.user = userDoc._id;
+        await teacher.save();
+      }
+    } catch (err) {
+      console.warn('User record creation warning for teacher:', err.message);
+    }
 
     await logAudit({
       req,
@@ -441,6 +471,33 @@ const createStudent = async (req, res) => {
     }
 
     const student = await Student.create(studentData);
+
+    // Create / link unified User record
+    try {
+      let userDoc = await User.findOne({ loginIdentifierLower: cleanRoll.toLowerCase() });
+      if (!userDoc) {
+        const salt = await bcrypt.genSalt(10);
+        const passwordHash = await bcrypt.hash(finalPassword, salt);
+        userDoc = await User.create({
+          loginIdentifier: cleanRoll,
+          loginIdentifierLower: cleanRoll.toLowerCase(),
+          passwordHash,
+          role: 'student',
+          status: status === 'inactive' ? 'INACTIVE' : (status === 'suspended' ? 'SUSPENDED' : 'ACTIVE'),
+          name: name.trim(),
+          email: email?.trim().toLowerCase() || '',
+          phone: (phone !== undefined ? phone : contactNo)?.trim() || '',
+          department: targetDept,
+          departmentRef: deptDoc ? deptDoc._id : null,
+          profileRef: student._id,
+          profileModel: 'Student'
+        });
+        student.user = userDoc._id;
+        await student.save();
+      }
+    } catch (err) {
+      console.warn('User record creation warning for student:', err.message);
+    }
 
     await logAudit({
       req,
@@ -1192,6 +1249,901 @@ const getStudentStats = async (req, res) => {
   }
 };
 
+// ── FACULTY & DEPARTMENT HIERARCHY ─────────────────────────────────────
+
+// GET /api/admin/faculties-summary
+const getFacultiesSummary = async (req, res) => {
+  try {
+    const faculties = await Faculty.find({ status: { $ne: 'archived' } }).sort({ name: 1 }).lean();
+
+    const summary = await Promise.all(faculties.map(async (f) => {
+      const departments = await Department.find({ faculty: f._id, status: { $ne: 'archived' } })
+        .populate('headTeacher', 'name teacherId designation contactNo email')
+        .sort({ code: 1 })
+        .lean();
+
+      const deptCodes = departments.map(d => d.code);
+
+      const [teachersCount, studentsCount, coursesCount, activeOfferingsCount] = await Promise.all([
+        Teacher.countDocuments({
+          $or: [{ facultyRef: f._id }, { department: { $in: deptCodes } }],
+          status: 'active'
+        }),
+        Student.countDocuments({
+          $or: [{ facultyRef: f._id }, { department: { $in: deptCodes } }],
+          status: 'active'
+        }),
+        Course.countDocuments({
+          $or: [{ faculty: f._id }, { departmentCode: { $in: deptCodes } }],
+          status: 'active'
+        }),
+        CourseOffering.countDocuments({
+          departmentCode: { $in: deptCodes },
+          status: 'active'
+        })
+      ]);
+
+      const deptSummaries = await Promise.all(departments.map(async (d) => {
+        const [dT, dS, dC, dOff, dAss] = await Promise.all([
+          Teacher.countDocuments({ $or: [{ departmentRef: d._id }, { department: d.code }], status: 'active' }),
+          Student.countDocuments({ $or: [{ departmentRef: d._id }, { department: d.code }], status: 'active' }),
+          Course.countDocuments({ $or: [{ department: d._id }, { departmentCode: d.code }], status: 'active' }),
+          CourseOffering.countDocuments({ departmentCode: d.code, status: 'active' }),
+          TeacherAssignment.countDocuments({ departmentCode: d.code, status: 'active' })
+        ]);
+
+        return {
+          _id: d._id,
+          name: d.name,
+          code: d.code,
+          headName: d.headName || d.headTeacher?.name || 'Unassigned',
+          headId: d.headId || d.headTeacher?.teacherId || '',
+          headTeacher: d.headTeacher || null,
+          teachersCount: dT,
+          studentsCount: dS,
+          coursesCount: dC,
+          activeOfferingsCount: dOff,
+          activeAssignmentsCount: dAss,
+          status: d.status
+        };
+      }));
+
+      return {
+        _id: f._id,
+        name: f.name,
+        code: f.code,
+        deanName: f.deanName || '',
+        description: f.description || '',
+        status: f.status,
+        stats: {
+          departmentsCount: departments.length,
+          teachersCount,
+          studentsCount,
+          coursesCount,
+          activeOfferingsCount
+        },
+        departments: deptSummaries
+      };
+    }));
+
+    return res.json({ success: true, faculties: summary });
+  } catch (error) {
+    console.error('getFacultiesSummary error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/admin/departments/:deptCode/overview
+const getDepartmentOverview = async (req, res) => {
+  try {
+    const { deptCode } = req.params;
+    const cleanCode = deptCode.trim().toUpperCase();
+
+    const department = await Department.findOne({
+      $or: [
+        { code: cleanCode },
+        ...(mongoose.Types.ObjectId.isValid(deptCode) ? [{ _id: deptCode }] : [])
+      ]
+    })
+      .populate('faculty', 'name code deanName')
+      .populate('headTeacher', 'name teacherId designation contactNo email dutyStatus status')
+      .populate('headUser', 'loginIdentifier email phone role status')
+      .lean();
+
+    if (!department) {
+      return res.status(404).json({ success: false, message: `Department '${cleanCode}' not found` });
+    }
+
+    const [
+      teachersCount,
+      studentsCount,
+      coursesCount,
+      activeOfferingsCount,
+      activeAssignmentsCount,
+      recentHeadHistory
+    ] = await Promise.all([
+      Teacher.countDocuments({ $or: [{ departmentRef: department._id }, { department: department.code }], status: 'active' }),
+      Student.countDocuments({ $or: [{ departmentRef: department._id }, { department: department.code }], status: 'active' }),
+      Course.countDocuments({ $or: [{ department: department._id }, { departmentCode: department.code }], status: 'active' }),
+      CourseOffering.countDocuments({ departmentCode: department.code, status: 'active' }),
+      TeacherAssignment.countDocuments({ departmentCode: department.code, status: 'active' }),
+      DepartmentHeadHistory.find({ departmentCode: department.code })
+        .populate('previousHead', 'name teacherId designation')
+        .populate('newHead', 'name teacherId designation')
+        .sort({ effectiveDate: -1, createdAt: -1 })
+        .limit(5)
+        .lean()
+    ]);
+
+    const unassignedOfferingsCount = Math.max(0, activeOfferingsCount - activeAssignmentsCount);
+
+    return res.json({
+      success: true,
+      department,
+      stats: {
+        teachersCount,
+        studentsCount,
+        coursesCount,
+        activeOfferingsCount,
+        activeAssignmentsCount,
+        unassignedOfferingsCount
+      },
+      recentHeadHistory
+    });
+  } catch (error) {
+    console.error('getDepartmentOverview error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/admin/departments/:deptCode/head-history
+const getDepartmentHeadHistory = async (req, res) => {
+  try {
+    const { deptCode } = req.params;
+    const cleanCode = deptCode.trim().toUpperCase();
+
+    const history = await DepartmentHeadHistory.find({ departmentCode: cleanCode })
+      .populate('previousHead', 'name teacherId designation email')
+      .populate('newHead', 'name teacherId designation email')
+      .populate('assignedBy', 'name loginIdentifier role')
+      .sort({ effectiveDate: -1, createdAt: -1 })
+      .lean();
+
+    return res.json({ success: true, departmentCode: cleanCode, history });
+  } catch (error) {
+    console.error('getDepartmentHeadHistory error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/admin/departments/:deptCode/assign-head
+const assignDepartmentHead = async (req, res) => {
+  try {
+    const { deptCode } = req.params;
+    const { teacherId, reason, effectiveDate } = req.body;
+
+    if (!teacherId) {
+      return res.status(400).json({ success: false, message: 'Teacher ID is required to assign Head' });
+    }
+
+    const cleanDeptCode = (deptCode || req.body.departmentCode || '').trim().toUpperCase();
+    const department = await Department.findOne({ code: cleanDeptCode });
+    if (!department) {
+      return res.status(404).json({ success: false, message: `Department '${cleanDeptCode}' not found` });
+    }
+
+    // Find teacher
+    const teacher = await Teacher.findOne({
+      $or: [
+        { teacherId: teacherId.trim().toUpperCase() },
+        ...(mongoose.Types.ObjectId.isValid(teacherId) ? [{ _id: teacherId }] : [])
+      ]
+    });
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher not found' });
+    }
+
+    // Check teacher department
+    if (teacher.department && teacher.department.toUpperCase() !== cleanDeptCode) {
+      return res.status(400).json({
+        success: false,
+        message: `Teacher belongs to ${teacher.department}, but target department is ${cleanDeptCode}. Cannot assign cross-department Head.`
+      });
+    }
+
+    const currentHeadTeacherId = department.headId || (department.headTeacher ? (await Teacher.findById(department.headTeacher))?.teacherId : '');
+    const currentHeadName = department.headName;
+    const currentHeadTeacherRef = department.headTeacher;
+
+    // Check if same teacher is already active head
+    if (currentHeadTeacherId && currentHeadTeacherId.toUpperCase() === teacher.teacherId.toUpperCase()) {
+      return res.json({
+        success: true,
+        message: `${teacher.name} is already the active Head of Department ${cleanDeptCode}`,
+        department
+      });
+    }
+
+    // Demote old head if exists
+    if (currentHeadTeacherRef || currentHeadTeacherId) {
+      const oldTeacher = await Teacher.findOne({
+        $or: [
+          ...(currentHeadTeacherRef ? [{ _id: currentHeadTeacherRef }] : []),
+          ...(currentHeadTeacherId ? [{ teacherId: currentHeadTeacherId.toUpperCase() }] : [])
+        ]
+      });
+
+      if (oldTeacher) {
+        oldTeacher.role = 'teacher';
+        await oldTeacher.save();
+
+        await User.updateMany(
+          { loginIdentifierLower: oldTeacher.teacherId.toLowerCase() },
+          { role: 'teacher' }
+        );
+      }
+
+      await DepartmentHeadHistory.updateMany(
+        { departmentCode: cleanDeptCode, status: 'active' },
+        { endDate: new Date(), status: 'ended' }
+      );
+    }
+
+    // Promote new head
+    teacher.role = 'department_head';
+    await teacher.save();
+
+    let newHeadUser = await User.findOne({ loginIdentifierLower: teacher.teacherId.toLowerCase() });
+    if (newHeadUser) {
+      newHeadUser.role = 'department_head';
+      await newHeadUser.save();
+    } else {
+      const salt = await bcrypt.genSalt(10);
+      const passwordHash = await bcrypt.hash('Ruet@1234', salt);
+      newHeadUser = await User.create({
+        loginIdentifier: teacher.teacherId,
+        loginIdentifierLower: teacher.teacherId.toLowerCase(),
+        passwordHash,
+        role: 'department_head',
+        status: 'ACTIVE',
+        name: teacher.name,
+        email: teacher.email || '',
+        phone: teacher.contactNo || '',
+        department: cleanDeptCode,
+        departmentRef: department._id,
+        profileRef: teacher._id,
+        profileModel: 'Teacher'
+      });
+    }
+
+    // Update Department document
+    department.headTeacher = teacher._id;
+    department.headId = teacher.teacherId;
+    department.headName = teacher.name;
+    department.headUser = newHeadUser._id;
+    await department.save();
+
+    // Create immutable DepartmentHeadHistory entry
+    const historyEntry = await DepartmentHeadHistory.create({
+      department: department._id,
+      departmentCode: cleanDeptCode,
+      faculty: department.faculty,
+      facultyCode: department.facultyCode || '',
+      previousHead: currentHeadTeacherRef || null,
+      previousHeadId: currentHeadTeacherId || '',
+      previousHeadName: currentHeadName || '',
+      newHead: teacher._id,
+      newHeadId: teacher.teacherId,
+      newHeadName: teacher.name,
+      assignedBy: req.user._id,
+      assignedByName: req.user.name || 'System Admin',
+      effectiveDate: effectiveDate ? new Date(effectiveDate) : new Date(),
+      reason: reason?.trim() || 'Department Head appointment/reassignment',
+      status: 'active'
+    });
+
+    await logAudit({
+      req,
+      action: 'HEADSHIP_ASSIGNED',
+      entity: 'DepartmentHeadHistory',
+      entityId: historyEntry._id,
+      details: `Appointed ${teacher.name} (${teacher.teacherId}) as Head of ${cleanDeptCode}. Previous Head: ${currentHeadName || 'None'}. Reason: ${historyEntry.reason}`,
+      newValues: { departmentCode: cleanDeptCode, headId: teacher.teacherId, previousHeadId: currentHeadTeacherId }
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: `Successfully appointed ${teacher.name} as Head of Dept. of ${cleanDeptCode}`,
+      department,
+      historyEntry
+    });
+  } catch (error) {
+    console.error('assignDepartmentHead error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/admin/departments/:deptCode/remove-head
+const removeDepartmentHead = async (req, res) => {
+  try {
+    const { deptCode } = req.params;
+    const { reason } = req.body;
+    const cleanCode = deptCode.trim().toUpperCase();
+
+    const department = await Department.findOne({ code: cleanCode });
+    if (!department) {
+      return res.status(404).json({ success: false, message: `Department '${cleanCode}' not found` });
+    }
+
+    if (department.headTeacher) {
+      const currentTeacher = await Teacher.findById(department.headTeacher);
+      if (currentTeacher) {
+        currentTeacher.role = 'teacher';
+        await currentTeacher.save();
+
+        await User.updateMany(
+          { loginIdentifierLower: currentTeacher.teacherId.toLowerCase() },
+          { role: 'teacher' }
+        );
+      }
+    }
+
+    await DepartmentHeadHistory.updateMany(
+      { departmentCode: cleanCode, status: 'active' },
+      { endDate: new Date(), status: 'ended' }
+    );
+
+    department.headTeacher = null;
+    department.headId = '';
+    department.headName = '';
+    department.headUser = null;
+    await department.save();
+
+    await logAudit({
+      req,
+      action: 'HEADSHIP_REMOVED',
+      entity: 'Department',
+      entityId: department._id,
+      details: `Removed Head of ${cleanCode}. Reason: ${reason || 'Administrative action'}`
+    });
+
+    return res.json({
+      success: true,
+      message: `Head of Department ${cleanCode} has been vacated`,
+      department
+    });
+  } catch (error) {
+    console.error('removeDepartmentHead error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ── CURRENT TEACHER–COURSE ASSIGNMENT VISIBILITY & CONTROL ──────────────
+
+// GET /api/admin/teaching-assignments/current
+const getCurrentTeachingAssignments = async (req, res) => {
+  try {
+    const {
+      faculty,
+      department,
+      session,
+      semester,
+      series,
+      teacherId,
+      courseCode,
+      search,
+      page = 1,
+      limit = 20
+    } = req.query;
+
+    const query = { status: 'active' };
+
+    if (department && department !== 'ALL') {
+      query.departmentCode = department.toUpperCase();
+    }
+    if (faculty && faculty !== 'ALL') {
+      query.facultyCode = faculty.toUpperCase();
+    }
+    if (session && session !== 'ALL') {
+      query.academicSession = session;
+    }
+    if (semester && semester !== 'ALL') {
+      query.semester = semester;
+    }
+    if (series && series !== 'ALL') {
+      query.series = series;
+    }
+    if (teacherId) {
+      query.teacherId = teacherId.toUpperCase();
+    }
+    if (courseCode) {
+      query.courseCode = new RegExp(courseCode.trim(), 'i');
+    }
+    if (search) {
+      const s = search.trim();
+      query.$or = [
+        { courseCode: new RegExp(s, 'i') },
+        { courseName: new RegExp(s, 'i') },
+        { teacherName: new RegExp(s, 'i') },
+        { teacherId: new RegExp(s, 'i') },
+        { departmentCode: new RegExp(s, 'i') }
+      ];
+    }
+
+    const pageNum = Math.max(1, parseInt(page) || 1);
+    const limitNum = Math.max(1, Math.min(100, parseInt(limit) || 20));
+    const skip = (pageNum - 1) * limitNum;
+
+    const [assignments, total] = await Promise.all([
+      TeacherAssignment.find(query)
+        .populate('teacher', 'name teacherId designation contactNo email department status')
+        .populate('courseId', 'courseCode courseName credit creditHours courseType departmentCode isElective')
+        .populate('courseOffering', 'courseCode courseName seriesName sessionName semesterName status')
+        .sort({ updatedAt: -1, createdAt: -1 })
+        .skip(skip)
+        .limit(limitNum)
+        .lean(),
+      TeacherAssignment.countDocuments(query)
+    ]);
+
+    const enriched = await Promise.all(assignments.map(async (a) => {
+      let studentCount = 0;
+      if (a.courseOffering) {
+        studentCount = await FinalEnrollment.countDocuments({
+          $or: [
+            { courseOfferingId: a.courseOffering._id },
+            { courseId: a.courseId?._id }
+          ],
+          status: 'active'
+        });
+        if (studentCount === 0) {
+          studentCount = await Student.countDocuments({
+            department: a.departmentCode,
+            series: a.series || '22',
+            status: 'active'
+          });
+        }
+      }
+      return {
+        ...a,
+        studentCount
+      };
+    }));
+
+    return res.json({
+      success: true,
+      assignments: enriched,
+      pagination: {
+        page: pageNum,
+        limit: limitNum,
+        total,
+        totalPages: Math.ceil(total / limitNum)
+      }
+    });
+  } catch (error) {
+    console.error('getCurrentTeachingAssignments error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/admin/teachers/:id/teaching-overview
+const getTeacherTeachingOverview = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const teacher = await Teacher.findOne({
+      $or: [
+        { teacherId: id.trim().toUpperCase() },
+        ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : [])
+      ]
+    }).populate('departmentRef').populate('facultyRef').lean();
+
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: 'Teacher not found' });
+    }
+
+    const activeAssignments = await TeacherAssignment.find({
+      $or: [{ teacherId: teacher.teacherId }, { teacher: teacher._id }],
+      status: 'active'
+    })
+      .populate('courseId')
+      .populate('courseOffering')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const historicalAssignments = await TeacherAssignment.find({
+      $or: [{ teacherId: teacher.teacherId }, { teacher: teacher._id }],
+      status: { $in: ['revoked', 'expired', 'completed'] }
+    })
+      .populate('courseId')
+      .populate('courseOffering')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    let theoryCoursesCount = 0;
+    let labCoursesCount = 0;
+    let totalCredits = 0;
+    let totalStudents = 0;
+
+    const enrichedCurrent = await Promise.all(activeAssignments.map(async (a) => {
+      const isLab = a.courseId?.courseType === 'Lab' || a.courseId?.courseType === 'Sessional' || a.role === 'LAB_TEACHER';
+      if (isLab) labCoursesCount++;
+      else theoryCoursesCount++;
+
+      const credits = a.courseId?.credit || a.courseId?.creditHours || 3.0;
+      totalCredits += credits;
+
+      let studentCount = await FinalEnrollment.countDocuments({
+        $or: [
+          { courseOfferingId: a.courseOffering?._id },
+          { courseId: a.courseId?._id }
+        ],
+        status: 'active'
+      });
+      if (studentCount === 0) {
+        studentCount = await Student.countDocuments({
+          department: a.departmentCode || teacher.department,
+          series: a.series || '22',
+          status: 'active'
+        });
+      }
+      totalStudents += studentCount;
+
+      return {
+        ...a,
+        studentCount,
+        credit: credits,
+        courseType: a.courseId?.courseType || (isLab ? 'Sessional' : 'Theory')
+      };
+    }));
+
+    const departmentDoc = await Department.findOne({ code: teacher.department });
+    const isCurrentHead = departmentDoc && (
+      (departmentDoc.headId && departmentDoc.headId.toUpperCase() === teacher.teacherId.toUpperCase()) ||
+      (departmentDoc.headTeacher && departmentDoc.headTeacher.toString() === teacher._id.toString())
+    );
+
+    return res.json({
+      success: true,
+      teacher: {
+        ...teacher,
+        isCurrentHead: !!isCurrentHead
+      },
+      workload: {
+        totalCourses: activeAssignments.length,
+        theoryCoursesCount,
+        labCoursesCount,
+        totalCredits,
+        totalStudents
+      },
+      currentCourses: enrichedCurrent,
+      courseHistory: historicalAssignments
+    });
+  } catch (error) {
+    console.error('getTeacherTeachingOverview error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/admin/courses/:id/teaching-roster
+const getCourseTeachingRoster = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const course = await Course.findOne({
+      $or: [
+        { courseCode: id.trim().toUpperCase() },
+        ...(mongoose.Types.ObjectId.isValid(id) ? [{ _id: id }] : [])
+      ]
+    }).lean();
+
+    if (!course) {
+      return res.status(404).json({ success: false, message: 'Course not found' });
+    }
+
+    const activeAssignments = await TeacherAssignment.find({
+      $or: [{ courseCode: course.courseCode }, { courseId: course._id }],
+      status: 'active'
+    })
+      .populate('teacher', 'name teacherId designation email contactNo department')
+      .lean();
+
+    const enrollments = await FinalEnrollment.find({
+      courseId: course._id,
+      status: 'active'
+    }).populate('studentId', 'name rollNumber series department session registrationNumber contactNo email').lean();
+
+    let students = enrollments.map(e => e.studentId).filter(Boolean);
+
+    if (students.length === 0) {
+      students = await Student.find({
+        $or: [
+          { 'enrolledCourses.courseCode': course.courseCode },
+          { department: course.departmentCode, status: 'active' }
+        ]
+      }).select('name rollNumber series department session registrationNumber contactNo email').limit(100).lean();
+    }
+
+    return res.json({
+      success: true,
+      course,
+      assignedTeachers: activeAssignments,
+      students,
+      studentCount: students.length
+    });
+  } catch (error) {
+    console.error('getCourseTeachingRoster error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/admin/teaching-assignments
+const createTeachingAssignment = async (req, res) => {
+  try {
+    const {
+      courseCode,
+      teacherId,
+      role = 'PRIMARY_TEACHER',
+      series = '22',
+      academicSession = '2024-2025',
+      semester = '3-2',
+      notes = '',
+      allowCrossDepartment = false
+    } = req.body;
+
+    if (!courseCode || !teacherId) {
+      return res.status(400).json({ success: false, message: 'Course Code and Teacher ID are required' });
+    }
+
+    const cleanCourseCode = courseCode.trim().toUpperCase();
+    const cleanTeacherId = teacherId.trim().toUpperCase();
+
+    const [course, teacher] = await Promise.all([
+      Course.findOne({ courseCode: cleanCourseCode }),
+      Teacher.findOne({ teacherId: cleanTeacherId })
+    ]);
+
+    if (!course) {
+      return res.status(404).json({ success: false, message: `Course ${cleanCourseCode} not found` });
+    }
+    if (!teacher) {
+      return res.status(404).json({ success: false, message: `Teacher ${cleanTeacherId} not found` });
+    }
+
+    // Cross-department check
+    if (!allowCrossDepartment && teacher.department && course.departmentCode && teacher.department.toUpperCase() !== course.departmentCode.toUpperCase()) {
+      return res.status(400).json({
+        success: false,
+        message: `Teacher ${teacher.name} belongs to ${teacher.department}, but course ${cleanCourseCode} belongs to ${course.departmentCode}. Enable cross-department assignment to proceed.`
+      });
+    }
+
+    // Find or create CourseOffering
+    let offering = await CourseOffering.findOne({
+      courseCode: cleanCourseCode,
+      seriesName: series,
+      sessionName: academicSession,
+      semesterName: semester
+    });
+
+    if (!offering) {
+      offering = await CourseOffering.create({
+        course: course._id,
+        courseCode: cleanCourseCode,
+        courseName: course.courseName || course.title,
+        department: course.department,
+        departmentCode: course.departmentCode || teacher.department,
+        seriesName: series,
+        sessionName: academicSession,
+        semesterName: semester,
+        status: 'active'
+      });
+    }
+
+    // Duplicate check
+    const duplicate = await TeacherAssignment.findOne({
+      courseOffering: offering._id,
+      teacherId: cleanTeacherId,
+      status: 'active'
+    });
+    if (duplicate) {
+      return res.status(400).json({
+        success: false,
+        message: `Teacher ${teacher.name} is already actively assigned to ${cleanCourseCode} (${semester} [${academicSession}])`
+      });
+    }
+
+    // Primary teacher exclusivity check
+    const isPrimary = role === 'PRIMARY_TEACHER' || role === 'PRIMARY';
+    if (isPrimary) {
+      const existingPrimary = await TeacherAssignment.findOne({
+        courseOffering: offering._id,
+        role: { $in: ['PRIMARY_TEACHER', 'PRIMARY'] },
+        status: 'active'
+      });
+
+      if (existingPrimary) {
+        existingPrimary.status = 'revoked';
+        existingPrimary.endDate = new Date();
+        existingPrimary.notes = `${existingPrimary.notes ? existingPrimary.notes + '; ' : ''}Replaced by ${teacher.name} (${cleanTeacherId}) on ${new Date().toISOString()}`;
+        await existingPrimary.save();
+
+        await logAudit({
+          req,
+          action: 'COURSE_TEACHER_REPLACED',
+          entity: 'TeacherAssignment',
+          entityId: existingPrimary._id,
+          details: `Replaced primary teacher ${existingPrimary.teacherName} with ${teacher.name} on course ${cleanCourseCode}`,
+          newValues: { courseCode: cleanCourseCode, newTeacherId: cleanTeacherId, previousTeacherId: existingPrimary.teacherId }
+        });
+      }
+    }
+
+    const assignment = await TeacherAssignment.create({
+      courseOffering: offering._id,
+      teacher: teacher._id,
+      teacherId: cleanTeacherId,
+      teacherName: teacher.name,
+      courseId: course._id,
+      courseCode: cleanCourseCode,
+      courseName: course.courseName || course.title,
+      department: course.department,
+      departmentCode: course.departmentCode || teacher.department,
+      faculty: course.faculty,
+      facultyCode: course.facultyCode || '',
+      role: role.toUpperCase(),
+      semester,
+      academicSession,
+      series,
+      assignedBy: req.user._id,
+      assignedByName: req.user.name || 'System Admin',
+      assignedAt: new Date(),
+      status: 'active',
+      notes
+    });
+
+    await logAudit({
+      req,
+      action: 'COURSE_TEACHER_ASSIGNED',
+      entity: 'TeacherAssignment',
+      entityId: assignment._id,
+      details: `Assigned ${teacher.name} (${cleanTeacherId}) to ${cleanCourseCode} as ${role} for ${semester} [${academicSession}]`,
+      newValues: { courseCode: cleanCourseCode, teacherId: cleanTeacherId, role }
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: `Course ${cleanCourseCode} successfully assigned to ${teacher.name}`,
+      assignment
+    });
+  } catch (error) {
+    console.error('createTeachingAssignment error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// PATCH /api/admin/teaching-assignments/:id
+const updateTeachingAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { role, status, notes } = req.body;
+
+    const assignment = await TeacherAssignment.findById(id);
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Assignment not found' });
+    }
+
+    if (role) assignment.role = role.toUpperCase();
+    if (notes !== undefined) assignment.notes = notes;
+    if (status) {
+      assignment.status = status;
+      if (['revoked', 'expired', 'completed'].includes(status)) {
+        assignment.endDate = new Date();
+      }
+    }
+
+    await assignment.save();
+
+    await logAudit({
+      req,
+      action: 'COURSE_TEACHER_UPDATED',
+      entity: 'TeacherAssignment',
+      entityId: assignment._id,
+      details: `Updated assignment for ${assignment.teacherName} on ${assignment.courseCode}. Status: ${assignment.status}, Role: ${assignment.role}`,
+      newValues: { status: assignment.status, role: assignment.role }
+    });
+
+    return res.json({
+      success: true,
+      message: 'Teaching assignment updated successfully',
+      assignment
+    });
+  } catch (error) {
+    console.error('updateTeachingAssignment error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// DELETE /api/admin/teaching-assignments/:id
+const deleteTeachingAssignment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const assignment = await TeacherAssignment.findById(id);
+    if (!assignment) {
+      return res.status(404).json({ success: false, message: 'Assignment not found' });
+    }
+
+    assignment.status = 'revoked';
+    assignment.endDate = new Date();
+    await assignment.save();
+
+    await logAudit({
+      req,
+      action: 'COURSE_TEACHER_REVOKED',
+      entity: 'TeacherAssignment',
+      entityId: assignment._id,
+      details: `Revoked teaching assignment for ${assignment.teacherName} on ${assignment.courseCode}`,
+      newValues: { status: 'revoked' }
+    });
+
+    return res.json({
+      success: true,
+      message: 'Teaching assignment revoked successfully'
+    });
+  } catch (error) {
+    console.error('deleteTeachingAssignment error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ── SYSTEM SETTINGS ────────────────────────────────────────────────────
+let systemSettingsCache = {
+  currentSession: '2025-2026',
+  currentSemester: '3-2',
+  currentSeries: '22',
+  studentSignupEnabled: true,
+  teacherSignupEnabled: true,
+  headSignupEnabled: true,
+  electiveVotingEnabled: true,
+  votingDeadline: '2026-12-31',
+  maintenanceMode: false
+};
+
+const getSystemSettings = async (req, res) => {
+  try {
+    return res.json({
+      success: true,
+      settings: systemSettingsCache
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const updateSystemSettings = async (req, res) => {
+  try {
+    const updates = req.body;
+    systemSettingsCache = {
+      ...systemSettingsCache,
+      ...updates
+    };
+
+    await logAudit({
+      req,
+      action: 'SYSTEM_SETTINGS_UPDATED',
+      entity: 'SystemSettings',
+      details: 'Updated global system settings',
+      newValues: systemSettingsCache
+    });
+
+    return res.json({
+      success: true,
+      message: 'System settings updated successfully',
+      settings: systemSettingsCache
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getSystemStats,
   getAllTeachers,
@@ -1212,5 +2164,21 @@ module.exports = {
   getTeacherAssignedCourses,
   transferHeadship,
   getAdminRequests,
-  getStudentStats
+  getStudentStats,
+  // Hierarchical Navigation & Head Management
+  getFacultiesSummary,
+  getDepartmentOverview,
+  getDepartmentHeadHistory,
+  assignDepartmentHead,
+  removeDepartmentHead,
+  // Current Teaching Assignments
+  getCurrentTeachingAssignments,
+  getTeacherTeachingOverview,
+  getCourseTeachingRoster,
+  createTeachingAssignment,
+  updateTeachingAssignment,
+  deleteTeachingAssignment,
+  // System Settings
+  getSystemSettings,
+  updateSystemSettings
 };

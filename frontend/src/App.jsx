@@ -34,6 +34,8 @@ const CourseOfferingsPage   = React.lazy(() => import('./pages/admin/CourseOffer
 const StudentImportPage     = React.lazy(() => import('./pages/admin/StudentImportPage'));
 const ImportHistoryPage     = React.lazy(() => import('./pages/admin/ImportHistoryPage'));
 const ElectiveManagementPage = React.lazy(() => import('./pages/admin/ElectiveManagementPage'));
+const TeachingAssignmentsPage = React.lazy(() => import('./pages/admin/TeachingAssignmentsPage'));
+const DepartmentHeadManagementPage = React.lazy(() => import('./pages/admin/DepartmentHeadManagementPage'));
 
 // Teacher Pages
 const TeacherDashboard  = React.lazy(() => import('./pages/teacher/TeacherDashboard'));
@@ -134,6 +136,8 @@ export default function App() {
               <Route path="sessions"        element={<AcademicSessionsPage />} />
               <Route path="series"          element={<SeriesPage />} />
               <Route path="teachers"        element={<TeachersPage />} />
+              <Route path="teaching-assignments" element={<TeachingAssignmentsPage />} />
+              <Route path="heads"           element={<DepartmentHeadManagementPage />} />
               <Route path="students"        element={<StudentsPage />} />
               <Route path="course-catalog"  element={<CourseCatalogPage />} />
               <Route path="course-offerings" element={<CourseOfferingsPage />} />

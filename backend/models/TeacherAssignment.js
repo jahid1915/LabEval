@@ -19,8 +19,8 @@ const teacherAssignmentSchema = new mongoose.Schema({
   },
   role: {
     type: String,
-    enum: ['PRIMARY', 'CO_TEACHER', 'TEMPORARY'],
-    default: 'PRIMARY'
+    enum: ['PRIMARY_TEACHER', 'CO_TEACHER', 'LAB_TEACHER', 'COURSE_COORDINATOR', 'PRIMARY', 'TEMPORARY'],
+    default: 'PRIMARY_TEACHER'
   },
   isTemporary: {
     type: Boolean,
@@ -60,6 +60,16 @@ const teacherAssignmentSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  faculty: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Faculty'
+  },
+  facultyCode: {
+    type: String,
+    uppercase: true,
+    trim: true,
+    default: ''
+  },
   department: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'Department'
@@ -83,7 +93,7 @@ const teacherAssignmentSchema = new mongoose.Schema({
   },
   assignedBy: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'Admin'
+    ref: 'User'
   },
   assignedByName: {
     type: String,
@@ -101,5 +111,9 @@ const teacherAssignmentSchema = new mongoose.Schema({
 
 teacherAssignmentSchema.index({ courseOffering: 1, teacher: 1 });
 teacherAssignmentSchema.index({ teacherId: 1, status: 1 });
+teacherAssignmentSchema.index({ courseOffering: 1, status: 1, role: 1 });
+teacherAssignmentSchema.index({ departmentCode: 1, status: 1 });
+teacherAssignmentSchema.index({ facultyCode: 1, status: 1 });
+teacherAssignmentSchema.index({ academicSession: 1, semester: 1 });
 
 module.exports = mongoose.model('TeacherAssignment', teacherAssignmentSchema);

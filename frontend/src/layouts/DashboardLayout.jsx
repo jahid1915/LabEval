@@ -18,20 +18,22 @@ import ChangePasswordModal from '../components/ChangePasswordModal';
 
 const adminNav = [
   { heading: 'Overview' },
-  { to: '/admin', icon: LayoutDashboard, label: 'Dashboard', end: true },
+  { to: '/admin', icon: LayoutDashboard, label: 'Dashboard & Hierarchy', end: true },
   
+  { heading: 'Teaching & Faculty' },
+  { to: '/admin/teaching-assignments', icon: BookOpen,      label: 'Teaching Assignments' },
+  { to: '/admin/teachers',             icon: GraduationCap, label: 'All Teachers' },
+  { to: '/admin/heads',                icon: Shield,        label: 'Department Heads' },
+
   { heading: 'Student Management' },
   { to: '/admin/students',         icon: Users,           label: 'All Students' },
   { to: '/admin/import',           icon: Upload,          label: 'Import Students' },
   { to: '/admin/import-history',   icon: History,         label: 'Import History' },
 
-  { heading: 'Elective Courses' },
-  { to: '/admin/electives',        icon: Sparkles,        label: 'Elective Management' },
-
   { heading: 'Academics & Courses' },
   { to: '/admin/course-catalog',   icon: BookOpen,        label: 'Course Catalog' },
   { to: '/admin/course-offerings', icon: Award,           label: 'Course Offerings' },
-  { to: '/admin/teachers',         icon: GraduationCap,   label: 'All Teachers' },
+  { to: '/admin/electives',        icon: Sparkles,        label: 'Elective Management' },
 
   { heading: 'Institution' },
   { to: '/admin/faculties',        icon: FolderTree,      label: 'Faculties' },
@@ -70,7 +72,8 @@ function Sidebar({ user, navItems, isDarkMode, toggleTheme, handleLogout, onOpen
   const [profileOpen, setProfileOpen] = useState(false);
 
   const getRoleBadge = () => {
-    if (user?.role === 'admin' || user?.role === 'department_head') return 'Department Head';
+    if (user?.role === 'admin' || user?.role === 'super_admin') return 'Super Administrator';
+    if (user?.role === 'department_head') return 'Department Head';
     if (user?.role === 'teacher') return 'Teacher';
     return 'Student';
   };

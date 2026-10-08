@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
@@ -31,11 +32,26 @@ const protect = async (req, res, next) => {
       const targetRole = authUser?.role || decoded.role;
 
       if (targetRole === 'teacher') {
-        profileDoc = await Teacher.findById(authUser?.profileRef || decoded.id).select(commonFields).lean();
+        const query = [];
+        if (authUser?.profileRef) query.push({ _id: authUser.profileRef });
+        if (decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) query.push({ _id: decoded.id });
+        if (authUser?._id) query.push({ user: authUser._id });
+        if (authUser?.loginIdentifier) query.push({ teacherId: authUser.loginIdentifier.toUpperCase() });
+        profileDoc = query.length > 0 ? await Teacher.findOne({ $or: query }).select(commonFields).lean() : null;
       } else if (targetRole === 'student') {
-        profileDoc = await Student.findById(authUser?.profileRef || decoded.id).select(commonFields).lean();
+        const query = [];
+        if (authUser?.profileRef) query.push({ _id: authUser.profileRef });
+        if (decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) query.push({ _id: decoded.id });
+        if (authUser?._id) query.push({ user: authUser._id });
+        if (authUser?.loginIdentifier) query.push({ rollNumber: authUser.loginIdentifier.toUpperCase() });
+        profileDoc = query.length > 0 ? await Student.findOne({ $or: query }).select(commonFields).lean() : null;
       } else if (['admin', 'department_head', 'super_admin'].includes(targetRole)) {
-        profileDoc = await Admin.findById(authUser?.profileRef || decoded.id).select(commonFields).lean();
+        const query = [];
+        if (authUser?.profileRef) query.push({ _id: authUser.profileRef });
+        if (decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) query.push({ _id: decoded.id });
+        if (authUser?._id) query.push({ user: authUser._id });
+        if (authUser?.loginIdentifier) query.push({ username: authUser.loginIdentifier.toLowerCase() }, { headId: authUser.loginIdentifier.toUpperCase() });
+        profileDoc = query.length > 0 ? await Admin.findOne({ $or: query }).select(commonFields).lean() : null;
       }
 
       if (!authUser && !profileDoc) {

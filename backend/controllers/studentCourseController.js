@@ -470,7 +470,14 @@ const getStudentAcademicHistory = async (req, res) => {
 const getStudentProfile = async (req, res) => {
   try {
     const Student = require('../models/Student');
-    const fullStudent = await Student.findById(req.user._id)
+    const fullStudent = await Student.findOne({
+      $or: [
+        { _id: req.user._id },
+        ...(req.user.userId ? [{ user: req.user.userId }] : []),
+        ...(req.user.rollNumber ? [{ rollNumber: req.user.rollNumber }] : []),
+        ...(req.authUser?.loginIdentifier ? [{ rollNumber: req.authUser.loginIdentifier }] : [])
+      ]
+    })
       .populate('departmentRef', 'name code')
       .populate('facultyRef', 'name code')
       .populate('seriesRef', 'name year startYear')
