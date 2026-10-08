@@ -702,6 +702,12 @@ const toggleDeactivateStudent = async (req, res) => {
     student.updatedAt = new Date();
     await student.save();
 
+    const userStatus = newStatus === 'active' ? 'ACTIVE' : (newStatus === 'suspended' ? 'SUSPENDED' : 'INACTIVE');
+    await User.updateMany(
+      { loginIdentifierLower: student.rollNumber.toLowerCase() },
+      { status: userStatus }
+    );
+
     await logAudit({
       req,
       action: newStatus === 'active' ? 'ACTIVATE_STUDENT' : 'DEACTIVATE_STUDENT',
@@ -733,6 +739,11 @@ const resetStudentPassword = async (req, res) => {
     student.password = await bcrypt.hash(newPass, salt);
     student.updatedAt = new Date();
     await student.save();
+
+    await User.updateMany(
+      { loginIdentifierLower: student.rollNumber.toLowerCase() },
+      { passwordHash: student.password }
+    );
 
     await logAudit({
       req,

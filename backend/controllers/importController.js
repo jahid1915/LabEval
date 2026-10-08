@@ -12,6 +12,7 @@ const { v4: uuidv4 } = require('uuid');
 const XLSX = require('xlsx');
 
 const Student = require('../models/Student');
+const User = require('../models/User');
 const Department = require('../models/Department');
 const Series = require('../models/Series');
 const ImportJob = require('../models/ImportJob');
@@ -921,6 +922,82 @@ const executeImport = async (req, res) => {
           });
         }
       }
+    }
+
+    // ── Synchronize with Central User Authentication Model ─────────────────
+    try {
+      const processedRolls = deduplicatedValid.map(r => r.rollNumber).filter(Boolean);
+      if (processedRolls.length > 0) {
+        const affectedStudents = await Student.find({ rollNumber: { $in: processedRolls } }).lean();
+        const userBulkOps = [];
+
+        for (const st of affectedStudents) {
+          const uField = credentialConfig.usernameField || 'rollNumber';
+          const rawIdentifier = st[uField] || st.rollNumber;
+          const cleanIdentifier = String(rawIdentifier || st.rollNumber).trim();
+          const cleanLower = cleanIdentifier.toLowerCase();
+          const passHash = passwordHashMap[st.rollNumber] || st.password;
+
+          userBulkOps.push({
+            updateOne: {
+              filter: { loginIdentifierLower: cleanLower },
+              update: {
+                $setOnInsert: {
+                  loginIdentifier: cleanIdentifier,
+                  loginIdentifierLower: cleanLower,
+                  passwordHash: passHash,
+                  role: 'student',
+                  status: (st.status || 'active').toLowerCase() === 'inactive' ? 'INACTIVE' : 'ACTIVE',
+                  mustChangePassword: true,
+                },
+                $set: {
+                  name: st.name,
+                  email: st.email || '',
+                  phone: st.contactNo || '',
+                  department: st.department || '',
+                  departmentRef: st.departmentRef || null,
+                  facultyRef: st.facultyRef || null,
+                  profileRef: st._id,
+                  profileModel: 'Student'
+                }
+              },
+              upsert: true
+            }
+          });
+        }
+
+        if (userBulkOps.length > 0) {
+          await User.bulkWrite(userBulkOps, { ordered: false });
+
+          // Bidirectionally link Student.user -> User._id
+          const userRecords = await User.find({
+            loginIdentifierLower: { $in: affectedStudents.map(s => String(s[credentialConfig.usernameField || 'rollNumber'] || s.rollNumber).trim().toLowerCase()) }
+          }).select('_id loginIdentifierLower').lean();
+
+          const userIdentifierMap = new Map();
+          userRecords.forEach(u => userIdentifierMap.set(u.loginIdentifierLower, u._id));
+
+          const studentLinkOps = [];
+          for (const st of affectedStudents) {
+            const uKey = String(st[credentialConfig.usernameField || 'rollNumber'] || st.rollNumber).trim().toLowerCase();
+            const matchingUserId = userIdentifierMap.get(uKey);
+            if (matchingUserId && (!st.user || String(st.user) !== String(matchingUserId))) {
+              studentLinkOps.push({
+                updateOne: {
+                  filter: { _id: st._id },
+                  update: { $set: { user: matchingUserId } }
+                }
+              });
+            }
+          }
+
+          if (studentLinkOps.length > 0) {
+            await Student.bulkWrite(studentLinkOps, { ordered: false });
+          }
+        }
+      }
+    } catch (syncErr) {
+      console.warn('Student-User synchronization warning:', syncErr.message);
     }
 
     importJob.status = 'completed';

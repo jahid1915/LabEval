@@ -101,7 +101,7 @@ app.use(morgan(logFormat));
 // Auth endpoints: 30 requests per 15 min in prod, 2000 in dev/test
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: (process.env.LOAD_TEST === 'true' || process.env.NODE_ENV === 'test') ? 50000 : (process.env.NODE_ENV === 'production' ? 30 : 2000),
+  max: (process.env.NODE_ENV === 'production') ? 100 : 50000,
   message: { success: false, message: 'Too many login attempts from this IP, please try again in 15 minutes.', code: 'RATE_LIMITED' },
   standardHeaders: true,
   legacyHeaders: false
