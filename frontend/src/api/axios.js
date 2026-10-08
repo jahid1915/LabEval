@@ -40,8 +40,17 @@ api.interceptors.response.use(
       originalRequest._authRetried = true;
       localStorage.removeItem('user');
       localStorage.removeItem('token');
-      // Redirect to login only if not already there
-      if (!window.location.pathname.includes('/login')) {
+
+      // Never force-redirect if user is on /admin, /login, /signup, /auth, or public root
+      const currentPath = window.location.pathname;
+      const isPublicOrAdmin = currentPath === '/' ||
+        currentPath.includes('/login') ||
+        currentPath.includes('/signup') ||
+        currentPath.includes('/auth') ||
+        currentPath.startsWith('/admin');
+
+      // Only redirect protected student/teacher routes to login
+      if (!isPublicOrAdmin) {
         window.location.href = '/login';
       }
     }

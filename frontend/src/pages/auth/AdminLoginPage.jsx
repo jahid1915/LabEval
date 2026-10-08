@@ -31,8 +31,8 @@ export default function AdminLoginPage() {
       });
 
       if (res.success) {
-        if (res.user?.role !== 'admin' && res.user?.role !== 'super_admin') {
-          toast.error('Access denied: You do not possess System Administrator privileges.');
+        if (res.user?.role !== 'admin' && res.user?.role !== 'super_admin' && res.user?.role !== 'department_head') {
+          toast.error('Access denied: You do not possess Administrator privileges.');
           setLoading(false);
           return;
         }
