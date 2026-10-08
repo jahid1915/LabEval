@@ -68,6 +68,7 @@ async function runTestSuite() {
   await mongoose.connect(process.env.MONGO_URI);
   console.log('📦 Connected to MongoDB for database state cross-checks.\n');
 
+  const User = require('../models/User');
   const Student = require('../models/Student');
   const Teacher = require('../models/Teacher');
   const Course = require('../models/Course');
@@ -87,7 +88,13 @@ async function runTestSuite() {
   await CourseOffering.deleteMany({ courseCode: 'TEST-ETE-4201' });
   await Attendance.deleteMany({ course: 'TEST-ETE-4201' });
   await FinalResult.deleteMany({ course: 'TEST-ETE-4201' });
-  await ElectiveOffering.deleteMany({ name: 'TEST-ETE-ELECTIVE-2025' });
+  await ElectiveOffering.deleteMany({
+    $or: [
+      { name: 'TEST-ETE-ELECTIVE-2025' },
+      { electiveGroup: 'Elective Sessional Group 1' }
+    ]
+  });
+  await ElectiveSelection.deleteMany({});
 
   // ──────────────────────────────────────────────────────────────────────────
   // 1. ENDPOINT DISCOVERY & HEALTH CHECKS
@@ -516,6 +523,7 @@ async function runTestSuite() {
   });
 
   // 8.2 Create Elective Offering via Admin
+  const s1 = await Student.findOne({ rollNumber: '2299001' });
   const eleOfferingRes = await api('/api/electives/admin/offering', {
     method: 'POST',
     headers: { Authorization: `Bearer ${adminToken}` },
@@ -524,14 +532,14 @@ async function runTestSuite() {
       semester: '4',
       academicSession: '2025-26',
       eligibleSeries: ['22'],
-      availableCourses: [eleA._id, eleB._id, eleC._id],
+      availableCourses: [eleA._id.toString(), eleB._id.toString(), eleC._id.toString()],
       status: 'VOTING_OPEN',
       electiveGroup: 'Elective Sessional Group 1',
       selectionOpenAt: new Date(Date.now() - 3600000).toISOString(),
       selectionCloseAt: new Date(Date.now() + 86400000).toISOString()
     })
   });
-  recordTest('Electives', 'Admin Create Elective Offering', eleOfferingRes.status === 201 || eleOfferingRes.status === 200);
+  recordTest('Electives', 'Admin Create Elective Offering', eleOfferingRes.status === 201 || eleOfferingRes.status === 200, eleOfferingRes.data?.message || String(eleOfferingRes.status));
   const offeringId = eleOfferingRes.data?.data?._id || eleOfferingRes.data?._id || eleOfferingRes.data?.offering?._id;
 
   // 8.3 Student Votes for Elective A
@@ -539,30 +547,30 @@ async function runTestSuite() {
     method: 'POST',
     headers: { Authorization: `Bearer ${studentToken}` },
     body: JSON.stringify({
-      courseId: eleA._id
+      courseId: eleA._id.toString()
     })
   });
-  recordTest('Electives', 'Student 2299001 Vote Saved', voteRes.status === 200 && voteRes.data?.success === true);
+  recordTest('Electives', 'Student 2299001 Vote Saved', voteRes.status === 200 && voteRes.data?.success === true, voteRes.data?.message || String(voteRes.status));
 
   // 8.4 Duplicate Vote Blocked
   const dupVoteRes = await api(`/api/electives/student/${offeringId}/vote`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${studentToken}` },
     body: JSON.stringify({
-      courseId: eleA._id // Re-submitting the same vote
+      courseId: eleA._id.toString() // Re-submitting the same vote
     })
   });
-  recordTest('Electives', 'Duplicate Vote Blocked (400)', dupVoteRes.status === 400);
+  recordTest('Electives', 'Duplicate Vote Blocked (400)', dupVoteRes.status === 400, dupVoteRes.data?.message || String(dupVoteRes.status));
 
   // 8.5 Verify Vote Persisted in Database and Reflected in Stats
-  const voteDoc = await ElectiveSelection.findOne({ studentId: student1?._id, offeringId });
+  const voteDoc = await ElectiveSelection.findOne({ studentId: s1?._id, offeringId });
   recordTest('Database', 'Elective Vote Persisted in ElectiveSelection', !!voteDoc && voteDoc.selectedCourse?.toString() === eleA._id.toString());
 
   const statsRes = await api(`/api/electives/${offeringId}/stats`, {
     headers: { Authorization: `Bearer ${adminToken}` }
   });
   const votesCount = statsRes.data?.data?.stats?.votesReceived ?? statsRes.data?.stats?.votesReceived ?? 0;
-  recordTest('Electives', 'Vote Reflected in Admin Offering Stats', statsRes.status === 200 && votesCount >= 1);
+  recordTest('Electives', 'Vote Reflected in Admin Offering Stats', statsRes.status === 200 && votesCount >= 1, statsRes.data?.message || String(statsRes.status));
 
   // ──────────────────────────────────────────────────────────────────────────
   // 9. ADMIN WORKFLOW & DUPLICATE VALIDATION (Sections 13 & 16)
@@ -600,25 +608,26 @@ async function runTestSuite() {
   recordTest('Duplicate', 'Duplicate Teacher ID Rejected (400)', dupTeacher.status === 400);
 
   // 9.3 Admin Toggle Student Deactivation
-  const deactRes = await api(`/api/admin/students/${student4?._id}/deactivate`, {
+  const s4 = await Student.findOne({ rollNumber: '2299004' });
+  const deactRes = await api(`/api/admin/students/${s4?._id}/deactivate`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${adminToken}` }
   });
-  recordTest('AdminWorkflow', 'Toggle Student Deactivation Endpoint', deactRes.status === 200);
+  recordTest('AdminWorkflow', 'Toggle Student Deactivation Endpoint', deactRes.status === 200, deactRes.data?.message || String(deactRes.status));
 
   // Student attempts login while deactivated (Expect 403)
   const deactLogin = await api('/api/auth/student-login', {
     method: 'POST',
     body: JSON.stringify({ rollNumber: '2299004', password: 'password123' })
   });
-  recordTest('RBAC', 'Deactivated Student Login Blocked (403)', deactLogin.status === 403);
+  recordTest('RBAC', 'Deactivated Student Login Blocked (403)', deactLogin.status === 403, deactLogin.data?.message || String(deactLogin.status));
 
   // Reactivate student
-  const reactRes = await api(`/api/admin/students/${student4?._id}/deactivate`, {
+  const reactRes = await api(`/api/admin/students/${s4?._id}/deactivate`, {
     method: 'POST',
     headers: { Authorization: `Bearer ${adminToken}` }
   });
-  recordTest('AdminWorkflow', 'Student Reactivated Successfully', reactRes.status === 200);
+  recordTest('AdminWorkflow', 'Student Reactivated Successfully', reactRes.status === 200, reactRes.data?.message || String(reactRes.status));
 
   // 9.4 Academic Sessions & Series Suggestions
   const seriesSuggest = await api('/api/academic/series-suggest/22', {

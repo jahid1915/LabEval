@@ -704,7 +704,13 @@ const toggleDeactivateStudent = async (req, res) => {
 
     const userStatus = newStatus === 'active' ? 'ACTIVE' : (newStatus === 'suspended' ? 'SUSPENDED' : 'INACTIVE');
     await User.updateMany(
-      { loginIdentifierLower: student.rollNumber.toLowerCase() },
+      {
+        $or: [
+          { loginIdentifierLower: student.rollNumber.toLowerCase() },
+          { profileRef: student._id },
+          ...(student.user ? [{ _id: student.user }] : [])
+        ]
+      },
       { status: userStatus }
     );
 

@@ -211,6 +211,23 @@ const login = async (req, res) => {
       });
     }
 
+    if (user.role === 'student') {
+      const sDoc = await Student.findOne({
+        $or: [
+          ...(user.profileRef ? [{ _id: user.profileRef }] : []),
+          { user: user._id },
+          { rollNumber: user.loginIdentifier }
+        ]
+      }).select('status').lean();
+      if (sDoc && (sDoc.status === 'inactive' || sDoc.status === 'suspended')) {
+        return res.status(403).json({
+          success: false,
+          message: 'This account is currently inactive. Please contact the administrator.',
+          code: 'ACCOUNT_INACTIVE'
+        });
+      }
+    }
+
     // 3. Check Lockout Status
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const remainingMinutes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / (60 * 1000));
