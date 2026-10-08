@@ -67,8 +67,27 @@ router.get('/students/correction-requests', getHeadCorrectionRequests);
 router.get('/teachers', getHeadTeachers);
 router.get('/teachers/workload', getHeadTeacherWorkload);
 
-// Courses & Teaching Assignments
+// Courses & Course Offerings (Sections 14-24, 38-42)
+const {
+  getHeadCourses,
+  getHeadCourseOfferings,
+  createCourseOffering,
+  getEligibleStudentsPreview,
+  activateCourseOffering,
+  assignTeacher,
+  cancelOffering,
+  searchTeachers
+} = require('../controllers/headCourseOfferingController');
+
 router.get('/courses', getHeadCourses);
+router.get('/course-offerings', getHeadCourseOfferings);
+router.post('/course-offerings', createCourseOffering);
+router.get('/course-offerings/:id/eligible-students', getEligibleStudentsPreview);
+router.post('/course-offerings/:id/activate', activateCourseOffering);
+router.post('/course-offerings/:id/assign-teacher', assignTeacher);
+router.post('/course-offerings/:id/cancel', cancelOffering);
+router.get('/teachers/search', searchTeachers);
+
 router.get('/teaching-assignments', getHeadTeachingAssignments);
 router.post('/teaching-assignments', createHeadTeachingAssignment);
 router.delete('/teaching-assignments/:id', deleteHeadTeachingAssignment);

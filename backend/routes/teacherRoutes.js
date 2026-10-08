@@ -27,6 +27,19 @@ const { protect, teacherOnly, requireTeacherCourseAccess } = require('../middlew
 router.use(protect);
 router.use(teacherOnly);
 
+// ── Dashboard Summary & Zero-Selection Course Allocation ───────────
+const {
+  getCurrentCourses,
+  getCourseHistory,
+  getCourseOfferingDetail,
+  getDashboardSummary
+} = require('../controllers/teacherCourseDashboardController');
+
+router.get('/dashboard/summary', getDashboardSummary);
+router.get('/courses/current',    getCurrentCourses);
+router.get('/courses/history',    getCourseHistory);
+router.get('/courses/offering/:courseOfferingId', getCourseOfferingDetail);
+
 // ── Course management ──────────────────────────────────────────────
 router.get('/courses',       getCourses);
 router.post('/courses',      addCourse);

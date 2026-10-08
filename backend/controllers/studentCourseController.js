@@ -12,6 +12,9 @@ const Test = require('../models/Test');
 const Others = require('../models/Others');
 const FinalEnrollment = require('../models/FinalEnrollment');
 
+const Enrollment = require('../models/Enrollment');
+const { getStudentCourses: getStudentCoursesCanonical, getStudentCourseHistory: getStudentCourseHistoryCanonical } = require('../services/studentCourseService');
+
 // 30s TTL in-memory cache for department course offerings & teacher assignments
 const deptCoursesStructureCache = new Map();
 const DEPT_COURSES_TTL = 30 * 1000;
@@ -25,7 +28,23 @@ const getStudentCourses = async (req, res) => {
     const cleanDept = (department || 'ETE').toUpperCase();
     const filterSemester = req.query.semester ? req.query.semester.trim() : null;
 
-    // Cache key for department-level course structure
+    // Check canonical Enrollment records first (Section 8, 9, 33)
+    const enrollmentCount = await Enrollment.countDocuments({
+      studentId: student._id,
+      status: { $in: ['ENROLLED', 'COMPLETED'] }
+    });
+
+    if (enrollmentCount > 0) {
+      const canonicalCourses = await getStudentCoursesCanonical({
+        studentUserOrId: student,
+        semester: filterSemester
+      });
+      if (canonicalCourses.length > 0 || filterSemester) {
+        return res.json(canonicalCourses);
+      }
+    }
+
+    // Fallback to department cohort offerings for legacy compatibility
     const cacheKey = `${cleanDept}_${series || 'ALL'}_${filterSemester || 'ALL'}`;
     let deptStructure = deptCoursesStructureCache.get(cacheKey);
 

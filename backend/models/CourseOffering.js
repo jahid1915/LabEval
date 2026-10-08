@@ -74,13 +74,38 @@ const courseOfferingSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ['active', 'completed', 'archived'],
+    enum: ['draft', 'activating', 'active', 'completed', 'cancelled', 'archived'],
     default: 'active'
+  },
+  enrollmentSyncStatus: {
+    type: String,
+    enum: ['IDLE', 'SYNCING', 'COMPLETED', 'FAILED'],
+    default: 'IDLE'
+  },
+  eligibleStudentCount: {
+    type: Number,
+    default: 0
+  },
+  enrollmentCount: {
+    type: Number,
+    default: 0
+  },
+  cancellationReason: {
+    type: String,
+    default: ''
+  },
+  createdBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
+  updatedBy: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
   }
 }, { timestamps: true });
 
 courseOfferingSchema.index({ courseCode: 1, seriesName: 1, sessionName: 1, semesterName: 1 }, { unique: true });
-courseOfferingSchema.index({ departmentCode: 1, seriesName: 1 });
+courseOfferingSchema.index({ departmentCode: 1, seriesName: 1, sessionName: 1, semesterName: 1, status: 1 });
 courseOfferingSchema.index({ departmentCode: 1, status: 1 });
 
 module.exports = mongoose.model('CourseOffering', courseOfferingSchema);
