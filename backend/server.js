@@ -30,10 +30,23 @@ connectDB().then(async () => {
 
 const app = express();
 
-// ── Request ID Middleware ─────────────────────────────────────────────────────
+// ── Request ID & Timeout Protection ──────────────────────────────────────────
 app.use((req, res, next) => {
   req.requestId = uuidv4().slice(0, 8);
   res.setHeader('X-Request-ID', req.requestId);
+
+  // Guard against hanging sockets (30s general, 120s for bulk data transfers)
+  const timeoutMs = req.path.startsWith('/api/import') ? 120000 : 30000;
+  res.setTimeout(timeoutMs, () => {
+    if (!res.headersSent) {
+      res.status(504).json({
+        success: false,
+        message: 'Request timed out on server. Please try again.',
+        code: 'GATEWAY_TIMEOUT',
+        requestId: req.requestId
+      });
+    }
+  });
   next();
 });
 
@@ -85,31 +98,28 @@ const logFormat = process.env.NODE_ENV === 'production'
 app.use(morgan(logFormat));
 
 // ── Rate Limiters ─────────────────────────────────────────────────────────────
-// Shared key generator to handle IPv4/IPv6 safely
-// express-rate-limit v7+ uses its own IP detection by default
-
-// Auth endpoints: 20 requests per 15 minutes in production, 1000 in dev/test
+// Auth endpoints: 30 requests per 15 min in prod, 2000 in dev/test
 const authLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 20 : 1000,
-  message: { success: false, message: 'Too many requests from this IP, please try again later.', code: 'RATE_LIMITED' },
+  max: (process.env.LOAD_TEST === 'true' || process.env.NODE_ENV === 'test') ? 50000 : (process.env.NODE_ENV === 'production' ? 30 : 2000),
+  message: { success: false, message: 'Too many login attempts from this IP, please try again in 15 minutes.', code: 'RATE_LIMITED' },
   standardHeaders: true,
   legacyHeaders: false
 });
 
-// Import endpoints: 10 per hour in production, 500 in dev/test
+// Import endpoints: 15 per hour in production, 1000 in dev/test
 const importLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 10 : 500,
-  message: { success: false, message: 'Import rate limit exceeded. Maximum 10 imports per hour.', code: 'IMPORT_RATE_LIMITED' },
+  max: process.env.NODE_ENV === 'production' ? 15 : 1000,
+  message: { success: false, message: 'Import rate limit exceeded. Maximum 15 imports per hour.', code: 'IMPORT_RATE_LIMITED' },
   standardHeaders: true,
   legacyHeaders: false
 });
 
-// General API: 200 per 15 minutes in production, 5000 in dev/test
+// General API: 10,000 per 15 min in prod (safe for university campus NAT), 50,000 in dev/test
 const generalLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
-  max: process.env.NODE_ENV === 'production' ? 200 : 5000,
+  max: process.env.NODE_ENV === 'production' ? 10000 : 50000,
   message: { success: false, message: 'Too many requests, please slow down.', code: 'RATE_LIMITED' },
   standardHeaders: true,
   legacyHeaders: false
@@ -118,7 +128,7 @@ const generalLimiter = rateLimit({
 // ── Health Endpoints ──────────────────────────────────────────────────────────
 const mongoose = require('mongoose');
 
-app.get('/health', async (req, res) => {
+app.get(['/health', '/api/health'], async (req, res) => {
   const dbState = mongoose.connection.readyState;
   const dbStatus = { 0: 'disconnected', 1: 'connected', 2: 'connecting', 3: 'disconnecting' }[dbState] || 'unknown';
   const healthy = dbState === 1;
@@ -133,12 +143,12 @@ app.get('/health', async (req, res) => {
   });
 });
 
-app.get('/health/ready', (req, res) => {
+app.get(['/health/ready', '/api/health/ready'], (req, res) => {
   const ready = mongoose.connection.readyState === 1;
   res.status(ready ? 200 : 503).json({ ready });
 });
 
-app.get('/health/live', (req, res) => {
+app.get(['/health/live', '/api/health/live'], (req, res) => {
   res.status(200).json({ alive: true });
 });
 
@@ -192,6 +202,10 @@ app.use((err, req, res, next) => {
       code: 'INVALID_FILE_TYPE',
       requestId: req.requestId
     });
+  }
+
+  if (res.headersSent) {
+    return next(err);
   }
 
   const statusCode = res.statusCode === 200 ? 500 : res.statusCode;

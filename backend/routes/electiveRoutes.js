@@ -1,6 +1,6 @@
 /**
  * Elective Course Management Routes
- * Handles Admin, Student, and Teacher elective course operations
+ * Handles Admin, Department Head, Student, and Teacher elective course operations
  */
 const express = require('express');
 const router = express.Router();
@@ -26,13 +26,13 @@ const {
   getTeacherElectives,
   getTeacherElectiveRoster
 } = require('../controllers/electiveController');
-const { protect, adminOnly, teacherOnly } = require('../middleware/authMiddleware');
+const { protect, adminOnly, adminOrHead, teacherOnly } = require('../middleware/authMiddleware');
 
 router.use(protect);
 
-// ── Elective Catalog (Admin & Authenticated) ──────────────────────────────────
+// ── Elective Catalog (Admin, Department Head & Authenticated) ──────────────────
 router.get('/catalog', getElectiveCoursesCatalog);
-router.get('/admin/catalog', adminOnly, getElectiveCoursesCatalog);
+router.get('/admin/catalog', adminOrHead, getElectiveCoursesCatalog);
 
 // ── Public / All Authenticated (View Stats) ───────────────────────────────────
 router.get('/:offeringId/stats', getOfferingStats);
@@ -48,22 +48,24 @@ router.post('/student/:offeringId/submit', submitStudentElectives);
 router.get('/teacher/my-electives', teacherOnly, getTeacherElectives);
 router.get('/teacher/:courseId/students', teacherOnly, getTeacherElectiveRoster);
 
-// ── Admin Routes ──────────────────────────────────────────────────────────────
-router.post('/admin/offering', adminOnly, createOffering);
-router.get('/admin/offerings', adminOnly, getOfferings);
-router.get('/admin/offering/:id', adminOnly, getOfferingStats);
-router.patch('/admin/offering/:id', adminOnly, updateOffering);
-router.delete('/admin/offering/:id', adminOnly, deleteOffering);
+// ── Admin / Department Head Routes ───────────────────────────────────────────
+// Department Heads can manage electives for their own department.
+// Global Admins have unrestricted access across all departments.
+router.post('/admin/offering', adminOrHead, createOffering);
+router.get('/admin/offerings', adminOrHead, getOfferings);
+router.get('/admin/offering/:id', adminOrHead, getOfferingStats);
+router.patch('/admin/offering/:id', adminOrHead, updateOffering);
+router.delete('/admin/offering/:id', adminOrHead, deleteOffering);
 
-router.get('/admin/:offeringId/selections', adminOnly, getOfferingSelections);
-router.get('/admin/:offeringId/voting-details', adminOnly, getOfferingVotingDetails);
-router.get('/admin/offering/:offeringId/voting-details', adminOnly, getOfferingVotingDetails);
-router.get('/admin/:offeringId/check-academic-records', adminOnly, checkAcademicRecords);
-router.post('/admin/:offeringId/reopen', adminOnly, reopenOffering);
-router.patch('/admin/selections/:id', adminOnly, updateStudentSelectionAdmin);
-router.post('/admin/:offeringId/bulk-assign', adminOnly, bulkAssignElectives);
-router.post('/admin/:offeringId/finalize', adminOnly, finalizeOffering);
-router.post('/admin/:offeringId/approve', adminOnly, finalizeOffering); // alias
-router.get('/admin/:offeringId/export', adminOnly, exportOfferingAllocations);
+router.get('/admin/:offeringId/selections', adminOrHead, getOfferingSelections);
+router.get('/admin/:offeringId/voting-details', adminOrHead, getOfferingVotingDetails);
+router.get('/admin/offering/:offeringId/voting-details', adminOrHead, getOfferingVotingDetails);
+router.get('/admin/:offeringId/check-academic-records', adminOrHead, checkAcademicRecords);
+router.post('/admin/:offeringId/reopen', adminOrHead, reopenOffering);
+router.patch('/admin/selections/:id', adminOrHead, updateStudentSelectionAdmin);
+router.post('/admin/:offeringId/bulk-assign', adminOrHead, bulkAssignElectives);
+router.post('/admin/:offeringId/finalize', adminOrHead, finalizeOffering);
+router.post('/admin/:offeringId/approve', adminOrHead, finalizeOffering); // alias
+router.get('/admin/:offeringId/export', adminOrHead, exportOfferingAllocations);
 
 module.exports = router;

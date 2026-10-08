@@ -10,5 +10,6 @@ const reportSchema = new mongoose.Schema({
 
 // Optimizes queries filtered by student/course/dayName
 reportSchema.index({ student: 1, course: 1, dayName: 1 });
+reportSchema.index({ course: 1 });
 
 module.exports = mongoose.model('Report', reportSchema);

@@ -25,13 +25,17 @@ api.interceptors.response.use(
   async (error) => {
     const originalRequest = error.config;
 
-    // Auto-retry once on network error or timeout (Render cold start)
+    // Auto-retry once on network error or timeout ONLY for safe idempotent read methods (Render cold start)
+    const method = (originalRequest.method || 'get').toLowerCase();
+    const isSafeIdempotent = ['get', 'head', 'options'].includes(method);
+
     if (
       !originalRequest._retried &&
+      isSafeIdempotent &&
       (error.code === 'ECONNABORTED' || error.code === 'ERR_NETWORK' || !error.response)
     ) {
       originalRequest._retried = true;
-      console.warn('[API] Retrying request after network error:', originalRequest.url);
+      console.warn('[API] Retrying safe idempotent request after network error:', originalRequest.url);
       return api(originalRequest);
     }
 

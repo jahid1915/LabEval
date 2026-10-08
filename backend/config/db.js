@@ -6,13 +6,14 @@ const connectDB = async () => {
   const primaryUri = process.env.MONGO_URI;
   const fallbackUri = 'mongodb://127.0.0.1:27017/labeval';
 
-  // Production-grade connection pool settings
-  // Tune these based on server capacity and observed load
+  // Production-grade connection pool settings tuned for high concurrency (4000+ users)
+  const maxPool = parseInt(process.env.MONGO_MAX_POOL_SIZE, 10) || 100;
+  const minPool = parseInt(process.env.MONGO_MIN_POOL_SIZE, 10) || 10;
   const poolOptions = {
-    maxPoolSize: 20,          // Max concurrent connections (increase for higher concurrency)
-    minPoolSize: 5,           // Keep at least 5 connections warm
-    maxIdleTimeMS: 60000,     // Close idle connections after 60s
-    serverSelectionTimeoutMS: 4000,
+    maxPoolSize: maxPool,
+    minPoolSize: minPool,
+    maxIdleTimeMS: 30000,
+    serverSelectionTimeoutMS: 5000,
     socketTimeoutMS: 45000,
     connectTimeoutMS: 10000,
     heartbeatFrequencyMS: 10000

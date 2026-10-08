@@ -54,7 +54,7 @@ const getStudentsByCourse = async (req, res) => {
 };
 
 // ── Bulk Attendance + Report save ─────────────────────────────────
-// @desc  Save attendance + auto-report for all students in one request
+// @desc  Save attendance + auto-report for all students in one request via single bulkWrite
 // @route POST /api/teacher/attendance/bulk
 // @body  { courseId, date, dayName, records: [{ studentId, attended, reportSubmitted }] }
 const bulkSaveAttendance = async (req, res) => {
@@ -64,27 +64,55 @@ const bulkSaveAttendance = async (req, res) => {
       return res.status(400).json({ message: 'courseId, date, dayName, and records[] are required' });
     }
 
-    const ops = records.map(async ({ studentId, attended, reportSubmitted }) => {
+    const dateObj = new Date(date);
+    const attendanceOps = [];
+    const reportOps = [];
+
+    for (const { studentId, attended, reportSubmitted } of records) {
+      if (!studentId) continue;
       const attStatus = attended ? 'Present' : 'Absent';
       const repStatus = reportSubmitted ? 'Submitted' : 'Not Submitted';
-      const dateObj   = new Date(date);
 
-      // Upsert Attendance
-      await Attendance.findOneAndUpdate(
-        { student: studentId, course: courseId, dayName },
-        { student: studentId, course: courseId, date: dateObj, dayName, status: attStatus, teacher: req.user._id },
-        { upsert: true, new: true }
-      );
+      attendanceOps.push({
+        updateOne: {
+          filter: { student: studentId, course: courseId, dayName },
+          update: {
+            $set: {
+              student: studentId,
+              course: courseId,
+              date: dateObj,
+              dayName,
+              status: attStatus,
+              teacher: req.user._id
+            }
+          },
+          upsert: true
+        }
+      });
 
-      // Upsert Report
-      await Report.findOneAndUpdate(
-        { student: studentId, course: courseId, dayName },
-        { student: studentId, course: courseId, date: dateObj, dayName, status: repStatus, teacher: req.user._id },
-        { upsert: true, new: true }
-      );
-    });
+      reportOps.push({
+        updateOne: {
+          filter: { student: studentId, course: courseId, dayName },
+          update: {
+            $set: {
+              student: studentId,
+              course: courseId,
+              date: dateObj,
+              dayName,
+              status: repStatus,
+              teacher: req.user._id
+            }
+          },
+          upsert: true
+        }
+      });
+    }
 
-    await Promise.all(ops);
+    await Promise.all([
+      attendanceOps.length > 0 ? Attendance.bulkWrite(attendanceOps, { ordered: false }) : Promise.resolve(),
+      reportOps.length > 0 ? Report.bulkWrite(reportOps, { ordered: false }) : Promise.resolve()
+    ]);
+
     res.json({ message: 'Attendance and reports saved successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });

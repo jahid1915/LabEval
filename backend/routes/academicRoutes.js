@@ -11,7 +11,7 @@ const {
   updateSeries,
   deleteSeries
 } = require('../controllers/academicSessionController');
-const { protect, adminOnly } = require('../middleware/authMiddleware');
+const { protect, adminOnly, adminOrHead } = require('../middleware/authMiddleware');
 const { getSessionFromSeries, generateSeriesRange, getCurrentAcademicInfo } = require('../utils/academicUtils');
 
 router.use(protect);
@@ -31,7 +31,7 @@ router.get('/current-info', (req, res) => {
   res.json(getCurrentAcademicInfo());
 });
 
-// Sessions
+// Sessions (Admin only — global scope)
 router.get('/sessions', getAcademicSessions);
 router.post('/sessions', adminOnly, createAcademicSession);
 router.put('/sessions/:id', adminOnly, updateAcademicSession);
@@ -40,11 +40,11 @@ router.put('/sessions/:id', adminOnly, updateAcademicSession);
 router.get('/semesters', getSemesters);
 router.post('/semesters', adminOnly, createSemester);
 
-// Series
+// Series (Department Heads can manage series for their own department)
 router.get('/series', getSeries);
-router.post('/series', adminOnly, createSeries);
-router.put('/series/:id', adminOnly, updateSeries);
-router.delete('/series/:id', adminOnly, deleteSeries);
+router.post('/series', adminOrHead, createSeries);
+router.put('/series/:id', adminOrHead, updateSeries);
+router.delete('/series/:id', adminOrHead, deleteSeries);
 
 module.exports = router;
 

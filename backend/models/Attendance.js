@@ -10,5 +10,6 @@ const attendanceSchema = new mongoose.Schema({
 
 // Optimizes queries filtered by student/course/dayName
 attendanceSchema.index({ student: 1, course: 1, dayName: 1 });
+attendanceSchema.index({ course: 1, date: -1 });
 
 module.exports = mongoose.model('Attendance', attendanceSchema);

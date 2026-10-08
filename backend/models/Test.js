@@ -9,5 +9,6 @@ const testSchema = new mongoose.Schema({
 
 // Optimizes queries filtered by student/course
 testSchema.index({ student: 1, course: 1 });
+testSchema.index({ course: 1 });
 
 module.exports = mongoose.model('Test', testSchema);

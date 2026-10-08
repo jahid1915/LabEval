@@ -1,5 +1,6 @@
 const jwt = require('jsonwebtoken');
 const bcrypt = require('bcryptjs');
+const mongoose = require('mongoose');
 const User = require('../models/User');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
@@ -9,6 +10,7 @@ const Faculty = require('../models/Faculty');
 const Series = require('../models/Series');
 const AcademicSession = require('../models/AcademicSession');
 const AuditLog = require('../models/AuditLog');
+const { invalidateAuthCache } = require('../middleware/authMiddleware');
 
 const generateToken = (payload) => {
   return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '30d' });
@@ -34,6 +36,26 @@ const logAudit = async (action, entity, entityId, details, user, req) => {
   }
 };
 
+// Lightweight in-memory department metadata cache (5 min TTL)
+const deptMetaCache = new Map();
+const getCachedDeptMeta = async (refOrCode) => {
+  if (!refOrCode) return null;
+  const key = String(refOrCode).toUpperCase();
+  const cached = deptMetaCache.get(key);
+  if (cached && Date.now() < cached.expiresAt) return cached.data;
+
+  let dept = null;
+  if (mongoose.Types.ObjectId.isValid(refOrCode)) {
+    dept = await Department.findById(refOrCode).populate('faculty').lean();
+  } else {
+    dept = await Department.findOne({ code: key }).populate('faculty').lean();
+  }
+  if (dept) {
+    deptMetaCache.set(key, { data: dept, expiresAt: Date.now() + 5 * 60 * 1000 });
+  }
+  return dept;
+};
+
 // Helper to format safe user object for response
 const formatSafeUser = async (user, profileDoc = null) => {
   let departmentName = user.department;
@@ -44,14 +66,9 @@ const formatSafeUser = async (user, profileDoc = null) => {
   let designation = '';
   let profileId = profileDoc?._id || user.profileRef || user._id;
 
-  if (user.departmentRef) {
-    const dept = await Department.findById(user.departmentRef).populate('faculty');
-    if (dept) {
-      departmentName = dept.name;
-      facultyName = dept.faculty?.name || user.faculty;
-    }
-  } else if (user.department) {
-    const dept = await Department.findOne({ code: user.department.toUpperCase() }).populate('faculty');
+  const deptLookup = user.departmentRef || user.department;
+  if (deptLookup) {
+    const dept = await getCachedDeptMeta(deptLookup);
     if (dept) {
       departmentName = dept.name;
       facultyName = dept.faculty?.name || user.faculty;
@@ -712,28 +729,34 @@ const registerAdmin = async (req, res) => {
 const getCurrentUser = async (req, res) => {
   try {
     if (!req.user) {
+      if (res.headersSent) return;
       return res.status(401).json({ success: false, message: 'Not authenticated' });
     }
 
     let centralUser = null;
-    if (req.user.user) {
-      centralUser = await User.findById(req.user.user);
+    if (req.user instanceof User || req.user.role && req.user.loginIdentifier) {
+      centralUser = req.user;
+    } else if (req.user.user) {
+      centralUser = await User.findById(req.user.user).lean();
     } else if (req.user.userId) {
-      centralUser = await User.findById(req.user.userId);
+      centralUser = await User.findById(req.user.userId).lean();
     } else {
-      centralUser = await User.findOne({ profileRef: req.user._id });
+      centralUser = await User.findOne({ profileRef: req.user._id }).lean();
     }
 
     if (!centralUser) {
+      if (res.headersSent) return;
       return res.status(404).json({ success: false, message: 'User record not found' });
     }
 
     const safeUser = await formatSafeUser(centralUser, req.user);
+    if (res.headersSent) return;
     return res.json({
       success: true,
       user: safeUser
     });
   } catch (err) {
+    if (res.headersSent) return;
     console.error('getCurrentUser error:', err);
     res.status(500).json({ success: false, message: 'Failed to retrieve profile: ' + err.message });
   }
@@ -811,6 +834,10 @@ const changePassword = async (req, res) => {
 
     await logAudit('PASSWORD_CHANGED', 'User', user._id, 'Password changed successfully', user, req);
 
+    // Evict cached auth session so stale tokens/credentials cannot be used
+    invalidateAuthCache(user.loginIdentifier);
+    invalidateAuthCache(user._id);
+
     return res.json({
       success: true,
       message: 'Password changed successfully'
@@ -823,6 +850,9 @@ const changePassword = async (req, res) => {
 
 // ── LOGOUT / LOGOUT ALL ───────────────────────────────────────────────────────
 const logout = async (req, res) => {
+  if (req.user) {
+    invalidateAuthCache(req.user.loginIdentifier || req.user.rollNumber || req.user.teacherId || req.user.userId);
+  }
   return res.json({ success: true, message: 'Logged out successfully' });
 };
 
@@ -836,6 +866,8 @@ const logoutAll = async (req, res) => {
     if (user) {
       user.sessionVersion = (user.sessionVersion || 1) + 1;
       await user.save();
+      invalidateAuthCache(user.loginIdentifier);
+      invalidateAuthCache(user._id);
     }
     return res.json({ success: true, message: 'All active sessions invalidated' });
   } catch (err) {

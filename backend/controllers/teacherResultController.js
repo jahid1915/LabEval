@@ -79,14 +79,25 @@ const getFinalResults = async (req, res) => {
     // LabEval official: Attendance(5) + Reports(10) + Performance(5) + Quiz(30) + Test(20) + Others(5) = 75
     const maxTotalMarks = (cfg.attendance + cfg.report + cfg.performance + cfg.quiz + cfg.test + cfg.others) || 75;
 
-    const students     = await Student.find(query).sort({ rollNumber: 1 });
-    const attendances  = await Attendance.find({ course: courseId });
-    const reports      = await Report.find({ course: courseId });
-    const performances = await Performance.find({ course: courseId });
-    const quizzes      = await Quiz.find({ course: courseId });
-    const tests        = await Test.find({ course: courseId });
-    const others       = await Others.find({ course: courseId });
-    const finalSaved   = await FinalResult.find({ course: courseId });
+    const [
+      students,
+      attendances,
+      reports,
+      performances,
+      quizzes,
+      tests,
+      others,
+      finalSaved
+    ] = await Promise.all([
+      Student.find(query).sort({ rollNumber: 1 }).select('name rollNumber department series').lean(),
+      Attendance.find({ course: courseId }).select('student dayName status').lean(),
+      Report.find({ course: courseId }).select('student dayName status').lean(),
+      Performance.find({ course: courseId }).select('student marks').lean(),
+      Quiz.find({ course: courseId }).select('student marks').lean(),
+      Test.find({ course: courseId }).select('student marks').lean(),
+      Others.find({ course: courseId }).select('student marks').lean(),
+      FinalResult.find({ course: courseId }).lean()
+    ]);
 
     // Total unique attendance days recorded
     const uniqueDates = [...new Set(attendances.map(a => a.dayName))];
@@ -191,7 +202,7 @@ const submitMarkSheet = async (req, res) => {
       return Math.min(max, Math.round(num * 100) / 100);
     };
 
-    const ops = records.map(async (r) => {
+    const bulkOps = records.map((r) => {
       const att  = sanitizeMark(r.attendanceMark, cfg.attendance);
       const rep  = sanitizeMark(r.reportMark,     cfg.report);
       const perf = sanitizeMark(r.perfMark,        cfg.performance);
@@ -220,42 +231,48 @@ const submitMarkSheet = async (req, res) => {
         gradePoint
       };
 
-      return FinalResult.findOneAndUpdate(
-        { student: r.studentId, course: cleanCourseCode },
-        {
-          student: r.studentId,
-          rollNumber: r.studentRoll || '',
-          studentName: r.studentName || '',
-          department: r.department || req.user.department,
-          series: r.series || offeringDoc?.seriesName || '22',
-          semester: semester || offeringDoc?.semesterName || courseDoc?.semesterLevel || '',
-          academicSession: academicSession || offeringDoc?.sessionName || '2024-2025',
-          course: cleanCourseCode,
-          courseName: offeringDoc?.courseName || courseDoc?.courseName || cleanCourseCode,
-          courseOffering: offeringDoc?._id || null,
-          teacher: req.user._id,
-          teacherId: req.user.teacherId,
-          teacherName: req.user.name,
-          attendanceMarks: att,
-          reportMarks: rep,
-          performanceMarks: perf,
-          quizMarks: q,
-          testMarks: t,
-          othersMarks: oth,
-          totalMarks: tot,
-          maxTotalMarks,
-          grade,
-          gradePoint,
-          detailedMarks,
-          status,
-          isPublished: status === 'published',
-          publishedAt: status === 'published' ? new Date() : undefined
-        },
-        { upsert: true, returnDocument: 'after' }
-      );
+      return {
+        updateOne: {
+          filter: { student: r.studentId, course: cleanCourseCode },
+          update: {
+            $set: {
+              student: r.studentId,
+              rollNumber: r.studentRoll || '',
+              studentName: r.studentName || '',
+              department: r.department || req.user.department,
+              series: r.series || offeringDoc?.seriesName || '22',
+              semester: semester || offeringDoc?.semesterName || courseDoc?.semesterLevel || '',
+              academicSession: academicSession || offeringDoc?.sessionName || '2024-2025',
+              course: cleanCourseCode,
+              courseName: offeringDoc?.courseName || courseDoc?.courseName || cleanCourseCode,
+              courseOffering: offeringDoc?._id || null,
+              teacher: req.user._id,
+              teacherId: req.user.teacherId,
+              teacherName: req.user.name,
+              attendanceMarks: att,
+              reportMarks: rep,
+              performanceMarks: perf,
+              quizMarks: q,
+              testMarks: t,
+              othersMarks: oth,
+              totalMarks: tot,
+              maxTotalMarks,
+              grade,
+              gradePoint,
+              detailedMarks,
+              status,
+              isPublished: status === 'published',
+              publishedAt: status === 'published' ? new Date() : undefined
+            }
+          },
+          upsert: true
+        }
+      };
     });
 
-    await Promise.all(ops);
+    if (bulkOps.length > 0) {
+      await FinalResult.bulkWrite(bulkOps, { ordered: false });
+    }
 
     await logAudit({
       req,

@@ -8,6 +8,50 @@ const TeacherAssignment = require('../models/TeacherAssignment');
 const CourseOffering = require('../models/CourseOffering');
 const Course = require('../models/Course');
 
+// ── High-Performance Auth Cache (30s TTL, max 5,000 active sessions) ────────
+const authCache = new Map();
+const AUTH_CACHE_TTL = 30 * 1000;
+
+const getCachedAuth = (cacheKey) => {
+  const item = authCache.get(cacheKey);
+  if (!item) return null;
+  if (Date.now() > item.expiresAt) {
+    authCache.delete(cacheKey);
+    return null;
+  }
+  return item.data;
+};
+
+const setCachedAuth = (cacheKey, data) => {
+  if (authCache.size > 5000) {
+    const firstKey = authCache.keys().next().value;
+    if (firstKey) authCache.delete(firstKey);
+  }
+  authCache.set(cacheKey, {
+    data,
+    expiresAt: Date.now() + AUTH_CACHE_TTL
+  });
+};
+
+const invalidateAuthCache = (identifierOrId) => {
+  if (!identifierOrId) {
+    authCache.clear();
+    return;
+  }
+  const target = String(identifierOrId).toLowerCase();
+  for (const [key, val] of authCache.entries()) {
+    if (
+      key.toLowerCase().includes(target) ||
+      val.data?.authUser?._id?.toString() === target ||
+      val.data?.user?._id?.toString() === target ||
+      val.data?.user?.userId?.toString() === target ||
+      val.data?.authUser?.loginIdentifier?.toLowerCase() === target
+    ) {
+      authCache.delete(key);
+    }
+  }
+};
+
 const protect = async (req, res, next) => {
   let token;
   if (req.headers.authorization && req.headers.authorization.startsWith('Bearer')) {
@@ -15,6 +59,14 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
+      const cacheKey = `${token.slice(-16)}_${decoded.id || decoded.userId}`;
+      const cached = getCachedAuth(cacheKey);
+      if (cached) {
+        req.user = { ...cached.user };
+        req.authUser = cached.authUser;
+        return next();
+      }
+
       const commonFields = '-password -passwordHash -__v -enrolledCourses';
 
       // 1. Look up central User
@@ -74,6 +126,8 @@ const protect = async (req, res, next) => {
       req.user.department = req.user.department || authUser?.department || '';
       req.user.departmentCode = req.user.departmentCode || authUser?.department || '';
       req.authUser = authUser;
+
+      setCachedAuth(cacheKey, { user: req.user, authUser: req.authUser });
 
       return next();
     } catch (error) {
@@ -275,5 +329,6 @@ module.exports = {
   adminOrTeacher,
   enforceDepartmentIsolation,
   requireStudentOwnership,
-  requireTeacherCourseAccess
+  requireTeacherCourseAccess,
+  invalidateAuthCache
 };

@@ -115,5 +115,7 @@ teacherAssignmentSchema.index({ courseOffering: 1, status: 1, role: 1 });
 teacherAssignmentSchema.index({ departmentCode: 1, status: 1 });
 teacherAssignmentSchema.index({ facultyCode: 1, status: 1 });
 teacherAssignmentSchema.index({ academicSession: 1, semester: 1 });
+teacherAssignmentSchema.index({ status: 1, updatedAt: -1 });
+teacherAssignmentSchema.index({ status: 1, departmentCode: 1, updatedAt: -1 });
 
 module.exports = mongoose.model('TeacherAssignment', teacherAssignmentSchema);

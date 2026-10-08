@@ -637,6 +637,7 @@ async function runTestSuite() {
   // ──────────────────────────────────────────────────────────────────────────
   console.log('\n🔹 10. TEST DATA CLEANUP');
   await Student.deleteMany({ rollNumber: { $in: ['2299001', '2299002', '2299003', '2299004', '2299005', '2399001'] } });
+  await User.deleteMany({ loginIdentifierLower: { $in: ['2299001', '2299002', '2299003', '2299004', '2299005', '2399001', 'test-t001'] } });
   await Teacher.deleteMany({ teacherId: 'TEST-T001' });
   await Course.deleteMany({ courseCode: { $in: ['TEST-ETE-4201', 'TEST-ELE-A', 'TEST-ELE-B', 'TEST-ELE-C'] } });
   await CourseOffering.deleteMany({ courseCode: 'TEST-ETE-4201' });

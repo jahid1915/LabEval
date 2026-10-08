@@ -5,15 +5,28 @@ const Student = require('../models/Student');
 const CourseOffering = require('../models/CourseOffering');
 const { logAudit } = require('../middleware/auditMiddleware');
 
+// In-memory faculties cache (60s TTL)
+let facultiesCache = null;
+let facultiesCacheExpiresAt = 0;
+
+const invalidateFacultiesCache = () => {
+  facultiesCache = null;
+  facultiesCacheExpiresAt = 0;
+};
+
 // @desc Get all faculties with aggregate counts
 // @route GET /api/faculties
 const getFaculties = async (req, res) => {
   try {
-    const faculties = await Faculty.find({ status: { $ne: 'archived' } }).sort({ name: 1 });
+    if (facultiesCache && Date.now() < facultiesCacheExpiresAt) {
+      return res.json(facultiesCache);
+    }
+
+    const faculties = await Faculty.find({ status: { $ne: 'archived' } }).sort({ name: 1 }).lean();
     
     // Enrich each faculty with department & counts
     const enriched = await Promise.all(faculties.map(async (f) => {
-      const departments = await Department.find({ faculty: f._id, status: 'active' });
+      const departments = await Department.find({ faculty: f._id, status: 'active' }).lean();
       const deptIds = departments.map(d => d._id);
       const deptCodes = departments.map(d => d.code);
 
@@ -24,7 +37,7 @@ const getFaculties = async (req, res) => {
       ]);
 
       return {
-        ...f.toObject(),
+        ...f,
         departments,
         stats: {
           departmentCount: departments.length,
@@ -34,6 +47,9 @@ const getFaculties = async (req, res) => {
         }
       };
     }));
+
+    facultiesCache = enriched;
+    facultiesCacheExpiresAt = Date.now() + 60 * 1000;
 
     res.json(enriched);
   } catch (error) {
@@ -80,6 +96,7 @@ const createFaculty = async (req, res) => {
       newValues: faculty
     });
 
+    invalidateFacultiesCache();
     res.status(201).json(faculty);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -114,6 +131,7 @@ const updateFaculty = async (req, res) => {
       newValues: faculty
     });
 
+    invalidateFacultiesCache();
     res.json(faculty);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -132,6 +150,7 @@ const deleteFaculty = async (req, res) => {
     if (deptCount > 0) {
       faculty.status = 'archived';
       await faculty.save();
+      invalidateFacultiesCache();
       return res.json({ message: `Faculty archived (${deptCount} active departments remain preserved)` });
     }
 
@@ -145,6 +164,7 @@ const deleteFaculty = async (req, res) => {
       details: `Deleted faculty ${faculty.name}`
     });
 
+    invalidateFacultiesCache();
     res.json({ message: 'Faculty deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -20,19 +20,21 @@ const {
   updateSessionCredentials,
   deleteSession
 } = require('../controllers/importController');
-const { protect, adminOnly } = require('../middleware/authMiddleware');
+const { protect, adminOnly, adminOrHead } = require('../middleware/authMiddleware');
 
 // All import routes require authentication
 router.use(protect);
 
-// ── Template Download ─────────────────────────────────────────────────────────
-router.get('/template', downloadTemplate);
+// ── Template Download (Admin or Department Head) ──────────────────────────────
+router.get('/template', adminOrHead, downloadTemplate);
 
 // ── Series → Session utility ──────────────────────────────────────────────────
-router.get('/series-session/:series', getSessionForSeries);
+router.get('/series-session/:series', adminOrHead, getSessionForSeries);
 
-// ── Admin-only Import & Management Routes ──────────────────────────────────────
-router.use(adminOnly);
+// ── Admin or Department Head Import & Management Routes ───────────────────────
+// Department Heads can import students for their own department.
+// Admin has unrestricted access. Department isolation is enforced inside controllers.
+router.use(adminOrHead);
 
 // Step 1: Upload and parse XLSX to inspect sheets and headers
 router.post('/students/parse', uploadMiddleware, parseUpload);

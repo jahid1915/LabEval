@@ -12,60 +12,89 @@ const Test = require('../models/Test');
 const Others = require('../models/Others');
 const FinalEnrollment = require('../models/FinalEnrollment');
 
+// 30s TTL in-memory cache for department course offerings & teacher assignments
+const deptCoursesStructureCache = new Map();
+const DEPT_COURSES_TTL = 30 * 1000;
+
 // @desc Get student courses organized semester-wise, with real assigned teachers and grades
 // @route GET /api/student/courses
 const getStudentCourses = async (req, res) => {
   try {
     const student = req.user;
     const { department, series } = student;
-    const cleanDept = department.toUpperCase();
+    const cleanDept = (department || 'ETE').toUpperCase();
     const filterSemester = req.query.semester ? req.query.semester.trim() : null;
 
-    // 1. Fetch CourseOfferings for this dept & series
-    const offeringQuery = {
-      departmentCode: cleanDept,
-      seriesName: series,
-      status: 'active'
-    };
-    if (filterSemester) {
-      offeringQuery.$or = [{ semesterName: filterSemester }, { semesterName: { $regex: filterSemester, $options: 'i' } }];
-    }
+    // Cache key for department-level course structure
+    const cacheKey = `${cleanDept}_${series || 'ALL'}_${filterSemester || 'ALL'}`;
+    let deptStructure = deptCoursesStructureCache.get(cacheKey);
 
-    const offerings = await CourseOffering.find(offeringQuery)
-      .populate('course', 'credit creditHours courseType isElective isSessional pairedCourseCode defaultAssessmentConfig syllabus semesterLevel')
-      .sort({ createdAt: -1 });
-
-    // 2. Fetch all Elective / Master Courses for this department
-    const courseQuery = {
-      departmentCode: cleanDept,
-      status: 'active'
-    };
-    if (filterSemester) {
-      courseQuery.$or = [{ semesterLevel: filterSemester }, { semester: filterSemester }];
-    }
-
-    const masterCourses = await Course.find(courseQuery).sort({ semesterLevel: 1, courseCode: 1 });
-
-    // 3. Collect all teacher assignments for this department
-    const allAssignments = await TeacherAssignment.find({ status: 'active' })
-      .populate('teacher', 'name teacherId designation department email avatarUrl')
-      .populate('courseOffering');
-
-    const assignmentByOfferingId = {};
-    const assignmentByCourseCode = {};
-
-    allAssignments.forEach(a => {
-      if (a.courseOffering) {
-        assignmentByOfferingId[a.courseOffering._id.toString()] = a;
-        assignmentByCourseCode[a.courseOffering.courseCode] = a;
+    if (!deptStructure || (Date.now() - deptStructure.timestamp > DEPT_COURSES_TTL)) {
+      // 1. Fetch CourseOfferings for this dept & series
+      const offeringQuery = {
+        departmentCode: cleanDept,
+        seriesName: series,
+        status: 'active'
+      };
+      if (filterSemester) {
+        offeringQuery.$or = [{ semesterName: filterSemester }, { semesterName: { $regex: filterSemester, $options: 'i' } }];
       }
-    });
 
-    // 4. Collect student's final results, requests, and approved elective enrollments
+      // 2. Fetch all Elective / Master Courses for this department
+      const courseQuery = {
+        departmentCode: cleanDept,
+        status: 'active'
+      };
+      if (filterSemester) {
+        courseQuery.$or = [{ semesterLevel: filterSemester }, { semester: filterSemester }];
+      }
+
+      // Execute department queries in parallel with .lean()
+      const [offerings, masterCourses, allAssignments] = await Promise.all([
+        CourseOffering.find(offeringQuery)
+          .populate('course', 'credit creditHours courseType isElective isSessional pairedCourseCode defaultAssessmentConfig syllabus semesterLevel')
+          .sort({ createdAt: -1 })
+          .lean(),
+        Course.find(courseQuery).sort({ semesterLevel: 1, courseCode: 1 }).lean(),
+        TeacherAssignment.find({
+          status: 'active',
+          departmentCode: cleanDept
+        })
+          .populate('teacher', 'name teacherId designation department email avatarUrl')
+          .populate('courseOffering')
+          .lean()
+      ]);
+
+      const assignmentByOfferingId = {};
+      const assignmentByCourseCode = {};
+
+      allAssignments.forEach(a => {
+        if (a.courseOffering) {
+          const offId = a.courseOffering._id ? a.courseOffering._id.toString() : a.courseOffering.toString();
+          assignmentByOfferingId[offId] = a;
+          if (a.courseOffering.courseCode) {
+            assignmentByCourseCode[a.courseOffering.courseCode] = a;
+          }
+        }
+      });
+
+      deptStructure = {
+        offerings,
+        masterCourses,
+        assignmentByOfferingId,
+        assignmentByCourseCode,
+        timestamp: Date.now()
+      };
+      deptCoursesStructureCache.set(cacheKey, deptStructure);
+    }
+
+    const { offerings, masterCourses, assignmentByOfferingId, assignmentByCourseCode } = deptStructure;
+
+    // 4. Collect student's final results, requests, and approved elective enrollments in parallel
     const [finalResults, requests, finalEnrollments] = await Promise.all([
-      FinalResult.find({ student: student._id }),
-      Request.find({ student: student._id }),
-      FinalEnrollment.find({ studentId: student._id, status: 'active' }).populate('courseId offeringId')
+      FinalResult.find({ student: student._id }).lean(),
+      Request.find({ student: student._id }).lean(),
+      FinalEnrollment.find({ studentId: student._id, status: 'active' }).populate('courseId offeringId').lean()
     ]);
 
     const approvedElectiveCourseMap = new Map();

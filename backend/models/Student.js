@@ -170,6 +170,7 @@ studentSchema.methods.matchPassword = async function(enteredPassword) {
 
 // Compound index for most common query patterns
 studentSchema.index({ rollNumber: 1, department: 1, series: 1 });
+studentSchema.index({ department: 1, series: 1, status: 1, rollNumber: 1 });
 // Individual indexes for filtering/searching
 studentSchema.index({ department: 1 });
 studentSchema.index({ series: 1 });

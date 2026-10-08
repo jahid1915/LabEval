@@ -81,5 +81,6 @@ const courseOfferingSchema = new mongoose.Schema({
 
 courseOfferingSchema.index({ courseCode: 1, seriesName: 1, sessionName: 1, semesterName: 1 }, { unique: true });
 courseOfferingSchema.index({ departmentCode: 1, seriesName: 1 });
+courseOfferingSchema.index({ departmentCode: 1, status: 1 });
 
 module.exports = mongoose.model('CourseOffering', courseOfferingSchema);

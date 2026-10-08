@@ -10,5 +10,6 @@ const othersSchema = new mongoose.Schema({
 
 // Optimizes queries filtered by student/course/type
 othersSchema.index({ student: 1, course: 1, type: 1 });
+othersSchema.index({ course: 1 });
 
 module.exports = mongoose.model('Others', othersSchema);
