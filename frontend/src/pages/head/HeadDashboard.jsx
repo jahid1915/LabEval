@@ -17,6 +17,7 @@ export default function HeadDashboard() {
 
   const [loading, setLoading] = useState(true);
   const [data, setData] = useState(null);
+  const [myAcademic, setMyAcademic] = useState(null);
 
   const deptCode = user?.departmentCode || user?.department || 'ETE';
   const deptName = user?.departmentName || (deptCode === 'ETE' ? 'Electronics & Telecommunication Engineering' : `${deptCode} Department`);
@@ -25,10 +26,13 @@ export default function HeadDashboard() {
   const fetchDashboardData = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await api.get('/head/stats');
-      if (res.data?.success) {
-        setData(res.data);
-      }
+      const [statsRes, myAcadRes] = await Promise.all([
+        api.get('/head/stats'),
+        api.get('/head/my-academic')
+      ]);
+
+      if (statsRes.data?.success) setData(statsRes.data);
+      if (myAcadRes.data?.success) setMyAcademic(myAcadRes.data);
     } catch (err) {
       console.error('Failed to load department dashboard:', err);
       toast.error(err.response?.data?.message || 'Failed to load department metrics');
@@ -247,63 +251,162 @@ export default function HeadDashboard() {
         )}
       </div>
 
+      {/* ── My Personal Academic Work (Sections 15 & 16) ─────────────── */}
+      <div className="space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h2 className="text-lg font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <GraduationCap className="w-5 h-5 text-indigo-500" />
+              My Teaching & Supervision
+            </h2>
+            <p className="text-xs text-slate-400">Personal academic courses and student projects assigned to you</p>
+          </div>
+          <Link
+            to="/head/teaching-assignments"
+            className="text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline flex items-center gap-1"
+          >
+            Manage Teaching <ChevronRight className="w-3.5 h-3.5" />
+          </Link>
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <p className="text-xs font-medium text-slate-400 uppercase">Courses I Teach</p>
+            <p className="text-2xl font-black text-indigo-600 dark:text-indigo-400 mt-1">
+              {myAcademic?.stats?.assignedCoursesCount || 0}
+            </p>
+          </div>
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <p className="text-xs font-medium text-slate-400 uppercase">Project Students</p>
+            <p className="text-2xl font-black text-emerald-600 dark:text-emerald-400 mt-1">
+              {myAcademic?.stats?.projectStudentsCount || 0}
+            </p>
+          </div>
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <p className="text-xs font-medium text-slate-400 uppercase">Seminar Students</p>
+            <p className="text-2xl font-black text-blue-600 dark:text-blue-400 mt-1">
+              {myAcademic?.stats?.seminarStudentsCount || 0}
+            </p>
+          </div>
+          <div className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm">
+            <p className="text-xs font-medium text-slate-400 uppercase">Thesis Students</p>
+            <p className="text-2xl font-black text-amber-600 dark:text-amber-400 mt-1">
+              {myAcademic?.stats?.thesisStudentsCount || 0}
+            </p>
+          </div>
+        </div>
+
+        {/* Assigned courses table preview */}
+        {myAcademic?.courses && myAcademic.courses.length > 0 && (
+          <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl overflow-hidden shadow-sm">
+            <div className="p-3.5 bg-slate-50 dark:bg-slate-950/60 border-b border-slate-200 dark:border-slate-800 font-bold text-xs text-slate-700 dark:text-slate-300">
+              Active Courses Assigned to Me
+            </div>
+            <div className="divide-y divide-slate-100 dark:divide-slate-800/80 text-xs">
+              {myAcademic.courses.map((c) => (
+                <div key={c._id} className="p-3.5 flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <span className="font-mono font-bold text-indigo-600 dark:text-indigo-400 mr-2">{c.courseCode}</span>
+                    <span className="font-medium text-slate-800 dark:text-slate-200">{c.courseName}</span>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                      {c.academicSession} • {c.semester}
+                    </span>
+                    <span className="px-2 py-0.5 rounded bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 font-semibold">
+                      {c.role}
+                    </span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* ── Department Quick Operations Grid ──────────────────────────── */}
       <div className="space-y-4">
         <h2 className="text-lg font-bold text-slate-900 dark:text-white">
           Department Operations & Workflows
         </h2>
 
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
           <Link
             to="/head/students"
-            className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 transition-all shadow-sm group"
+            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 transition-all shadow-sm group"
           >
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center mb-3">
-              <Users className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 flex items-center justify-center mb-2">
+              <Users className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600">
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600">
               Department Students
             </h3>
-            <p className="text-[11px] text-slate-400 mt-1">Search, series filtering, roster list</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Directory & Filters</p>
           </Link>
 
           <Link
             to="/head/teachers"
-            className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 transition-all shadow-sm group"
+            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 transition-all shadow-sm group"
           >
-            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center mb-3">
-              <GraduationCap className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-blue-50 dark:bg-blue-950/60 text-blue-600 flex items-center justify-center mb-2">
+              <GraduationCap className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600">
-              Faculty Roster
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600">
+              Teachers & Workload
             </h3>
-            <p className="text-[11px] text-slate-400 mt-1">Teachers in {deptCode} department</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Workload Overview</p>
           </Link>
 
           <Link
             to="/head/teaching-assignments"
-            className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 transition-all shadow-sm group"
+            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 transition-all shadow-sm group"
           >
-            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center mb-3">
-              <BookOpen className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-amber-50 dark:bg-amber-950/60 text-amber-600 flex items-center justify-center mb-2">
+              <BookOpen className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600">
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-blue-600">
               Teaching Assignments
             </h3>
-            <p className="text-[11px] text-slate-400 mt-1">Course distribution & teacher load</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Course Allocation</p>
+          </Link>
+
+          <Link
+            to="/head/supervision"
+            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-emerald-400 transition-all shadow-sm group"
+          >
+            <div className="w-9 h-9 rounded-xl bg-teal-50 dark:bg-teal-950/60 text-teal-600 flex items-center justify-center mb-2">
+              <Layers className="w-4 h-4" />
+            </div>
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-emerald-600">
+              Projects & Supervision
+            </h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">Project/Thesis Allocation</p>
           </Link>
 
           <Link
             to="/head/electives"
-            className="p-5 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-blue-400 transition-all shadow-sm group"
+            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-purple-400 transition-all shadow-sm group"
           >
-            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center mb-3">
-              <Sparkles className="w-5 h-5" />
+            <div className="w-9 h-9 rounded-xl bg-purple-50 dark:bg-purple-950/60 text-purple-600 flex items-center justify-center mb-2">
+              <Sparkles className="w-4 h-4" />
             </div>
-            <h3 className="text-sm font-bold text-slate-900 dark:text-white group-hover:text-blue-600">
-              Elective Offerings
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-purple-600">
+              Elective Courses
             </h3>
-            <p className="text-[11px] text-slate-400 mt-1">Series voting & course allocations</p>
+            <p className="text-[10px] text-slate-400 mt-0.5">Series Voting</p>
+          </Link>
+
+          <Link
+            to="/head/headship-transfer"
+            className="p-4 rounded-2xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 hover:border-indigo-400 transition-all shadow-sm group"
+          >
+            <div className="w-9 h-9 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 flex items-center justify-center mb-2">
+              <Award className="w-4 h-4" />
+            </div>
+            <h3 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-indigo-600">
+              Headship Transfer
+            </h3>
+            <p className="text-[10px] text-slate-400 mt-0.5">Handover Request</p>
           </Link>
         </div>
       </div>

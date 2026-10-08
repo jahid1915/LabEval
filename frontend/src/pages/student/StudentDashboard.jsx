@@ -24,12 +24,19 @@ export default function StudentDashboard() {
   const [loading, setLoading] = useState(true);
   const [requestingCourse, setRequestingCourse] = useState(null);
   const [detailedMarksModal, setDetailedMarksModal] = useState(null);
+  const [supervisions, setSupervisions] = useState([]);
 
   const fetchCourses = useCallback(async (sem) => {
     setLoading(true);
     try {
-      const { data } = await api.get(`/student/courses?semester=${sem || activeSemester}`);
-      setCourses(data);
+      const [coursesRes, supRes] = await Promise.all([
+        api.get(`/student/courses?semester=${sem || activeSemester}`),
+        api.get('/student/supervision')
+      ]);
+      setCourses(coursesRes.data || []);
+      if (supRes.data?.success) {
+        setSupervisions(supRes.data.supervisions || []);
+      }
     } catch {
       toast.error('Failed to load semester courses');
     } finally {
@@ -203,6 +210,66 @@ export default function StudentDashboard() {
           </div>
         </div>
       </div>
+
+      {/* ── MY ACADEMIC SUPERVISION (Sections 33, 34, 45) ── */}
+      {supervisions.length > 0 && (
+        <div className="space-y-3">
+          <div className="flex items-center justify-between">
+            <h2 className="text-[15px] font-bold text-slate-900 dark:text-white flex items-center gap-2">
+              <Award size={17} className="text-emerald-500" />
+              My Academic Supervision & Research Teams
+            </h2>
+            <span className="text-xs text-slate-500">{supervisions.length} Active Group(s)</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {supervisions.map((sup) => (
+              <div
+                key={sup._id}
+                className="p-5 rounded-2xl bg-gradient-to-r from-emerald-950/20 via-slate-900 to-slate-900 border border-emerald-500/30 shadow-md space-y-4"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                    {sup.activityType}
+                  </span>
+                  <span className="text-xs text-slate-400">
+                    Session {sup.academicSession} • {sup.series} Series
+                  </span>
+                </div>
+
+                <div>
+                  <h3 className="text-base font-bold text-white line-clamp-1">
+                    {sup.project?.title || `${sup.activityType} Group`}
+                  </h3>
+                  <p className="text-xs text-slate-400 mt-1">
+                    Supervisor: <strong className="text-slate-200">{sup.supervisor?.name || 'Assigned Faculty'}</strong>
+                    {sup.supervisor?.designation && <span className="opacity-75"> ({sup.supervisor.designation})</span>}
+                  </p>
+                </div>
+
+                <div className="flex items-center justify-between pt-3 border-t border-slate-800 text-xs">
+                  <div className="flex items-center gap-1.5 text-slate-300">
+                    <Users size={14} className="text-emerald-400" />
+                    <span><strong>{sup.teamMembers?.length || 1}</strong> Team Members</span>
+                  </div>
+
+                  {sup.project?._id ? (
+                    <button
+                      onClick={() => navigate(`/student/projects/${sup.project._id}/workspace`)}
+                      className="flex items-center gap-1.5 px-3.5 py-1.5 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-white font-semibold rounded-xl text-xs shadow-md shadow-emerald-950 transition"
+                    >
+                      <span>Open Workspace</span>
+                      <ChevronRight size={14} />
+                    </button>
+                  ) : (
+                    <span className="text-slate-500 text-[11px]">Workspace Initializing</span>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── SEMESTER COURSE LIST ── */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 shadow-sm">

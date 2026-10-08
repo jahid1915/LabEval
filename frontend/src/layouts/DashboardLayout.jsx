@@ -49,15 +49,18 @@ const headNav = [
   { heading: 'Academic Sessions & Students' },
   { to: '/head/academic-sessions', icon: Calendar, label: 'Academic Sessions' },
   { to: '/head/students',          icon: Users,    label: 'Department Students' },
-  { to: '/head/import',            icon: Upload,   label: 'Import Students' },
 
-  { heading: 'Faculty & Teaching' },
+  { heading: 'Faculty & Allocation' },
   { to: '/head/teachers',             icon: GraduationCap, label: 'Department Teachers' },
   { to: '/head/teaching-assignments', icon: BookOpen,      label: 'Teaching Assignments' },
+  { to: '/head/supervision',          icon: Layers,        label: 'Projects & Supervision' },
 
   { heading: 'Courses & Electives' },
   { to: '/head/courses',   icon: BookOpen, label: 'Course Catalog' },
   { to: '/head/electives', icon: Sparkles, label: 'Elective Management' },
+
+  { heading: 'Governance' },
+  { to: '/head/headship-transfer', icon: Shield, label: 'Headship Transfer' },
 
   { heading: 'Evaluation & Analytics' },
   { to: '/head/attendance', icon: ClipboardList, label: 'Attendance & Reports' },
@@ -70,6 +73,8 @@ const teacherNav = [
   { to: '/teacher',            icon: LayoutDashboard, label: 'Dashboard', end: true },
   { to: '/teacher/courses',   icon: BookOpen,        label: 'My Courses' },
   { to: '/teacher/electives', icon: Sparkles,        label: 'Elective Rosters' },
+  { heading: 'Supervision' },
+  { to: '/teacher/supervision', icon: Layers,        label: 'Project Students' },
   { heading: 'Mark Entry' },
   { to: '/teacher/attendance', icon: ClipboardList,  label: 'Attendance & Report' },
   { to: '/teacher/performance',icon: Activity,       label: 'Lab Performance' },

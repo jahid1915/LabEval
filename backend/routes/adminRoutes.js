@@ -90,9 +90,27 @@ router.post('/students/:id/deactivate', toggleDeactivateStudent);
 router.post('/students/:id/reset-password', resetStudentPassword);
 router.post('/students/bulk-action', bulkStudentAction);
 
-// ── Bulk Import ──────────────────────────────────────────────────────
-router.post('/import/teachers', importTeachers);
-router.post('/import/students', importStudents);
+// ── Headship Transfer Approval (Section 31) ──────────────────────────
+const {
+  getAdminHeadshipTransfers,
+  approveAdminHeadshipTransfer,
+  rejectAdminHeadshipTransfer
+} = require('../controllers/headshipTransferController');
+
+router.get('/headship-transfers', getAdminHeadshipTransfers);
+router.post('/headship-transfers/:id/approve', approveAdminHeadshipTransfer);
+router.post('/headship-transfers/:id/reject', rejectAdminHeadshipTransfer);
+
+// ── Student Data Correction Review (Section 29) ───────────────────────
+const {
+  getAdminCorrectionRequests,
+  approveAdminCorrectionRequest,
+  rejectAdminCorrectionRequest
+} = require('../controllers/dataCorrectionController');
+
+router.get('/correction-requests', getAdminCorrectionRequests);
+router.post('/correction-requests/:id/approve', approveAdminCorrectionRequest);
+router.post('/correction-requests/:id/reject', rejectAdminCorrectionRequest);
 
 module.exports = router;
 

@@ -10,10 +10,33 @@ const {
   updateHeadStudent,
   deleteHeadStudent,
   getHeadTeachers,
+  getHeadTeacherWorkload,
   getHeadCourses,
   getHeadTeachingAssignments,
+  createHeadTeachingAssignment,
+  deleteHeadTeachingAssignment,
   getHeadAnalytics
 } = require('../controllers/headController');
+
+const {
+  getHeadSupervisionOverview,
+  getHeadSupervisionList,
+  getHeadEligibleSupervisionStudents,
+  createSupervisionAssignment,
+  cancelSupervisionAssignment,
+  getHeadPersonalAcademic
+} = require('../controllers/supervisionController');
+
+const {
+  requestHeadshipTransfer,
+  getHeadshipTransferStatus
+} = require('../controllers/headshipTransferController');
+
+const {
+  requestDataCorrection,
+  getHeadCorrectionRequests
+} = require('../controllers/dataCorrectionController');
+
 const { protect, requireRole, enforceDepartmentIsolation } = require('../middleware/authMiddleware');
 
 // Strict protection: Only authenticated users with 'department_head' role!
@@ -24,11 +47,11 @@ router.use(enforceDepartmentIsolation);
 // ── Department Head Routes ───────────────────────────────────────────
 router.get('/stats', getHeadDashboardStats);
 
-// Academic Sessions
+// Academic Sessions & Filtered Student Roster
 router.get('/academic-sessions', getHeadAcademicSessions);
 router.get('/academic-sessions/:sessionId/students', getHeadSessionStudents);
 
-// Students
+// Students (VIEW ONLY - Mutations are strictly 403 Forbidden!)
 router.get('/students', getHeadStudents);
 router.post('/students', createHeadStudent);
 router.get('/students/:id', getHeadStudentById);
@@ -36,10 +59,33 @@ router.put('/students/:id', updateHeadStudent);
 router.patch('/students/:id', updateHeadStudent);
 router.delete('/students/:id', deleteHeadStudent);
 
-// Teachers & Courses
+// Student Data Correction Requests
+router.post('/students/request-correction', requestDataCorrection);
+router.get('/students/correction-requests', getHeadCorrectionRequests);
+
+// Teachers & Workload
 router.get('/teachers', getHeadTeachers);
+router.get('/teachers/workload', getHeadTeacherWorkload);
+
+// Courses & Teaching Assignments
 router.get('/courses', getHeadCourses);
 router.get('/teaching-assignments', getHeadTeachingAssignments);
+router.post('/teaching-assignments', createHeadTeachingAssignment);
+router.delete('/teaching-assignments/:id', deleteHeadTeachingAssignment);
+
+// Supervision & Academic Allocation (Project-I, Project-II, Seminar, Thesis)
+router.get('/supervision/overview', getHeadSupervisionOverview);
+router.get('/supervision/list', getHeadSupervisionList);
+router.get('/supervision/eligible-students', getHeadEligibleSupervisionStudents);
+router.post('/supervision/assign', createSupervisionAssignment);
+router.delete('/supervision/:assignmentId', cancelSupervisionAssignment);
+
+// Head Personal Academic Dashboard ("My Teaching" & "My Supervision")
+router.get('/my-academic', getHeadPersonalAcademic);
+
+// Headship Transfer Request
+router.post('/headship-transfer/request', requestHeadshipTransfer);
+router.get('/headship-transfer/status', getHeadshipTransferStatus);
 
 // Analytics
 router.get('/analytics', getHeadAnalytics);

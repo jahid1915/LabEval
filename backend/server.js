@@ -174,6 +174,7 @@ app.use('/api/electives',        generalLimiter, require('./routes/electiveRoute
 app.use('/api/head',             generalLimiter, require('./routes/headRoutes'));
 app.use('/api/teacher',          generalLimiter, require('./routes/teacherRoutes'));
 app.use('/api/student',          generalLimiter, require('./routes/studentRoutes'));
+app.use('/api/projects',         generalLimiter, require('./routes/projectRoutes'));
 
 // ── Root ──────────────────────────────────────────────────────────────────────
 app.get('/', (req, res) => {

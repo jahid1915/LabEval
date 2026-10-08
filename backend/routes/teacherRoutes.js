@@ -60,4 +60,8 @@ router.post('/results/:courseId/submit', requireTeacherCourseAccess, submitMarkS
 router.get('/requests',         getTeacherRequests);
 router.patch('/requests/:id',   updateRequest);
 
+// ── Academic Supervision (Project-I, Project-II, Seminar, Thesis - Section 38)
+const { getTeacherSupervision } = require('../controllers/supervisionController');
+router.get('/supervision', getTeacherSupervision);
+
 module.exports = router;

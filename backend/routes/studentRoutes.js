@@ -19,6 +19,10 @@ router.get('/marks/:courseCode', getStudentMarks);
 // Academic history (semester-wise)
 router.get('/history', getStudentAcademicHistory);
 
+// Academic Supervision (Project-I, Project-II, Seminar, Thesis - Section 34)
+const { getStudentSupervision } = require('../controllers/supervisionController');
+router.get('/supervision', getStudentSupervision);
+
 // Request management
 router.post('/request',  createRequest);
 router.get('/requests',  getStudentRequests);

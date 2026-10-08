@@ -426,109 +426,257 @@ const getHeadStudentById = async (req, res) => {
   }
 };
 
-// ── POST /api/head/students ───────────────────────────────────────────
+// ── POST /api/head/students (RESTRICTED) ──────────────────────────────
 const createHeadStudent = async (req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Forbidden: Department Heads cannot add student master records. Student master data is managed by System Administrators. To request updates, please submit a Data Correction Request.',
+    code: 'ROLE_RESTRICTION'
+  });
+};
+
+// ── PUT /api/head/students/:id (RESTRICTED) ───────────────────────────
+const updateHeadStudent = async (req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Forbidden: Department Heads cannot modify student master records. Please submit a Data Correction Request to the System Administrator.',
+    code: 'ROLE_RESTRICTION'
+  });
+};
+
+// ── DELETE /api/head/students/:id (RESTRICTED) ────────────────────────
+const deleteHeadStudent = async (req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Forbidden: Department Heads cannot delete student master records.',
+    code: 'ROLE_RESTRICTION'
+  });
+};
+
+// ── POST /api/head/teaching-assignments ───────────────────────────────
+const createHeadTeachingAssignment = async (req, res) => {
   try {
     const deptCode = getHeadDept(req);
-    const { name, rollNumber, registrationNumber, series, semester, session, contactNo, email, password } = req.body;
+    const {
+      courseId,
+      teacherId, // Can be specific teacher ObjectId, or 'MYSELF'
+      role = 'PRIMARY_TEACHER',
+      academicSession = '2024-2025',
+      semester = '1st Semester',
+      series = '22',
+      notes = ''
+    } = req.body;
 
-    if (!name || !rollNumber) {
-      return res.status(400).json({ success: false, message: 'Name and Roll Number are required' });
-    }
-
-    const cleanRoll = rollNumber.trim().toUpperCase();
-    const existing = await Student.findOne({ rollNumber: cleanRoll });
-    if (existing) {
-      return res.status(400).json({ success: false, message: `Student with roll ${cleanRoll} already exists` });
+    if (!courseId || !teacherId) {
+      return res.status(400).json({ success: false, message: 'Course and Teacher are required' });
     }
 
     const deptDoc = await Department.findOne({ code: deptCode }).lean();
 
-    const student = await Student.create({
-      name: name.trim(),
-      rollNumber: cleanRoll,
-      registrationNumber: registrationNumber?.trim() || '',
-      department: deptCode,
-      departmentRef: deptDoc?._id,
-      facultyRef: deptDoc?.faculty,
-      series: series?.trim() || cleanRoll.slice(0, 2),
-      session: session?.trim() || '',
-      semester: semester?.trim() || '1st Semester',
-      contactNo: contactNo?.trim() || '',
-      email: email?.trim().toLowerCase() || '',
+    // 1. Validate course belongs to department
+    const courseDoc = await Course.findById(courseId).lean();
+    if (!courseDoc) return res.status(404).json({ success: false, message: 'Course not found' });
+    if (courseDoc.departmentCode && courseDoc.departmentCode !== deptCode) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Course belongs to another department' });
+    }
+
+    // 2. Resolve teacher (Head can assign to self or to department teacher - Section 18)
+    let teacherDoc = null;
+    if (teacherId === 'MYSELF' || teacherId === 'myself') {
+      teacherDoc = await Teacher.findOne({
+        department: deptCode,
+        $or: [
+          { _id: req.user.profileRef },
+          { _id: deptDoc?.headTeacher },
+          { teacherId: req.user.loginIdentifier?.toUpperCase() }
+        ]
+      });
+      if (!teacherDoc && deptDoc?.headTeacher) {
+        teacherDoc = await Teacher.findById(deptDoc.headTeacher);
+      }
+      if (!teacherDoc) {
+        teacherDoc = await Teacher.findOne({ department: deptCode, status: { $ne: 'inactive' } });
+      }
+    } else {
+      teacherDoc = await Teacher.findOne({
+        _id: teacherId,
+        department: deptCode,
+        status: { $ne: 'inactive' }
+      });
+    }
+
+    if (!teacherDoc) {
+      return res.status(400).json({ success: false, message: 'Teacher not found or is inactive in your department' });
+    }
+
+    // 3. Find or create CourseOffering for this course, session, and semester
+    const [seriesDoc, sessionDoc] = await Promise.all([
+      Series.findOne({
+        departmentCode: deptCode,
+        $or: [{ name: series }, { name: String(parseInt(series, 10)) }]
+      }).lean(),
+      AcademicSession.findOne({
+        $or: [
+          { name: academicSession },
+          { name: academicSession.replace('-20', '-') },
+          { name: academicSession.replace('-', '-20') }
+        ]
+      }).lean()
+    ]);
+
+    let offeringDoc = await CourseOffering.findOne({
+      course: courseDoc._id,
+      $or: [
+        { seriesName: series },
+        ...(seriesDoc ? [{ series: seriesDoc._id }] : [])
+      ]
+    });
+
+    if (!offeringDoc) {
+      offeringDoc = await CourseOffering.create({
+        course: courseDoc._id,
+        courseCode: courseDoc.courseCode,
+        courseName: courseDoc.courseTitle,
+        academicSession: sessionDoc?._id || undefined,
+        sessionName: academicSession,
+        semesterName: semester,
+        series: seriesDoc?._id || undefined,
+        seriesName: series,
+        department: deptDoc?._id,
+        departmentCode: deptCode,
+        faculty: deptDoc?.faculty,
+        facultyCode: deptDoc?.faculty?.code || '',
+        status: 'active'
+      });
+    }
+
+    // 4. Check for duplicate assignment (Section 17)
+    const existing = await TeacherAssignment.findOne({
+      courseOffering: offeringDoc._id,
+      teacher: teacherDoc._id,
       status: 'active'
     });
 
-    // Create central user
-    const defaultPass = password || registrationNumber || cleanRoll;
-    const salt = await bcrypt.genSalt(10);
-    const passwordHash = await bcrypt.hash(defaultPass, salt);
+    if (existing) {
+      return res.status(400).json({
+        success: false,
+        message: `${teacherDoc.name} is already assigned to ${courseDoc.courseCode} for ${academicSession} (${semester}).`
+      });
+    }
 
-    const userDoc = await User.create({
-      loginIdentifier: cleanRoll,
-      loginIdentifierLower: cleanRoll.toLowerCase(),
-      passwordHash,
-      role: 'student',
-      status: 'ACTIVE',
-      name: name.trim(),
-      email: email?.trim().toLowerCase() || '',
-      phone: contactNo?.trim() || '',
+    const assignment = await TeacherAssignment.create({
+      courseOffering: offeringDoc._id,
+      courseId: courseDoc._id,
+      courseCode: courseDoc.courseCode,
+      courseName: courseDoc.courseTitle,
+      teacher: teacherDoc._id,
+      teacherId: teacherDoc.teacherId,
+      teacherName: teacherDoc.name,
+      role,
+      department: deptDoc?._id,
+      departmentCode: deptCode,
+      faculty: deptDoc?.faculty,
+      academicSession,
+      semester,
+      series,
+      status: 'active',
+      assignedBy: req.user._id,
+      assignedByName: req.user.name || 'Department Head',
+      notes
+    });
+
+    const AuditLog = require('../models/AuditLog');
+    await AuditLog.create({
+      userId: req.user._id,
+      userRole: 'department_head',
+      userName: req.user.name,
+      action: 'COURSE_ASSIGNED_TO_TEACHER',
+      entity: 'TeacherAssignment',
+      entityId: String(assignment._id),
+      details: `Assigned ${courseDoc.courseCode} to ${teacherDoc.name} (${role}) for Session ${academicSession}, Series ${series}, Semester ${semester}`
+    }).catch(e => console.error('AuditLog error:', e.message));
+
+    res.status(201).json({
+      success: true,
+      message: `Course ${courseDoc.courseCode} successfully assigned to ${teacherDoc.name}.`,
+      assignment
+    });
+  } catch (error) {
+    console.error('createHeadTeachingAssignment error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ── DELETE /api/head/teaching-assignments/:id ─────────────────────────
+const deleteHeadTeachingAssignment = async (req, res) => {
+  try {
+    const deptCode = getHeadDept(req);
+    const assignment = await TeacherAssignment.findById(req.params.id);
+    if (!assignment) return res.status(404).json({ success: false, message: 'Assignment not found' });
+
+    if (assignment.departmentCode !== deptCode) {
+      return res.status(403).json({ success: false, message: 'Forbidden: Assignment belongs to another department' });
+    }
+
+    assignment.status = 'revoked';
+    await assignment.save();
+
+    res.json({ success: true, message: 'Teaching assignment revoked successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// ── GET /api/head/teachers/workload ───────────────────────────────────
+const getHeadTeacherWorkload = async (req, res) => {
+  try {
+    const deptCode = getHeadDept(req);
+    const SupervisionAssignment = require('../models/SupervisionAssignment');
+
+    const [teachers, assignments, supervisions] = await Promise.all([
+      Teacher.find({ department: deptCode, status: { $ne: 'inactive' } }).select('name teacherId designation email').lean(),
+      TeacherAssignment.find({ departmentCode: deptCode, status: 'active' }).populate('courseId', 'courseCode courseTitle credit').lean(),
+      SupervisionAssignment.find({ departmentCode: deptCode, status: 'active' }).lean()
+    ]);
+
+    const workloadList = teachers.map(t => {
+      const tCourses = assignments.filter(a => String(a.teacher) === String(t._id));
+      const tSupervisions = supervisions.filter(s => String(s.teacher) === String(t._id));
+
+      const totalCredits = tCourses.reduce((sum, c) => sum + (c.courseId?.credit || 3), 0);
+
+      return {
+        _id: t._id,
+        name: t.name,
+        teacherId: t.teacherId,
+        designation: t.designation || 'Lecturer',
+        email: t.email || '',
+        coursesCount: tCourses.length,
+        courses: tCourses.map(c => ({
+          code: c.courseCode,
+          title: c.courseName,
+          role: c.role,
+          session: c.academicSession,
+          semester: c.semester
+        })),
+        totalCredits,
+        supervisionCounts: {
+          projectI: tSupervisions.filter(s => s.activityType === 'PROJECT_I').length,
+          projectII: tSupervisions.filter(s => s.activityType === 'PROJECT_II').length,
+          seminar: tSupervisions.filter(s => s.activityType === 'SEMINAR').length,
+          thesis: tSupervisions.filter(s => s.activityType === 'THESIS').length,
+          total: tSupervisions.length
+        }
+      };
+    });
+
+    res.json({
+      success: true,
       department: deptCode,
-      departmentRef: deptDoc?._id,
-      profileRef: student._id,
-      profileModel: 'Student'
+      workload: workloadList.sort((a, b) => b.coursesCount - a.coursesCount)
     });
-
-    student.user = userDoc._id;
-    await student.save();
-
-    res.status(201).json({ success: true, student });
   } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ── PUT /api/head/students/:id ────────────────────────────────────────
-const updateHeadStudent = async (req, res) => {
-  try {
-    const deptCode = getHeadDept(req);
-    const student = await Student.findById(req.params.id);
-    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
-
-    if (student.department !== deptCode) {
-      return res.status(403).json({ success: false, message: 'Forbidden: Cannot edit student of another department' });
-    }
-
-    const allowedUpdates = ['name', 'registrationNumber', 'series', 'semester', 'session', 'status', 'contactNo', 'email', 'section', 'batch', 'regularStatus'];
-    allowedUpdates.forEach(f => {
-      if (req.body[f] !== undefined) student[f] = req.body[f];
-    });
-
-    await student.save();
-    res.json({ success: true, student });
-  } catch (error) {
-    res.status(500).json({ success: false, message: error.message });
-  }
-};
-
-// ── DELETE /api/head/students/:id ─────────────────────────────────────
-const deleteHeadStudent = async (req, res) => {
-  try {
-    const deptCode = getHeadDept(req);
-    const student = await Student.findById(req.params.id);
-    if (!student) return res.status(404).json({ success: false, message: 'Student not found' });
-
-    if (student.department !== deptCode) {
-      return res.status(403).json({ success: false, message: 'Forbidden: Cannot delete student of another department' });
-    }
-
-    if (student.user) {
-      await User.findByIdAndDelete(student.user);
-    }
-    await student.deleteOne();
-
-    res.json({ success: true, message: 'Student record deleted successfully' });
-  } catch (error) {
+    console.error('getHeadTeacherWorkload error:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 };
@@ -612,7 +760,10 @@ module.exports = {
   updateHeadStudent,
   deleteHeadStudent,
   getHeadTeachers,
+  getHeadTeacherWorkload,
   getHeadCourses,
   getHeadTeachingAssignments,
+  createHeadTeachingAssignment,
+  deleteHeadTeachingAssignment,
   getHeadAnalytics
 };

@@ -31,21 +31,56 @@ export default function DepartmentHeadManagementPage() {
   const [headHistory, setHeadHistory] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
 
+  // Headship Transfer Requests state (Section 30 & 31)
+  const [transferRequests, setTransferRequests] = useState([]);
+  const [processingTransferId, setProcessingTransferId] = useState(null);
+
   const fetchDepartmentsAndFaculties = useCallback(async () => {
     setLoading(true);
     try {
-      const [dRes, fRes] = await Promise.all([
+      const [dRes, fRes, tRes] = await Promise.all([
         api.get('/departments'),
-        api.get('/faculties')
+        api.get('/faculties'),
+        api.get('/admin/headship-transfers').catch(() => ({ data: { requests: [] } }))
       ]);
       setDepartments(dRes.data.departments || dRes.data || []);
       setFaculties(fRes.data.faculties || fRes.data || []);
+      setTransferRequests(tRes.data?.requests || []);
     } catch (err) {
       toast.error('Failed to load departments');
     } finally {
       setLoading(false);
     }
   }, []);
+
+  const handleApproveTransfer = async (reqId) => {
+    const adminNotes = window.prompt('Admin approval notes (optional):') || 'Approved by System Administrator';
+    setProcessingTransferId(reqId);
+    try {
+      const { data } = await api.post(`/admin/headship-transfers/${reqId}/approve`, { adminNotes });
+      toast.success(data.message || 'Headship transfer approved successfully');
+      fetchDepartmentsAndFaculties();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to approve transfer');
+    } finally {
+      setProcessingTransferId(null);
+    }
+  };
+
+  const handleRejectTransfer = async (reqId) => {
+    const adminNotes = window.prompt('Reason for rejecting headship transfer:');
+    if (!adminNotes) return;
+    setProcessingTransferId(reqId);
+    try {
+      const { data } = await api.post(`/admin/headship-transfers/${reqId}/reject`, { adminNotes });
+      toast.info(data.message || 'Headship transfer rejected');
+      fetchDepartmentsAndFaculties();
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to reject transfer');
+    } finally {
+      setProcessingTransferId(null);
+    }
+  };
 
   useEffect(() => {
     fetchDepartmentsAndFaculties();
@@ -162,6 +197,72 @@ export default function DepartmentHeadManagementPage() {
           </button>
         </div>
       </div>
+
+      {/* ── PENDING HEADSHIP TRANSFER REQUESTS (Section 30 & 31) ── */}
+      {transferRequests.filter(r => r.status === 'pending').length > 0 && (
+        <div className="bg-amber-50/70 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800/60 rounded-xl p-5 space-y-3">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <Shield size={16} className="text-amber-600 dark:text-amber-400" />
+              <h2 className="text-sm font-bold text-amber-900 dark:text-amber-200">
+                Pending Headship Transfer Requests ({transferRequests.filter(r => r.status === 'pending').length})
+              </h2>
+            </div>
+            <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300">
+              Requires Admin Approval
+            </span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            {transferRequests.filter(r => r.status === 'pending').map((req) => (
+              <div
+                key={req._id}
+                className="bg-white dark:bg-slate-900 rounded-lg p-4 border border-amber-200/80 dark:border-amber-900/40 space-y-3 shadow-sm"
+              >
+                <div className="flex items-center justify-between">
+                  <span className="font-bold text-xs text-slate-900 dark:text-white">
+                    Dept: {req.department?.name || req.department?.code || req.departmentCode || 'Department'}
+                  </span>
+                  <span className="text-[10px] text-slate-400">
+                    Requested on {new Date(req.createdAt).toLocaleDateString()}
+                  </span>
+                </div>
+
+                <div className="text-xs space-y-1">
+                  <p className="text-slate-600 dark:text-slate-300">
+                    Current Head: <strong className="text-slate-900 dark:text-white">{req.currentHeadName || 'Current Head'}</strong>
+                  </p>
+                  <p className="text-slate-600 dark:text-slate-300">
+                    Proposed Successor: <strong className="text-indigo-600 dark:text-indigo-400">{req.proposedHeadName || 'Proposed Successor'}</strong>
+                  </p>
+                  {req.reason && (
+                    <p className="text-[11px] text-slate-500 italic mt-1">
+                      Reason: "{req.reason}"
+                    </p>
+                  )}
+                </div>
+
+                <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
+                  <button
+                    onClick={() => handleRejectTransfer(req._id)}
+                    disabled={processingTransferId === req._id}
+                    className="px-3 py-1.5 rounded-lg border border-rose-200 dark:border-rose-900/50 text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 text-xs font-semibold transition"
+                  >
+                    Reject
+                  </button>
+                  <button
+                    onClick={() => handleApproveTransfer(req._id)}
+                    disabled={processingTransferId === req._id}
+                    className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-semibold transition shadow-sm"
+                  >
+                    {processingTransferId === req._id ? 'Approving...' : 'Approve Transfer'}
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* ── FILTER BAR ── */}
       <div className="bg-white dark:bg-[#111c38] border border-slate-200 dark:border-[#1e293b] rounded-xl p-4 shadow-sm">

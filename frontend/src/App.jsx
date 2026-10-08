@@ -46,6 +46,9 @@ const HeadStudentDetailPage    = React.lazy(() => import('./pages/head/HeadStude
 const HeadTeachersPage         = React.lazy(() => import('./pages/head/HeadTeachersPage'));
 const HeadCoursesPage          = React.lazy(() => import('./pages/head/HeadCoursesPage'));
 const HeadAnalyticsPage        = React.lazy(() => import('./pages/head/HeadAnalyticsPage'));
+const HeadTeachingAssignmentsPage = React.lazy(() => import('./pages/head/HeadTeachingAssignmentsPage'));
+const HeadSupervisionPage      = React.lazy(() => import('./pages/head/HeadSupervisionPage'));
+const HeadshipTransferPage     = React.lazy(() => import('./pages/head/HeadshipTransferPage'));
 
 // Teacher Pages
 const TeacherDashboard  = React.lazy(() => import('./pages/teacher/TeacherDashboard'));
@@ -65,6 +68,7 @@ const StudentMarksPage         = React.lazy(() => import('./pages/student/Studen
 const StudentElectiveSelection = React.lazy(() => import('./pages/student/StudentElectiveSelection'));
 const StudentAcademicHistory   = React.lazy(() => import('./pages/student/StudentAcademicHistory'));
 const StudentProfile           = React.lazy(() => import('./pages/student/StudentProfile'));
+const ProjectTeamWorkspace     = React.lazy(() => import('./pages/student/ProjectTeamWorkspace'));
 
 // ── Loading Fallback ──────────────────────────────────────────────────
 const PageLoader = () => (
@@ -189,9 +193,11 @@ export default function App() {
               <Route path="students/:id"                 element={<HeadStudentDetailPage />} />
               <Route path="teachers"                     element={<HeadTeachersPage />} />
               <Route path="courses"                      element={<HeadCoursesPage />} />
-              <Route path="teaching-assignments"         element={<TeachingAssignmentsPage />} />
+              <Route path="teaching-assignments"         element={<HeadTeachingAssignmentsPage />} />
+              <Route path="supervision"                  element={<HeadSupervisionPage />} />
+              <Route path="headship-transfer"            element={<HeadshipTransferPage />} />
+              <Route path="projects/:projectId/workspace" element={<ProjectTeamWorkspace />} />
               <Route path="electives"                    element={<ElectiveManagementPage />} />
-              <Route path="import"                       element={<StudentImportPage />} />
               <Route path="attendance"                   element={<Attendance />} />
               <Route path="marks"                        element={<FinalResult />} />
               <Route path="analytics"                    element={<HeadAnalyticsPage />} />
@@ -203,16 +209,18 @@ export default function App() {
                 <DashboardLayout />
               </ProtectedRoute>
             }>
-              <Route index             element={<TeacherDashboard />} />
-              <Route path="courses"    element={<Courses          />} />
-              <Route path="electives"  element={<TeacherElectivesPage />} />
-              <Route path="attendance" element={<Attendance       />} />
-              <Route path="performance"element={<Performance      />} />
-              <Route path="quiz"       element={<Quiz             />} />
-              <Route path="test"       element={<Test             />} />
-              <Route path="others"     element={<Others           />} />
-              <Route path="results"    element={<FinalResult      />} />
-              <Route path="leave"      element={<TeacherLeavePage />} />
+              <Route index                               element={<TeacherDashboard />} />
+              <Route path="courses"                      element={<Courses          />} />
+              <Route path="supervision"                  element={<TeacherDashboard />} />
+              <Route path="projects/:projectId/workspace" element={<ProjectTeamWorkspace />} />
+              <Route path="electives"                    element={<TeacherElectivesPage />} />
+              <Route path="attendance"                   element={<Attendance       />} />
+              <Route path="performance"                  element={<Performance      />} />
+              <Route path="quiz"                         element={<Quiz             />} />
+              <Route path="test"                         element={<Test             />} />
+              <Route path="others"                       element={<Others           />} />
+              <Route path="results"                      element={<FinalResult      />} />
+              <Route path="leave"                        element={<TeacherLeavePage />} />
             </Route>
 
             {/* ── Student Routes ────────────────────────────────── */}
@@ -221,11 +229,13 @@ export default function App() {
                 <DashboardLayout />
               </ProtectedRoute>
             }>
-              <Route index element={<StudentDashboard />} />
-              <Route path="electives" element={<StudentElectiveSelection />} />
-              <Route path="marks/:courseCode" element={<StudentMarksPage />} />
-              <Route path="history" element={<StudentAcademicHistory />} />
-              <Route path="profile" element={<StudentProfile />} />
+              <Route index                               element={<StudentDashboard />} />
+              <Route path="supervision"                  element={<StudentDashboard />} />
+              <Route path="projects/:projectId/workspace" element={<ProjectTeamWorkspace />} />
+              <Route path="electives"                    element={<StudentElectiveSelection />} />
+              <Route path="marks/:courseCode"            element={<StudentMarksPage />} />
+              <Route path="history"                      element={<StudentAcademicHistory />} />
+              <Route path="profile"                      element={<StudentProfile />} />
             </Route>
 
             {/* ── Catch-all ─────────────────────────────────────── */}

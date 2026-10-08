@@ -8,7 +8,7 @@ import {
   TrendingUp, ChevronRight, Bell, CheckCircle, XCircle,
   Settings, Save, AlertTriangle, ArrowLeft, RefreshCw,
   Search, Award, CheckCircle2, User, Hash, FileSpreadsheet,
-  FileText, ExternalLink, Sparkles
+  FileText, ExternalLink, Sparkles, FolderGit2, Users, Layers
 } from 'lucide-react';
 import { toast } from 'react-toastify';
 import EvaluationLayoutModal from '../../components/EvaluationLayoutModal';
@@ -51,6 +51,11 @@ export default function TeacherDashboard() {
   });
   const [processingMarks, setProcessingMarks] = useState(false);
 
+  // Academic Project & Supervision State (Section 38)
+  const [supervisionData, setSupervisionData] = useState(null);
+  const [loadingSupervision, setLoadingSupervision] = useState(false);
+  const [activityFilter, setActivityFilter] = useState('ALL');
+
   // Fetch teacher's assigned courses
   const fetchCourses = useCallback(async () => {
     setLoading(true);
@@ -74,10 +79,26 @@ export default function TeacherDashboard() {
     }
   }, []);
 
+  // Fetch project supervisees assigned by Department Head
+  const fetchSupervision = useCallback(async () => {
+    setLoadingSupervision(true);
+    try {
+      const { data } = await api.get('/teacher/supervision');
+      if (data?.success) {
+        setSupervisionData(data);
+      }
+    } catch {
+      /* silent */
+    } finally {
+      setLoadingSupervision(false);
+    }
+  }, []);
+
   useEffect(() => {
     fetchCourses();
     fetchRequests();
-  }, [fetchCourses, fetchRequests]);
+    fetchSupervision();
+  }, [fetchCourses, fetchRequests, fetchSupervision]);
 
   const handleCourseSelect = (course) => {
     sessionStorage.setItem('selectedCourse', JSON.stringify(course));
@@ -316,6 +337,165 @@ export default function TeacherDashboard() {
           </div>
         </div>
       )}
+
+      {/* ── MY PROJECT STUDENTS & RESEARCH SUPERVISION (Sections 38 & 46) ── */}
+      <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-2">
+              <FolderGit2 size={16} className="text-teal-600 dark:text-teal-400" />
+              <h2 className="text-[15px] font-bold text-slate-900 dark:text-white">
+                My Supervised Project & Research Teams
+              </h2>
+            </div>
+            <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
+              Assigned by Department Head &bull; Access collaborative team workspaces, milestone tracking, and real-time activity
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <div className="flex items-center bg-slate-100 dark:bg-slate-800 p-1 rounded-lg text-xs">
+              {[
+                { id: 'ALL', label: 'All Teams' },
+                { id: 'PROJECT_I', label: 'Project-I' },
+                { id: 'PROJECT_II', label: 'Project-II' },
+                { id: 'SEMINAR', label: 'Seminar' },
+                { id: 'THESIS', label: 'Thesis' }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setActivityFilter(f.id)}
+                  className={`px-3 py-1 rounded-md transition-colors font-semibold ${
+                    activityFilter === f.id
+                      ? 'bg-teal-600 text-white shadow-sm'
+                      : 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        </div>
+
+        {/* Supervision KPI Stats */}
+        {supervisionData?.stats && (
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div className="p-3 rounded-lg bg-teal-50/60 dark:bg-teal-950/30 border border-teal-200 dark:border-teal-800/50">
+              <span className="text-[10px] font-bold text-teal-700 dark:text-teal-400 uppercase tracking-wider block">Supervised Teams</span>
+              <span className="text-xl font-black text-slate-900 dark:text-white">{supervisionData.stats.totalProjects || 0}</span>
+            </div>
+            <div className="p-3 rounded-lg bg-blue-50/60 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800/50">
+              <span className="text-[10px] font-bold text-blue-700 dark:text-blue-400 uppercase tracking-wider block">Active Students</span>
+              <span className="text-xl font-black text-slate-900 dark:text-white">{supervisionData.stats.totalSupervisees || 0}</span>
+            </div>
+            <div className="p-3 rounded-lg bg-indigo-50/60 dark:bg-indigo-950/30 border border-indigo-200 dark:border-indigo-800/50">
+              <span className="text-[10px] font-bold text-indigo-700 dark:text-indigo-400 uppercase tracking-wider block">Project-I & II</span>
+              <span className="text-xl font-black text-slate-900 dark:text-white">
+                {(supervisionData.stats.projectICount || 0) + (supervisionData.stats.projectIICount || 0)}
+              </span>
+            </div>
+            <div className="p-3 rounded-lg bg-violet-50/60 dark:bg-violet-950/30 border border-violet-200 dark:border-violet-800/50">
+              <span className="text-[10px] font-bold text-violet-700 dark:text-violet-400 uppercase tracking-wider block">Thesis & Seminar</span>
+              <span className="text-xl font-black text-slate-900 dark:text-white">
+                {(supervisionData.stats.thesisCount || 0) + (supervisionData.stats.seminarCount || 0)}
+              </span>
+            </div>
+          </div>
+        )}
+
+        {/* Teams List */}
+        {loadingSupervision ? (
+          <div className="py-8 text-center text-xs text-slate-500">Loading supervision records...</div>
+        ) : !supervisionData?.projects || supervisionData.projects.length === 0 ? (
+          <div className="text-center py-8 bg-slate-50 dark:bg-slate-950/50 rounded-xl border border-dashed border-slate-200 dark:border-slate-800 p-6">
+            <FolderGit2 size={28} className="text-slate-300 dark:text-slate-700 mx-auto mb-2" />
+            <p className="font-semibold text-slate-700 dark:text-slate-300 text-sm">No project supervisees assigned</p>
+            <p className="text-[11px] text-slate-500 mt-1">Supervision allocations made by the Department Head will appear here.</p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {supervisionData.projects
+              .filter(p => activityFilter === 'ALL' || p.activityType === activityFilter)
+              .map((p) => {
+                const completedM = (p.milestones || []).filter(m => m.status === 'completed').length;
+                const totalM = (p.milestones || []).length;
+                const pct = totalM > 0 ? Math.round((completedM / totalM) * 100) : (p.progress || 0);
+
+                return (
+                  <div
+                    key={p._id}
+                    className="p-4 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/90 hover:border-teal-400 dark:hover:border-teal-500/50 transition-all shadow-sm space-y-3"
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-teal-50 dark:bg-teal-950/40 text-teal-700 dark:text-teal-300 border border-teal-200 dark:border-teal-800 uppercase tracking-wide">
+                        {p.activityType?.replace('_', ' ')}
+                      </span>
+                      <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
+                        Session {p.academicSession} &bull; {p.series} Series
+                      </span>
+                    </div>
+
+                    <div>
+                      <h3 className="text-[14px] font-bold text-slate-900 dark:text-white line-clamp-1">
+                        {p.title}
+                      </h3>
+                      {p.description && (
+                        <p className="text-[11px] text-slate-500 dark:text-slate-400 line-clamp-1 mt-0.5">
+                          {p.description}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Team Members Chips */}
+                    <div>
+                      <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400 mb-1.5 flex items-center gap-1">
+                        <Users size={12} />
+                        <span>Team Students ({p.students?.length || 0})</span>
+                      </div>
+                      <div className="flex flex-wrap gap-1.5">
+                        {(p.students || []).map((s, idx) => (
+                          <span
+                            key={idx}
+                            className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-[11px] font-medium text-slate-700 dark:text-slate-200"
+                          >
+                            <span className="font-mono font-bold text-blue-600 dark:text-blue-400">{s.rollNumber}</span>
+                            <span className="text-slate-400">&bull;</span>
+                            <span className="truncate max-w-[120px]">{s.name || s.student?.name}</span>
+                          </span>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Progress Bar & Open Workspace */}
+                    <div className="pt-2 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between gap-3">
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center justify-between text-[11px] mb-1">
+                          <span className="text-slate-500">Milestones: {completedM}/{totalM}</span>
+                          <span className="font-bold text-teal-600 dark:text-teal-400">{pct}%</span>
+                        </div>
+                        <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-1.5 overflow-hidden">
+                          <div
+                            className="bg-gradient-to-r from-teal-500 to-emerald-500 h-1.5 rounded-full transition-all duration-500"
+                            style={{ width: `${pct}%` }}
+                          />
+                        </div>
+                      </div>
+
+                      <button
+                        onClick={() => navigate(`/teacher/projects/${p._id}/workspace`)}
+                        className="px-3 py-1.5 rounded-lg bg-teal-600 hover:bg-teal-700 text-white text-xs font-semibold flex items-center gap-1 transition-colors shrink-0 shadow-sm shadow-teal-500/20"
+                      >
+                        <span>Workspace</span>
+                        <ChevronRight size={13} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+          </div>
+        )}
+      </div>
 
       {/* ── DEDICATED STUDENT MARK REQUEST PANEL (Section 6 & 7) ── */}
       <div className="bg-white dark:bg-slate-900 rounded-xl border border-slate-200 dark:border-slate-800 p-5 space-y-4 shadow-sm">
