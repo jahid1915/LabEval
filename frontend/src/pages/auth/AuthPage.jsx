@@ -317,7 +317,7 @@ export default function AuthPage() {
           });
           if (res.success) {
             toast.success(`Welcome, Department Head ${res.user?.name || ''}!`);
-            navigate('/admin'); // Department Head uses department-scoped dashboard
+            navigate('/head');
           } else {
             toast.error(res.message);
           }
@@ -349,7 +349,7 @@ export default function AuthPage() {
 
           if (res.success) {
             toast.success(`Department Head account registered for ${headForm.department}!`);
-            navigate('/admin');
+            navigate('/head');
           } else {
             toast.error(res.message);
           }

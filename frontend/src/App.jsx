@@ -37,6 +37,16 @@ const ElectiveManagementPage = React.lazy(() => import('./pages/admin/ElectiveMa
 const TeachingAssignmentsPage = React.lazy(() => import('./pages/admin/TeachingAssignmentsPage'));
 const DepartmentHeadManagementPage = React.lazy(() => import('./pages/admin/DepartmentHeadManagementPage'));
 
+// Department Head Pages
+const HeadDashboard            = React.lazy(() => import('./pages/head/HeadDashboard'));
+const HeadAcademicSessionsPage = React.lazy(() => import('./pages/head/HeadAcademicSessionsPage'));
+const HeadSessionDetailPage    = React.lazy(() => import('./pages/head/HeadSessionDetailPage'));
+const HeadStudentsPage         = React.lazy(() => import('./pages/head/HeadStudentsPage'));
+const HeadStudentDetailPage    = React.lazy(() => import('./pages/head/HeadStudentDetailPage'));
+const HeadTeachersPage         = React.lazy(() => import('./pages/head/HeadTeachersPage'));
+const HeadCoursesPage          = React.lazy(() => import('./pages/head/HeadCoursesPage'));
+const HeadAnalyticsPage        = React.lazy(() => import('./pages/head/HeadAnalyticsPage'));
+
 // Teacher Pages
 const TeacherDashboard  = React.lazy(() => import('./pages/teacher/TeacherDashboard'));
 const Courses           = React.lazy(() => import('./pages/teacher/Courses'));
@@ -72,28 +82,47 @@ const ProtectedRoute = ({ children, allowedRole }) => {
   if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
   
-  const isAuthorized = allowedRole === 'admin'
-    ? (user.role === 'admin' || user.role === 'super_admin' || user.role === 'department_head')
-    : (allowedRole === 'department_head'
-      ? (user.role === 'department_head' || user.role === 'admin' || user.role === 'super_admin')
-      : user.role === allowedRole);
-
-  if (allowedRole && !isAuthorized) {
-    if (user.role === 'admin' || user.role === 'super_admin') return <Navigate to="/admin" replace />;
-    if (user.role === 'department_head') return <Navigate to="/admin" replace />;
+  if (allowedRole === 'admin') {
+    if (user.role === 'admin' || user.role === 'super_admin') return children;
+    if (user.role === 'department_head') return <Navigate to="/head" replace />;
     if (user.role === 'teacher') return <Navigate to="/teacher" replace />;
     return <Navigate to="/student" replace />;
   }
+
+  if (allowedRole === 'department_head') {
+    if (user.role === 'department_head') return children;
+    if (user.role === 'admin' || user.role === 'super_admin') return <Navigate to="/admin" replace />;
+    if (user.role === 'teacher') return <Navigate to="/teacher" replace />;
+    return <Navigate to="/student" replace />;
+  }
+
+  if (allowedRole === 'teacher') {
+    if (user.role === 'teacher') return children;
+    if (user.role === 'admin' || user.role === 'super_admin') return <Navigate to="/admin" replace />;
+    if (user.role === 'department_head') return <Navigate to="/head" replace />;
+    return <Navigate to="/student" replace />;
+  }
+
+  if (allowedRole === 'student') {
+    if (user.role === 'student') return children;
+    if (user.role === 'admin' || user.role === 'super_admin') return <Navigate to="/admin" replace />;
+    if (user.role === 'department_head') return <Navigate to="/head" replace />;
+    return <Navigate to="/teacher" replace />;
+  }
+
   return children;
 };
 
 // ── Hidden Admin Route Component ───────────────────────────────────────
 // If unauthenticated: displays dedicated Admin Login page
-// If authenticated as Admin or Department Head: renders Admin Dashboard
+// If authenticated as Admin: renders Admin Dashboard
+// If authenticated as Department Head: redirects to /head
 const AdminPortalGuard = () => {
   const { user, loading } = React.useContext(AuthContext);
   if (loading) return <PageLoader />;
-  if (!user || (user.role !== 'admin' && user.role !== 'super_admin' && user.role !== 'department_head')) {
+  if (!user) return <AdminLoginPage />;
+  if (user.role === 'department_head') return <Navigate to="/head" replace />;
+  if (user.role !== 'admin' && user.role !== 'super_admin') {
     return <AdminLoginPage />;
   }
   return <DashboardLayout />;
@@ -128,7 +157,7 @@ export default function App() {
             <Route path="/signup/teacher" element={<AuthPage />} />
             <Route path="/signup/head"    element={<AuthPage />} />
 
-            {/* Hidden admin access route */}
+            {/* ── Hidden Admin Portal (System Administrators only) ─ */}
             <Route path="/admin" element={<AdminPortalGuard />}>
               <Route index                  element={<AdminDashboard />} />
               <Route path="faculties"       element={<FacultiesPage />} />
@@ -146,8 +175,27 @@ export default function App() {
               <Route path="electives"        element={<ElectiveManagementPage />} />
             </Route>
 
-            {/* Department Head alias */}
-            <Route path="/head" element={<Navigate to="/admin" replace />} />
+            {/* ── Department Head Routes (Strictly Scoped) ──────── */}
+            <Route path="/head" element={
+              <ProtectedRoute allowedRole="department_head">
+                <DashboardLayout />
+              </ProtectedRoute>
+            }>
+              <Route index                               element={<HeadDashboard />} />
+              <Route path="dashboard"                    element={<HeadDashboard />} />
+              <Route path="academic-sessions"            element={<HeadAcademicSessionsPage />} />
+              <Route path="academic-sessions/:sessionId" element={<HeadSessionDetailPage />} />
+              <Route path="students"                     element={<HeadStudentsPage />} />
+              <Route path="students/:id"                 element={<HeadStudentDetailPage />} />
+              <Route path="teachers"                     element={<HeadTeachersPage />} />
+              <Route path="courses"                      element={<HeadCoursesPage />} />
+              <Route path="teaching-assignments"         element={<TeachingAssignmentsPage />} />
+              <Route path="electives"                    element={<ElectiveManagementPage />} />
+              <Route path="import"                       element={<StudentImportPage />} />
+              <Route path="attendance"                   element={<Attendance />} />
+              <Route path="marks"                        element={<FinalResult />} />
+              <Route path="analytics"                    element={<HeadAnalyticsPage />} />
+            </Route>
 
             {/* ── Teacher Routes ────────────────────────────────── */}
             <Route path="/teacher" element={

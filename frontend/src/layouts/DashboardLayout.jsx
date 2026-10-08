@@ -42,6 +42,29 @@ const adminNav = [
   { to: '/admin/series',           icon: Layers,          label: 'Series / Batches' },
 ];
 
+const headNav = [
+  { heading: 'Overview' },
+  { to: '/head', icon: LayoutDashboard, label: 'Department Overview', end: true },
+
+  { heading: 'Academic Sessions & Students' },
+  { to: '/head/academic-sessions', icon: Calendar, label: 'Academic Sessions' },
+  { to: '/head/students',          icon: Users,    label: 'Department Students' },
+  { to: '/head/import',            icon: Upload,   label: 'Import Students' },
+
+  { heading: 'Faculty & Teaching' },
+  { to: '/head/teachers',             icon: GraduationCap, label: 'Department Teachers' },
+  { to: '/head/teaching-assignments', icon: BookOpen,      label: 'Teaching Assignments' },
+
+  { heading: 'Courses & Electives' },
+  { to: '/head/courses',   icon: BookOpen, label: 'Course Catalog' },
+  { to: '/head/electives', icon: Sparkles, label: 'Elective Management' },
+
+  { heading: 'Evaluation & Analytics' },
+  { to: '/head/attendance', icon: ClipboardList, label: 'Attendance & Reports' },
+  { to: '/head/marks',      icon: TrendingUp,    label: 'Marks & Grades' },
+  { to: '/head/analytics',  icon: Activity,      label: 'Academic Analytics' },
+];
+
 const teacherNav = [
   { heading: 'Main' },
   { to: '/teacher',            icon: LayoutDashboard, label: 'Dashboard', end: true },
@@ -79,13 +102,15 @@ function Sidebar({ user, navItems, isDarkMode, toggleTheme, handleLogout, onOpen
   };
 
   const getPortalBase = () => {
-    if (user?.role === 'admin' || user?.role === 'department_head') return '/admin';
+    if (user?.role === 'admin' || user?.role === 'super_admin') return '/admin';
+    if (user?.role === 'department_head') return '/head';
     if (user?.role === 'teacher') return '/teacher';
     return '/student';
   };
 
   const getIdentifier = () => {
-    if (user?.role === 'admin' || user?.role === 'department_head') return user?.name || user?.username || 'Department Head';
+    if (user?.role === 'admin' || user?.role === 'super_admin') return user?.name || user?.username || 'Administrator';
+    if (user?.role === 'department_head') return user?.name || user?.headId || 'Department Head';
     if (user?.role === 'teacher') return user?.teacherId || 'Teacher';
     return user?.rollNumber || 'Student';
   };
@@ -254,7 +279,8 @@ export default function DashboardLayout() {
 
   let navItems = studentNav;
   if (user?.role === 'teacher') navItems = teacherNav;
-  if (user?.role === 'admin' || user?.role === 'department_head') navItems = adminNav;
+  if (user?.role === 'department_head') navItems = headNav;
+  if (user?.role === 'admin' || user?.role === 'super_admin') navItems = adminNav;
 
   const handleLogout = () => { logout(); navigate('/'); };
 

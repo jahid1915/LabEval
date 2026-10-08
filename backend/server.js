@@ -171,6 +171,7 @@ app.use('/api/users',            generalLimiter, require('./routes/userRoutes'))
 
 // ── Role Portals ──────────────────────────────────────────────────────────────
 app.use('/api/electives',        generalLimiter, require('./routes/electiveRoutes'));
+app.use('/api/head',             generalLimiter, require('./routes/headRoutes'));
 app.use('/api/teacher',          generalLimiter, require('./routes/teacherRoutes'));
 app.use('/api/student',          generalLimiter, require('./routes/studentRoutes'));
 

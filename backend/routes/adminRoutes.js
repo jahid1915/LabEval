@@ -36,10 +36,10 @@ const {
   updateSystemSettings
 } = require('../controllers/adminController');
 const { importTeachers, importStudents } = require('../controllers/dataTransferController');
-const { protect, adminOrHead, enforceDepartmentIsolation } = require('../middleware/authMiddleware');
+const { protect, adminOnly, enforceDepartmentIsolation } = require('../middleware/authMiddleware');
 
 router.use(protect);
-router.use(adminOrHead);
+router.use(adminOnly);
 router.use(enforceDepartmentIsolation);
 
 // ── System Statistics & Settings ─────────────────────────────────────

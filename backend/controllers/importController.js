@@ -15,6 +15,7 @@ const Student = require('../models/Student');
 const User = require('../models/User');
 const Department = require('../models/Department');
 const Series = require('../models/Series');
+const AcademicSession = require('../models/AcademicSession');
 const ImportJob = require('../models/ImportJob');
 const ImportMappingTemplate = require('../models/ImportMappingTemplate');
 const { logAudit } = require('../middleware/auditMiddleware');
@@ -683,7 +684,11 @@ const executeImport = async (req, res) => {
       ? rowsWithCorrections.filter(r => selectedRowIndices.includes(r._rowIndex))
       : rowsWithCorrections;
 
-    const departments = await Department.find({ status: 'active' }).select('_id code faculty').lean();
+    const [departments, allSessions, allSeries] = await Promise.all([
+      Department.find({ status: 'active' }).select('_id code faculty').lean(),
+      AcademicSession.find().lean(),
+      Series.find().lean()
+    ]);
     const deptMap = {};
     departments.forEach(d => { deptMap[d.code] = d; });
     const validDeptCodes = departments.map(d => d.code);
@@ -836,6 +841,32 @@ const executeImport = async (req, res) => {
         if (deptDoc) {
           updateDoc.departmentRef = deptDoc._id;
           updateDoc.facultyRef = deptDoc.faculty;
+        }
+
+        // Link AcademicSession reference
+        const sessionTarget = updateDoc.session;
+        if (sessionTarget && allSessions.length > 0) {
+          const matchedSession = allSessions.find(s => 
+            s.name === sessionTarget ||
+            s.name.replace('-20', '-') === sessionTarget.replace('-20', '-') ||
+            s.name.replace('-', '-20') === sessionTarget
+          );
+          if (matchedSession) {
+            updateDoc.academicSessionRef = matchedSession._id;
+            updateDoc.session = matchedSession.name;
+          }
+        }
+
+        // Link Series reference
+        if (studentData.series && deptDoc && allSeries.length > 0) {
+          const sName = String(studentData.series).trim();
+          const matchedSeries = allSeries.find(sr => 
+            (sr.name === sName || sr.name === String(parseInt(sName, 10))) &&
+            (sr.department?.toString() === deptDoc._id.toString() || sr.departmentCode === studentData.department)
+          );
+          if (matchedSeries) {
+            updateDoc.seriesRef = matchedSeries._id;
+          }
         }
         if (studentData.registrationNumber !== undefined) updateDoc.registrationNumber = studentData.registrationNumber;
         if (studentData.email !== undefined) updateDoc.email = studentData.email;
@@ -1005,6 +1036,17 @@ const executeImport = async (req, res) => {
           if (studentLinkOps.length > 0) {
             await Student.bulkWrite(studentLinkOps, { ordered: false });
           }
+        }
+
+        // Sync Series student counts
+        try {
+          const affectedSeriesNames = [...new Set(affectedStudents.map(s => s.series).filter(Boolean))];
+          for (const sName of affectedSeriesNames) {
+            const sCount = await Student.countDocuments({ series: sName, department: dept });
+            await Series.updateMany({ name: sName, departmentCode: dept }, { $set: { totalStudents: sCount } });
+          }
+        } catch (seriesSyncErr) {
+          console.warn('Series totalStudents sync warning:', seriesSyncErr.message);
         }
       }
     } catch (syncErr) {

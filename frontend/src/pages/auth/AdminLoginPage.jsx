@@ -31,7 +31,12 @@ export default function AdminLoginPage() {
       });
 
       if (res.success) {
-        if (res.user?.role !== 'admin' && res.user?.role !== 'super_admin' && res.user?.role !== 'department_head') {
+        if (res.user?.role === 'department_head') {
+          toast.success(`Welcome, Department Head ${res.user?.name || ''}`);
+          navigate('/head');
+          return;
+        }
+        if (res.user?.role !== 'admin' && res.user?.role !== 'super_admin') {
           toast.error('Access denied: You do not possess Administrator privileges.');
           setLoading(false);
           return;
