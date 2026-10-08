@@ -313,21 +313,14 @@ export default function TeacherDashboard() {
           </div>
 
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5">
-            {MODULE_CARDS.map((card, idx) => {
-              const iconColors = [
-                'text-blue-600 bg-blue-50 dark:bg-blue-950/50',
-                'text-cyan-600 bg-cyan-50 dark:bg-cyan-950/50',
-                'text-violet-600 bg-violet-50 dark:bg-violet-950/50',
-                'text-indigo-600 bg-indigo-50 dark:bg-indigo-950/50',
-                'text-amber-600 bg-amber-50 dark:bg-amber-950/50',
-                'text-emerald-600 bg-emerald-50 dark:bg-emerald-950/50'
-              ];
-              const colorCls = iconColors[idx % iconColors.length];
-
+            {MODULE_CARDS.map((card) => {
               return (
-                <button key={card.path} onClick={() => handleModuleClick(card.path)}
-                  className="bg-white dark:bg-slate-800/80 rounded-xl p-3.5 border border-slate-200 dark:border-slate-700 hover:border-blue-500 dark:hover:border-blue-400 hover:shadow-sm cursor-pointer transition-all flex flex-col items-center text-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200 group">
-                  <span className={`w-8 h-8 rounded-lg flex items-center justify-center transition-transform group-hover:scale-110 ${colorCls}`}>
+                <button
+                  key={card.path}
+                  onClick={() => handleModuleClick(card.path)}
+                  className="bg-surface dark:bg-surface rounded-xl p-3.5 border border-border dark:border-border hover:border-primary dark:hover:border-primary hover:shadow-xs cursor-pointer transition-all flex flex-col items-center text-center gap-2 text-xs font-semibold text-text-primary dark:text-text-primary group"
+                >
+                  <span className="w-8 h-8 rounded-lg flex items-center justify-center bg-primary-soft dark:bg-primary-soft text-primary dark:text-primary transition-transform group-hover:scale-105">
                     {card.icon}
                   </span>
                   <span>{card.title}</span>

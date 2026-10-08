@@ -10,15 +10,16 @@ import {
   ClipboardList, TrendingUp, LogOut, Sun, Moon, Menu, X,
   Phone, Building2, ChevronRight, GraduationCap, Users,
   Calendar, CalendarOff, FolderTree, FileText, Bell, ChevronDown,
-  Upload, History, Award, KeyRound, Sparkles, CheckSquare, Layers, Shield, Database
+  Upload, History, Award, KeyRound, Sparkles, Layers, Shield, Database,
+  ArrowRight
 } from 'lucide-react';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 
-/* ── Navigation Config ───────────────────────────────────── */
+/* ── Navigation Configuration ────────────────────────────── */
 
 const adminNav = [
   { heading: 'Overview' },
-  { to: '/admin', icon: LayoutDashboard, label: 'Dashboard & Hierarchy', end: true },
+  { to: '/admin', icon: LayoutDashboard, label: 'System Overview', end: true },
   { to: '/admin/data-management', icon: Database, label: 'Data Management Portal' },
   
   { heading: 'Teaching & Faculty' },
@@ -96,14 +97,14 @@ const studentNav = [
   { to: '/student/profile', icon: Users, label: 'My Profile' },
 ];
 
-/* ── Sidebar Component ───────────────────────────────────── */
-function Sidebar({ user, navItems, isDarkMode, toggleTheme, handleLogout, onOpenChangePassword, onClose }) {
+/* ── Minimalist Premium Sidebar (Section 7) ───────────────── */
+function Sidebar({ user, navItems, handleLogout, onOpenChangePassword, onClose }) {
   const [profileOpen, setProfileOpen] = useState(false);
 
   const getRoleBadge = () => {
-    if (user?.role === 'admin' || user?.role === 'super_admin') return 'Super Administrator';
+    if (user?.role === 'admin' || user?.role === 'super_admin') return 'System Administrator';
     if (user?.role === 'department_head') return 'Department Head';
-    if (user?.role === 'teacher') return 'Teacher';
+    if (user?.role === 'teacher') return 'Faculty Member';
     return 'Student';
   };
 
@@ -115,9 +116,9 @@ function Sidebar({ user, navItems, isDarkMode, toggleTheme, handleLogout, onOpen
   };
 
   const getIdentifier = () => {
-    if (user?.role === 'admin' || user?.role === 'super_admin') return user?.name || user?.username || 'Administrator';
-    if (user?.role === 'department_head') return user?.name || user?.headId || 'Department Head';
-    if (user?.role === 'teacher') return user?.teacherId || 'Teacher';
+    if (user?.role === 'admin' || user?.role === 'super_admin') return user?.name || user?.username || 'Admin';
+    if (user?.role === 'department_head') return user?.name || user?.headId || 'Head';
+    if (user?.role === 'teacher') return user?.teacherId || user?.name || 'Teacher';
     return user?.rollNumber || 'Student';
   };
 
@@ -127,92 +128,83 @@ function Sidebar({ user, navItems, isDarkMode, toggleTheme, handleLogout, onOpen
   };
 
   return (
-    <div className="flex flex-col h-full"
-      style={{ background: isDarkMode ? '#0b132b' : '#ffffff', borderRight: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}` }}>
-
-      {/* ── Logo / Brand ── */}
-      <Link to={getPortalBase()} onClick={onClose}
-        className="flex items-center gap-3 px-5 py-4"
-        style={{ borderBottom: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}` }}>
-        <RuetLogo size={40} />
+    <div className="flex flex-col h-full bg-surface dark:bg-surface border-r border-border dark:border-border select-none">
+      {/* ── Brand Header ── */}
+      <Link
+        to={getPortalBase()}
+        onClick={onClose}
+        className="flex items-center gap-3 px-5 py-4 border-b border-border dark:border-border hover:bg-surface-secondary dark:hover:bg-surface-secondary transition-colors"
+      >
+        <RuetLogo size={36} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-1.5">
-            <span className="font-heading text-[15px] font-extrabold leading-tight tracking-tight truncate text-slate-900 dark:text-white">
-              Lab<span className="text-blue-600 dark:text-blue-400">Eval</span>
+            <span className="font-heading text-base font-extrabold text-text-primary dark:text-text-primary tracking-tight">
+              Lab<span className="text-primary dark:text-primary">Eval</span>
             </span>
-            <span className="text-[10px] font-bold px-1.5 py-0.5 rounded-md bg-blue-100 dark:bg-blue-950/90 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800/80 uppercase tracking-wide">
+            <span className="text-[10px] font-bold px-1.5 py-0.2 rounded bg-primary-soft dark:bg-primary-soft text-primary dark:text-primary border border-blue-200/50 dark:border-blue-900/50 uppercase">
               RUET
             </span>
           </div>
-          <p className="text-[10px] font-semibold uppercase tracking-wider text-slate-400 dark:text-slate-400 truncate mt-0.5">
-            Lab Performance Evaluation
+          <p className="text-[10px] font-medium text-text-muted dark:text-text-muted truncate mt-0.5">
+            Performance Management
           </p>
         </div>
       </Link>
 
-      {/* ── User Profile ── */}
-      <div className="px-3 pt-3 pb-1">
-        <button onClick={() => setProfileOpen(p => !p)}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-left transition-colors"
-          style={{
-            background: isDarkMode ? '#111c38' : '#f8fafc',
-            border: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}`
-          }}>
-          <div className="w-8 h-8 rounded-full flex items-center justify-center text-white text-xs font-bold shrink-0 shadow-sm"
-            style={{ background: 'linear-gradient(135deg, #2563eb 0%, #6366f1 100%)' }}>
+      {/* ── User Profile Card ── */}
+      <div className="p-3 border-b border-border dark:border-border">
+        <button
+          onClick={() => setProfileOpen(p => !p)}
+          className="w-full flex items-center gap-3 p-2.5 rounded-xl bg-surface-secondary dark:bg-surface-secondary border border-border dark:border-border hover:border-border-strong dark:hover:border-border-strong transition-all text-left"
+        >
+          <div className="w-8 h-8 rounded-lg bg-primary text-white flex items-center justify-center text-xs font-bold shrink-0 shadow-xs">
             {getInitials(user?.name)}
           </div>
           <div className="flex-1 min-w-0">
-            <p className="text-[13px] font-semibold truncate"
-              style={{ color: isDarkMode ? '#f8fafc' : '#0f172a' }}>
+            <p className="text-xs font-bold text-text-primary dark:text-text-primary truncate">
               {user?.name || 'User'}
             </p>
-            <p className="text-[11px] font-medium truncate" style={{ color: isDarkMode ? '#818cf8' : '#6366f1' }}>
+            <p className="text-[11px] font-medium text-text-muted dark:text-text-muted truncate">
               {getRoleBadge()}
             </p>
           </div>
-          <ChevronDown size={14}
-            style={{
-              color: isDarkMode ? '#94a3b8' : '#64748b',
-              transform: profileOpen ? 'rotate(180deg)' : 'none',
-              transition: 'transform 200ms'
-            }} />
+          <ChevronDown
+            size={14}
+            className={`text-text-muted dark:text-text-muted transition-transform duration-200 ${profileOpen ? 'rotate-180' : ''}`}
+          />
         </button>
 
         {profileOpen && (
-          <div className="mt-1 px-3 py-2.5 rounded-lg text-[11px] space-y-1.5"
-            style={{
-              background: isDarkMode ? '#111c38' : '#f1f5f9',
-              border: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}`
-            }}>
-            <div className="flex items-center gap-2" style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}>
-              <GraduationCap size={11} />
-              <span className="font-mono">{getIdentifier()}</span>
+          <div className="mt-2 p-3 rounded-xl bg-surface-secondary dark:bg-surface-secondary border border-border dark:border-border text-xs space-y-2 animate-in fade-in slide-in-from-top-1">
+            <div className="flex items-center gap-2 text-text-muted dark:text-text-muted">
+              <GraduationCap size={13} />
+              <span className="font-mono text-[11px] text-text-primary dark:text-text-primary font-semibold">{getIdentifier()}</span>
             </div>
             {user?.department && (
-              <div className="flex items-center gap-2" style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}>
-                <Building2 size={11} />
-                <span>Dept. of {user.department}</span>
+              <div className="flex items-center gap-2 text-text-muted dark:text-text-muted">
+                <Building2 size={13} />
+                <span className="text-[11px]">Dept. of {user.department}</span>
               </div>
             )}
             {user?.contactNo && (
-              <div className="flex items-center gap-2" style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}>
-                <Phone size={11} />
-                <span>{user.contactNo}</span>
+              <div className="flex items-center gap-2 text-text-muted dark:text-text-muted">
+                <Phone size={13} />
+                <span className="text-[11px]">{user.contactNo}</span>
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* ── Navigation ── */}
-      <nav className="flex-1 px-3 py-2 overflow-y-auto">
+      {/* ── Navigation Items (Section 7) ── */}
+      <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-0.5">
         {navItems.map((item, idx) => {
           if (item.heading) {
             return (
-              <p key={`h-${idx}`}
-                className="text-[10px] uppercase tracking-widest font-bold px-3 pt-4 pb-1.5 first:pt-2"
-                style={{ color: isDarkMode ? '#64748b' : '#94a3b8' }}>
+              <p
+                key={`h-${idx}`}
+                className="text-[10px] font-bold uppercase tracking-wider text-text-muted dark:text-text-muted px-3 pt-4 pb-1.5 first:pt-1"
+              >
                 {item.heading}
               </p>
             );
@@ -220,61 +212,49 @@ function Sidebar({ user, navItems, isDarkMode, toggleTheme, handleLogout, onOpen
 
           const Icon = item.icon;
           return (
-            <NavLink key={item.to} to={item.to} end={item.end}
+            <NavLink
+              key={item.to}
+              to={item.to}
+              end={item.end}
               onClick={onClose}
               className={({ isActive }) =>
-                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-[13px] font-medium mb-0.5 transition-all ${
-                  isActive ? 'nav-active font-semibold' : 'nav-inactive hover:bg-slate-100/60 dark:hover:bg-slate-800/40'
+                `flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold transition-all ${
+                  isActive
+                    ? 'bg-primary-soft dark:bg-primary-soft text-primary dark:text-primary shadow-xs'
+                    : 'text-text-secondary dark:text-text-secondary hover:bg-surface-secondary dark:hover:bg-surface-secondary hover:text-text-primary dark:hover:text-text-primary'
                 }`
               }
-              style={({ isActive }) => ({
-                borderLeft: isActive ? `3px solid #2563eb` : '3px solid transparent',
-                background: isActive
-                  ? (isDarkMode ? 'linear-gradient(90deg, rgba(37,99,235,0.2) 0%, rgba(99,102,241,0.08) 100%)' : '#eff6ff')
-                  : 'transparent',
-                color: isActive
-                  ? (isDarkMode ? '#38bdf8' : '#1d4ed8')
-                  : (isDarkMode ? '#94a3b8' : '#475569'),
-              })}>
+            >
               <Icon size={15} />
-              {item.label}
+              <span className="truncate">{item.label}</span>
             </NavLink>
           );
         })}
       </nav>
 
       {/* ── Bottom Controls ── */}
-      <div className="px-3 py-3" style={{ borderTop: `1px solid ${isDarkMode ? '#1e293b' : '#e2e8f0'}` }}>
-        <button onClick={toggleTheme}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[12px] font-medium mb-1 transition-colors"
-          style={{ color: isDarkMode ? '#94a3b8' : '#64748b' }}
-          onMouseEnter={e => e.currentTarget.style.background = isDarkMode ? '#1e293b' : '#f1f5f9'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-          {isDarkMode ? <Sun size={14} /> : <Moon size={14} />}
-          {isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
-        </button>
-        <button onClick={() => { onOpenChangePassword && onOpenChangePassword(); onClose && onClose(); }}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[12px] font-medium mb-1 transition-colors"
-          style={{ color: isDarkMode ? '#38bdf8' : '#2563eb' }}
-          onMouseEnter={e => e.currentTarget.style.background = isDarkMode ? '#1e293b' : '#eff6ff'}
-          onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
+      <div className="p-3 border-t border-border dark:border-border space-y-1">
+        <button
+          onClick={() => { onOpenChangePassword && onOpenChangePassword(); onClose && onClose(); }}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-text-secondary dark:text-text-secondary hover:bg-surface-secondary dark:hover:bg-surface-secondary hover:text-text-primary dark:hover:text-text-primary transition-colors"
+        >
           <KeyRound size={14} />
-          Change Password (OTP)
+          <span>Security / Password</span>
         </button>
-        <button onClick={handleLogout}
-          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-md text-[12px] font-medium transition-colors"
-          style={{ color: '#ef4444' }}
-          onMouseEnter={e => { e.currentTarget.style.background = isDarkMode ? 'rgba(239, 68, 68, 0.12)' : '#fef2f2'; }}
-          onMouseLeave={e => { e.currentTarget.style.background = 'transparent'; }}>
+
+        <button
+          onClick={handleLogout}
+          className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-50 dark:hover:bg-rose-950/40 transition-colors"
+        >
           <LogOut size={14} />
-          Sign Out
+          <span>Sign Out</span>
         </button>
       </div>
     </div>
   );
 }
 
-/* ── Main Layout ─────────────────────────────────────────── */
+/* ── Main Dashboard Layout (Section 6, 8) ─────────────────── */
 export default function DashboardLayout() {
   const { user, logout, headMode, toggleHeadMode } = useContext(AuthContext);
   const { isDarkMode, toggleTheme } = useTheme();
@@ -302,54 +282,36 @@ export default function DashboardLayout() {
     }
   };
 
-  const bgColor    = isDarkMode ? '#0b132b' : '#f8fafc';
-  const sidebarBg  = isDarkMode ? '#0b132b' : '#ffffff';
-  const borderColor = isDarkMode ? '#1e293b' : '#e2e8f0';
-  const headerBg   = isDarkMode ? '#0b132b' : '#ffffff';
-  const headerText = isDarkMode ? '#f8fafc' : '#0f172a';
-
   return (
-    <div className="flex h-screen overflow-hidden" style={{ background: bgColor }}>
-
+    <div className="flex h-screen overflow-hidden bg-background dark:bg-background text-text-primary dark:text-text-primary">
       {/* ── Desktop Sidebar ── */}
-      <aside className="hidden lg:flex flex-col w-60 shrink-0 h-full overflow-y-auto"
-        style={{ background: sidebarBg, borderRight: `1px solid ${borderColor}` }}>
+      <aside className="hidden lg:flex flex-col w-64 shrink-0 h-full">
         <Sidebar
           user={user}
           navItems={navItems}
-          isDarkMode={isDarkMode}
-          toggleTheme={toggleTheme}
           handleLogout={handleLogout}
           onOpenChangePassword={() => setChangePasswordOpen(true)}
           onClose={() => {}}
         />
       </aside>
 
-      {/* ── Mobile: overlay + drawer ── */}
+      {/* ── Mobile Sidebar Drawer ── */}
       {mobileSidebarOpen && (
-        <>
+        <div className="fixed inset-0 z-50 lg:hidden">
           <div
-            className="fixed inset-0 z-30 bg-black/50 lg:hidden"
-            onClick={() => setMobileSidebarOpen(false)} />
-          <aside className="fixed left-0 top-0 bottom-0 z-40 w-64 flex flex-col lg:hidden overflow-y-auto"
-            style={{ background: sidebarBg, borderRight: `1px solid ${borderColor}` }}>
-            <div className="flex items-center justify-end px-4 pt-3 pb-1">
-              <button onClick={() => setMobileSidebarOpen(false)}
-                style={{ color: isDarkMode ? '#8ba99b' : '#6b7280' }}>
-                <X size={18} />
-              </button>
-            </div>
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs transition-opacity"
+            onClick={() => setMobileSidebarOpen(false)}
+          />
+          <aside className="fixed left-0 top-0 bottom-0 z-50 w-72 flex flex-col shadow-2xl">
             <Sidebar
               user={user}
               navItems={navItems}
-              isDarkMode={isDarkMode}
-              toggleTheme={toggleTheme}
               handleLogout={handleLogout}
               onOpenChangePassword={() => setChangePasswordOpen(true)}
               onClose={() => setMobileSidebarOpen(false)}
             />
           </aside>
-        </>
+        </div>
       )}
 
       {/* ── Change Password Modal ── */}
@@ -359,98 +321,84 @@ export default function DashboardLayout() {
         currentUser={user}
       />
 
-      {/* ── Main Content Area ── */}
+      {/* ── Main Content Area (Header + Main Body) ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
-
-        {/* Desktop Top Bar (Mode Switch, Theme Toggle, User Indicator) */}
-        <header className="hidden lg:flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shrink-0">
+        {/* Top Header Bar (Section 8) */}
+        <header className="h-14 px-4 sm:px-6 bg-surface dark:bg-surface border-b border-border dark:border-border flex items-center justify-between shrink-0">
+          {/* Mobile Menu Toggle & Brand */}
           <div className="flex items-center gap-3">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
-              {user?.department ? `Dept. of ${user.department}` : 'RUET LabEval'}
-            </span>
+            <button
+              onClick={() => setMobileSidebarOpen(true)}
+              className="p-2 rounded-lg text-text-secondary dark:text-text-secondary hover:bg-surface-secondary dark:hover:bg-surface-secondary lg:hidden"
+              aria-label="Open Navigation"
+            >
+              <Menu size={18} />
+            </button>
+
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-semibold text-text-muted dark:text-text-muted hidden sm:inline">
+                {user?.department ? `Dept. of ${user.department}` : 'RUET LabEval'}
+              </span>
+              <span className="text-border-strong dark:text-border-strong hidden sm:inline">•</span>
+              <span className="text-xs font-medium text-text-secondary dark:text-text-secondary truncate">
+                Academic Session 2024–2025
+              </span>
+            </div>
           </div>
 
+          {/* Right Header Actions: Dual-Mode Switch, Theme Toggle */}
           <div className="flex items-center gap-3">
-            {/* Top-Right Persistent Dual-Mode Switch (Section 1, 6, 51) */}
+            {/* Department Head Dual-Mode Switch (Section 8, 18) */}
             {user?.role === 'department_head' && (
-              <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 p-1 rounded-xl shadow-xs">
+              <div className="flex items-center bg-surface-secondary dark:bg-surface-secondary border border-border dark:border-border p-1 rounded-xl">
                 <button
                   onClick={() => handleSwitchMode('HEAD')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     headMode === 'HEAD'
-                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-primary text-white shadow-xs'
+                      : 'text-text-muted dark:text-text-muted hover:text-text-primary dark:hover:text-text-primary'
                   }`}
-                  title="Switch to Department Academic Management Mode"
+                  title="Switch to Department Administration Mode"
                 >
-                  <Shield size={13} />
+                  <Shield size={12} />
                   <span>Head Mode</span>
                   {headMode === 'HEAD' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />
                   )}
                 </button>
                 <button
                   onClick={() => handleSwitchMode('TEACHER')}
                   className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
                     headMode === 'TEACHER'
-                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25'
-                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                      ? 'bg-indigo-600 text-white shadow-xs'
+                      : 'text-text-muted dark:text-text-muted hover:text-text-primary dark:hover:text-text-primary'
                   }`}
-                  title="Switch to Personal Teaching & Supervision Mode"
+                  title="Switch to Personal Instructor & Teaching Mode"
                 >
-                  <GraduationCap size={13} />
+                  <GraduationCap size={12} />
                   <span>Teacher Mode</span>
                   {headMode === 'TEACHER' && (
-                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 ml-0.5" />
                   )}
                 </button>
               </div>
             )}
 
+            {/* Theme Toggle (Section 8) */}
             <button
               onClick={toggleTheme}
-              className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
-              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+              className="p-2 rounded-lg bg-surface-secondary dark:bg-surface-secondary border border-border dark:border-border text-text-secondary dark:text-text-secondary hover:text-primary dark:hover:text-primary transition-colors"
+              title={isDarkMode ? 'Switch to Light Theme' : 'Switch to Dark Theme'}
+              aria-label="Toggle Theme"
             >
               {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
             </button>
           </div>
         </header>
 
-        {/* Mobile Header */}
-        <header className="flex items-center gap-3 px-4 py-3 lg:hidden"
-          style={{ background: headerBg, borderBottom: `1px solid ${borderColor}` }}>
-          <button onClick={() => setMobileSidebarOpen(true)}
-            style={{ color: isDarkMode ? '#8ba99b' : '#6b7280' }}>
-            <Menu size={20} />
-          </button>
-          <div className="flex items-center gap-2">
-            <RuetLogo size={26} />
-            <span className="text-[14px] font-bold" style={{ color: headerText }}>
-              Lab<span className="text-blue-600 dark:text-blue-400">Eval</span>
-            </span>
-          </div>
-
-          <div className="ml-auto flex items-center gap-2">
-            {user?.role === 'department_head' && (
-              <button
-                onClick={() => handleSwitchMode(headMode === 'HEAD' ? 'TEACHER' : 'HEAD')}
-                className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[11px] font-bold flex items-center gap-1"
-              >
-                {headMode === 'HEAD' ? <Shield size={11} /> : <GraduationCap size={11} />}
-                <span>{headMode === 'HEAD' ? 'Head' : 'Teacher'}</span>
-              </button>
-            )}
-
-            <button onClick={toggleTheme} style={{ color: isDarkMode ? '#8ba99b' : '#6b7280' }}>
-              {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-          </div>
-        </header>
-
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto overflow-x-hidden" style={{ background: bgColor }}>
-          <div className="p-4 sm:p-6 lg:p-8 xl:p-10 max-w-7xl 2xl:max-w-[1760px] mx-auto w-full">
+        {/* Page Main Content Area */}
+        <main className="flex-1 overflow-y-auto overflow-x-hidden p-4 sm:p-6 lg:p-8">
+          <div className="max-w-7xl mx-auto w-full">
             <AnimatePresence mode="wait" initial={false}>
               <PageTransition key={location.pathname}>
                 <Outlet />

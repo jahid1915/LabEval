@@ -162,52 +162,56 @@ export default function StudentDashboard() {
         </div>
       </div>
 
-      {/* ── SEMESTER SUMMARY METRICS (Multi-Color Cards) ── */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-        {/* Emerald: SGPA */}
-        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-emerald-200/80 dark:border-emerald-800/40 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400 uppercase tracking-wider block">Semester SGPA</span>
-            <span className="text-2xl font-black text-emerald-600 dark:text-emerald-400">{sgpa}</span>
+      {/* ── SEMESTER SUMMARY METRICS (Restrained SaaS Design Tokens - Section 10 & 20) ── */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+        {/* Semester SGPA */}
+        <div className="bg-surface dark:bg-surface border border-border dark:border-border rounded-xl p-5 shadow-xs">
+          <div className="flex items-center justify-between text-text-muted dark:text-text-muted">
+            <span className="text-xs font-semibold uppercase tracking-wider">Semester SGPA</span>
+            <div className="w-8 h-8 rounded-lg bg-emerald-50 dark:bg-emerald-950/60 text-emerald-600 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900/40 flex items-center justify-center">
+              <Award size={16} />
+            </div>
           </div>
-          <div className="w-9 h-9 rounded-lg bg-emerald-50 dark:bg-emerald-950/50 flex items-center justify-center text-emerald-600 dark:text-emerald-400">
-            <Award size={18} />
-          </div>
+          <p className="text-2xl sm:text-3xl font-extrabold text-emerald-600 dark:text-emerald-400 mt-2 font-mono">{sgpa}</p>
+          <p className="text-xs text-text-muted dark:text-text-muted mt-1">Official Weighted Average</p>
         </div>
 
-        {/* Electric Blue: Total Credits */}
-        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-blue-200/80 dark:border-blue-800/40 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-blue-600 dark:text-blue-400 uppercase tracking-wider block">Total Credits</span>
-            <span className="text-2xl font-black text-slate-900 dark:text-white">{totalCredits.toFixed(2)}</span>
+        {/* Total Credits */}
+        <div className="bg-surface dark:bg-surface border border-border dark:border-border rounded-xl p-5 shadow-xs">
+          <div className="flex items-center justify-between text-text-muted dark:text-text-muted">
+            <span className="text-xs font-semibold uppercase tracking-wider">Total Credits</span>
+            <div className="w-8 h-8 rounded-lg bg-blue-50 dark:bg-blue-950/60 text-blue-600 dark:text-blue-400 border border-blue-100 dark:border-blue-900/40 flex items-center justify-center">
+              <BookOpen size={16} />
+            </div>
           </div>
-          <div className="w-9 h-9 rounded-lg bg-blue-50 dark:bg-blue-950/50 flex items-center justify-center text-blue-600 dark:text-blue-400">
-            <BookOpen size={18} />
-          </div>
+          <p className="text-2xl sm:text-3xl font-extrabold text-text-primary dark:text-text-primary mt-2 font-mono">{totalCredits.toFixed(2)}</p>
+          <p className="text-xs text-text-muted dark:text-text-muted mt-1">Enrolled Credit Load</p>
         </div>
 
-        {/* Indigo: Courses */}
-        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-indigo-200/80 dark:border-indigo-800/40 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-indigo-600 dark:text-indigo-400 uppercase tracking-wider block">Total Courses</span>
-            <span className="text-2xl font-black text-slate-900 dark:text-white">{courses.length}</span>
+        {/* Total Courses */}
+        <div className="bg-surface dark:bg-surface border border-border dark:border-border rounded-xl p-5 shadow-xs">
+          <div className="flex items-center justify-between text-text-muted dark:text-text-muted">
+            <span className="text-xs font-semibold uppercase tracking-wider">Enrolled Courses</span>
+            <div className="w-8 h-8 rounded-lg bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/40 flex items-center justify-center">
+              <GraduationCap size={16} />
+            </div>
           </div>
-          <div className="w-9 h-9 rounded-lg bg-indigo-50 dark:bg-indigo-950/50 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
-            <GraduationCap size={18} />
-          </div>
+          <p className="text-2xl sm:text-3xl font-extrabold text-text-primary dark:text-text-primary mt-2 font-mono">{courses.length}</p>
+          <p className="text-xs text-text-muted dark:text-text-muted mt-1">Theory & Sessional</p>
         </div>
 
-        {/* Amber: Marks Requested */}
-        <div className="p-4 rounded-xl bg-white dark:bg-slate-900 border border-amber-200/80 dark:border-amber-800/40 shadow-sm flex items-center justify-between">
-          <div>
-            <span className="text-[10px] font-bold text-amber-600 dark:text-amber-400 uppercase tracking-wider block">Marks Requested</span>
-            <span className="text-2xl font-black text-amber-600 dark:text-amber-400">
-              {courses.filter(c => c.request).length}
-            </span>
+        {/* Marks Requested */}
+        <div className="bg-surface dark:bg-surface border border-border dark:border-border rounded-xl p-5 shadow-xs">
+          <div className="flex items-center justify-between text-text-muted dark:text-text-muted">
+            <span className="text-xs font-semibold uppercase tracking-wider">Marks In Review</span>
+            <div className="w-8 h-8 rounded-lg bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/40 flex items-center justify-center">
+              <Sparkles size={16} />
+            </div>
           </div>
-          <div className="w-9 h-9 rounded-lg bg-amber-50 dark:bg-amber-950/50 flex items-center justify-center text-amber-600 dark:text-amber-400">
-            <Sparkles size={18} />
-          </div>
+          <p className="text-2xl sm:text-3xl font-extrabold text-amber-600 dark:text-amber-400 mt-2 font-mono">
+            {courses.filter(c => c.request).length}
+          </p>
+          <p className="text-xs text-text-muted dark:text-text-muted mt-1">Student Review Requests</p>
         </div>
       </div>
 

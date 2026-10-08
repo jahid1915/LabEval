@@ -491,30 +491,30 @@ export default function AdminDashboard() {
         </div>
       </div>
 
-      {/* ── OVERVIEW METRICS CARDS (Interactive Popups) ── */}
+      {/* ── OVERVIEW METRICS CARDS (Restrained SaaS Design Tokens - Section 10 & 21) ── */}
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {[
-          { key: 'courses', title: 'Total Courses', value: courses.length, icon: <BookOpen size={16} />, color: 'text-blue-600 dark:text-blue-400', border: 'border-l-4 border-l-blue-500', bg: 'bg-blue-50 dark:bg-blue-950/40 text-blue-600 dark:text-blue-400' },
-          { key: 'teachers', title: 'Faculty Members', value: teachers.length, icon: <Users size={16} />, color: 'text-violet-600 dark:text-violet-400', border: 'border-l-4 border-l-violet-500', bg: 'bg-violet-50 dark:bg-violet-950/40 text-violet-600 dark:text-violet-400' },
-          { key: 'assigned', title: 'Assigned', value: assignedCoursesCount, icon: <CheckCircle size={16} />, color: 'text-emerald-600 dark:text-emerald-400', border: 'border-l-4 border-l-emerald-500', bg: 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400' },
-          { key: 'unassigned', title: 'Unassigned', value: unassignedCoursesCount, icon: <Clock size={16} />, color: 'text-amber-600 dark:text-amber-400', border: 'border-l-4 border-l-amber-500', bg: 'bg-amber-50 dark:bg-amber-950/40 text-amber-600 dark:text-amber-400' },
-          { key: 'students', title: 'Students', value: stats?.totalStudents ?? '—', icon: <GraduationCap size={16} />, color: 'text-cyan-600 dark:text-cyan-400', border: 'border-l-4 border-l-cyan-500', bg: 'bg-cyan-50 dark:bg-cyan-950/40 text-cyan-600 dark:text-cyan-400' },
-          { key: 'requests', title: 'Mark Requests', value: stats?.totalRequests ?? '—', icon: <ClipboardList size={16} />, color: 'text-rose-600 dark:text-rose-400', border: 'border-l-4 border-l-rose-500', bg: 'bg-rose-50 dark:bg-rose-950/40 text-rose-600 dark:text-rose-400' },
+          { key: 'courses', title: 'Total Courses', value: courses.length, icon: <BookOpen size={16} /> },
+          { key: 'teachers', title: 'Faculty Members', value: teachers.length, icon: <Users size={16} /> },
+          { key: 'assigned', title: 'Assigned', value: assignedCoursesCount, icon: <CheckCircle size={16} /> },
+          { key: 'unassigned', title: 'Unassigned', value: unassignedCoursesCount, icon: <Clock size={16} /> },
+          { key: 'students', title: 'Students', value: stats?.totalStudents ?? '—', icon: <GraduationCap size={16} /> },
+          { key: 'requests', title: 'Mark Requests', value: stats?.totalRequests ?? '—', icon: <ClipboardList size={16} /> },
         ].map((card) => (
           <div key={card.key}
             role="button"
             tabIndex={0}
             onClick={() => handleOpenStatModal(card.key)}
             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') handleOpenStatModal(card.key); }}
-            className={`bg-white dark:bg-[#111c38] rounded-xl p-4 border border-slate-200 dark:border-[#1e293b] ${card.border} shadow-sm transition-all hover:-translate-y-1 hover:shadow-md hover:border-slate-300 dark:hover:border-slate-600 cursor-pointer group select-none relative`}
+            className="bg-surface dark:bg-surface rounded-xl p-4 border border-border dark:border-border shadow-xs transition-all hover:border-border-strong dark:hover:border-border-strong cursor-pointer group select-none relative"
             title={`Click to view full ${card.title} details`}>
             <div className="flex items-center justify-between mb-2">
-              <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">{card.title}</span>
-              <span className={`p-1.5 rounded-lg ${card.bg} group-hover:scale-110 transition-transform`}>{card.icon}</span>
+              <span className="text-[10px] font-semibold text-text-muted dark:text-text-muted uppercase tracking-wider">{card.title}</span>
+              <span className="p-1.5 rounded-lg bg-surface-secondary dark:bg-surface-secondary border border-border dark:border-border text-text-secondary dark:text-text-secondary group-hover:text-primary dark:group-hover:text-primary transition-colors">{card.icon}</span>
             </div>
             <div className="flex items-baseline justify-between">
-              <p className="text-2xl font-bold text-slate-900 dark:text-white tracking-tight">{card.value}</p>
-              <span className="text-[10px] font-semibold text-blue-600 dark:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+              <p className="text-2xl font-extrabold text-text-primary dark:text-text-primary tracking-tight font-mono">{card.value}</p>
+              <span className="text-[10px] font-semibold text-primary dark:text-primary opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
                 View <ArrowUpRight size={11} />
               </span>
             </div>
