@@ -302,7 +302,9 @@ const inspectWorkbook = (buffer) => {
       headers.push(val !== '' ? val : `Column ${i + 1}`);
     }
 
-    const nonBlankRows = rawData.slice(headerRowIdx + 1).filter(r => !r.every(c => c === '' || c === null || c === undefined));
+    const nonBlankRows = rawData.slice(headerRowIdx + 1).filter(r =>
+      Array.isArray(r) && r.some(c => c !== null && c !== undefined && String(c).trim() !== '')
+    );
 
     return {
       name: sheetName,
@@ -415,10 +417,12 @@ const parseXlsxBuffer = (buffer, targetSheetName = null, userHeaderRowIdx = null
 
   // Convert remaining rows to objects using headers
   const rows = [];
+  let dataRowSeq = 1;
   for (let i = headerRowIdx + 1; i < rawData.length; i++) {
     const rawRow = rawData[i];
-    // Skip completely empty rows
-    if (!rawRow || rawRow.every(cell => cell === '' || cell === null || cell === undefined)) {
+    // Keep ONLY rows that contain actual data (skip completely blank or whitespace-only rows)
+    const hasActualData = Array.isArray(rawRow) && rawRow.some(cell => cell !== null && cell !== undefined && String(cell).trim() !== '');
+    if (!hasActualData) {
       continue;
     }
 
@@ -427,7 +431,7 @@ const parseXlsxBuffer = (buffer, targetSheetName = null, userHeaderRowIdx = null
       const cellVal = rawRow[colIdx];
       rowObj[header] = cellVal !== null && cellVal !== undefined ? String(cellVal).trim() : '';
     });
-    rows.push({ _rowIndex: i + 1, ...rowObj }); // 1-indexed original row number
+    rows.push({ _rowIndex: dataRowSeq++, _excelRow: i + 1, ...rowObj }); // Sequence starts from 1
   }
 
   return {
@@ -584,9 +588,11 @@ const validateRow = (row, rowIndex, validDepartments = [], overrides = {}, defau
     data.session = getSessionFromSeries(data.series);
   }
 
-  // registrationNumber / registrationNo — optional
+  // registrationNumber / registrationNo — STRICTLY REQUIRED (initial student password, zero fallback)
   const regNo = String(row.registrationNumber || row.registrationNo || '').trim();
-  if (regNo) {
+  if (!regNo) {
+    errors.push({ field: 'registrationNumber', message: 'Registration Number is required (used as initial password)' });
+  } else {
     data.registrationNumber = regNo;
   }
 

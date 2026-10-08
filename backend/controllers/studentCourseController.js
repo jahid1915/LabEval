@@ -272,7 +272,7 @@ const getStudentMarks = async (req, res) => {
   try {
     const student = req.user;
     const cleanCode = req.params.courseCode.trim().toUpperCase();
-    const semester = req.query.semester ? req.query.semester.trim() : '3-2';
+    const semester = req.query.semester ? req.query.semester.trim() : '';
 
     // 1. Resolve Course & Teacher
     const courseDoc = await Course.findOne({ courseCode: cleanCode });
@@ -291,11 +291,14 @@ const getStudentMarks = async (req, res) => {
     }
 
     if (!teacher) {
-      const assignment = await TeacherAssignment.findOne({ status: 'active' })
-        .populate('courseOffering')
-        .populate('teacher');
-      if (assignment && assignment.courseOffering?.courseCode === cleanCode) {
-        teacher = assignment.teacher;
+      // Fallback: search by course code across all offerings
+      const allOfferings = await CourseOffering.find({ courseCode: cleanCode });
+      for (const off of allOfferings) {
+        const assignment = await TeacherAssignment.findOne({
+          courseOffering: off._id,
+          status: 'active'
+        }).populate('teacher');
+        if (assignment?.teacher) { teacher = assignment.teacher; break; }
       }
     }
 
@@ -305,11 +308,16 @@ const getStudentMarks = async (req, res) => {
       FinalResult.findOne({ student: student._id, course: cleanCode })
     ]);
 
-    const isAuthorized = (request && (request.status === 'Accepted' || request.status === 'Completed')) || finalResult?.isPublished;
+    // 3. Marks visible if: published by teacher OR request accepted/completed
+    const isPublished = !!(finalResult?.isPublished || offering?.isMarksPublished);
+    const isRequestAccepted = !!(request && (request.status === 'Accepted' || request.status === 'Completed'));
+    const isAuthorized = isPublished || isRequestAccepted;
 
     if (!isAuthorized) {
       return res.status(403).json({
-        message: 'Detailed marks access is pending teacher approval. Please submit a mark request.'
+        message: 'Marks are not yet published. They will be visible once the teacher finalizes and publishes results.',
+        isPublished: false,
+        requestStatus: request?.status || null
       });
     }
 
@@ -320,10 +328,11 @@ const getStudentMarks = async (req, res) => {
       labTest: finalResult?.testMarks || 0,
       openEnded: finalResult?.openEndedMarks || 'A',
       attendance: finalResult?.attendanceMarks || 0,
+      performance: finalResult?.performanceMarks || 0,
       others: finalResult?.othersMarks || 0,
       total: finalResult?.totalMarks || 0,
-      grade: finalResult?.grade || 'A+',
-      gradePoint: finalResult?.gradePoint || 4.00
+      grade: finalResult?.grade || '',
+      gradePoint: finalResult?.gradePoint || 0
     };
 
     res.json({
@@ -331,8 +340,8 @@ const getStudentMarks = async (req, res) => {
       courseName: courseDoc?.courseName || offering?.courseName || cleanCode,
       courseType: courseDoc?.courseType || 'Sessional',
       credit: courseDoc?.credit || 1.5,
-      semester,
-      academicSession: offering?.sessionName || '2024-2025',
+      semester: semester || offering?.semesterName || finalResult?.semester || '',
+      academicSession: offering?.sessionName || finalResult?.academicSession || '2024-2025',
       student: {
         _id: student._id,
         name: student.name,
@@ -347,18 +356,152 @@ const getStudentMarks = async (req, res) => {
         department: teacher.department,
         email: teacher.email
       } : {
-        teacherId: request?.teacher || 'ETE-294',
-        name: request?.teacherName || 'Md Abu Ismail Siddique',
-        designation: 'Assistant Professor',
-        department: 'ETE'
+        teacherId: finalResult?.teacherId || '',
+        name: finalResult?.teacherName || 'Not Assigned',
+        designation: '',
+        department: student.department
       },
       detailedMarks,
-      maxTotalMarks: finalResult?.maxTotalMarks || 65,
+      maxTotalMarks: finalResult?.maxTotalMarks || 75,
       totalMarks: detailedMarks.total || finalResult?.totalMarks || 0,
-      grade: detailedMarks.grade || finalResult?.grade || 'A+',
-      gradePoint: detailedMarks.gradePoint !== undefined ? detailedMarks.gradePoint : 4.00,
-      requestStatus: request?.status || 'Accepted',
-      processedAt: request?.processedAt || finalResult?.publishedAt || new Date()
+      grade: detailedMarks.grade || finalResult?.grade || '',
+      gradePoint: detailedMarks.gradePoint !== undefined ? detailedMarks.gradePoint : null,
+      isPublished,
+      requestStatus: request?.status || (isPublished ? 'Published' : null),
+      processedAt: request?.processedAt || finalResult?.publishedAt || null
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Get student's academic history across all semesters
+// @route GET /api/student/history
+const getStudentAcademicHistory = async (req, res) => {
+  try {
+    const student = req.user;
+
+    const finalResults = await FinalResult.find({
+      student: student._id
+    }).lean();
+
+    if (finalResults.length === 0) {
+      return res.json({ semesters: [], totalResults: 0, studentInfo: {
+        name: student.name, rollNumber: student.rollNumber,
+        series: student.series, department: student.department
+      }});
+    }
+
+    const courseCodes = [...new Set(finalResults.map(r => r.course))];
+    const offerings = await CourseOffering.find({
+      courseCode: { $in: courseCodes }
+    }).lean();
+
+    const offeringMap = {};
+    offerings.forEach(o => { offeringMap[`${o.courseCode}_${o.seriesName}`] = o; offeringMap[o.courseCode] = o; });
+
+    const offeringIds = offerings.map(o => o._id);
+    const assignments = await TeacherAssignment.find({
+      courseOffering: { $in: offeringIds },
+      status: 'active'
+    }).populate('teacher', 'name teacherId designation department').lean();
+
+    const teacherByOfferingId = {};
+    assignments.forEach(a => {
+      if (a.courseOffering) teacherByOfferingId[a.courseOffering.toString()] = a.teacher;
+    });
+
+    // Group results by semester + academicSession
+    const semesterMap = {};
+    for (const result of finalResults) {
+      const key = `${result.semester || 'Unknown'}__${result.academicSession || ''}`;
+      if (!semesterMap[key]) {
+        semesterMap[key] = {
+          semester: result.semester || 'Unknown',
+          academicSession: result.academicSession || '',
+          courses: []
+        };
+      }
+      const off = offeringMap[`${result.course}_${student.series}`] || offeringMap[result.course];
+      const teacher = off ? teacherByOfferingId[off._id?.toString()] : null;
+
+      semesterMap[key].courses.push({
+        courseCode: result.course,
+        courseName: result.courseName || off?.courseName || result.course,
+        courseType: off?.course?.courseType || 'Sessional',
+        teacherName: teacher?.name || result.teacherName || 'N/A',
+        teacherId: teacher?.teacherId || result.teacherId || '',
+        teacherDesignation: teacher?.designation || '',
+        grade: result.grade || '',
+        gradePoint: result.gradePoint !== undefined ? result.gradePoint : null,
+        totalMarks: result.totalMarks || 0,
+        maxTotalMarks: result.maxTotalMarks || 75,
+        isPublished: result.isPublished || false,
+        status: result.status
+      });
+    }
+
+    // Sort semesters by most recent
+    const semesters = Object.values(semesterMap).sort((a, b) => {
+      const sessionCmp = b.academicSession.localeCompare(a.academicSession);
+      if (sessionCmp !== 0) return sessionCmp;
+      return b.semester.localeCompare(a.semester);
+    });
+
+    res.json({
+      semesters,
+      totalResults: finalResults.length,
+      studentInfo: {
+        name: student.name,
+        rollNumber: student.rollNumber,
+        series: student.series,
+        department: student.department,
+        semester: student.semester,
+        session: student.session
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+};
+
+// @desc Get current student's profile
+// @route GET /api/student/profile
+const getStudentProfile = async (req, res) => {
+  try {
+    const Student = require('../models/Student');
+    const fullStudent = await Student.findById(req.user._id)
+      .populate('departmentRef', 'name code')
+      .populate('facultyRef', 'name code')
+      .populate('seriesRef', 'name year startYear')
+      .populate('academicSessionRef', 'name year')
+      .select('-password -enrolledCourses -__v')
+      .lean();
+
+    if (!fullStudent) return res.status(404).json({ message: 'Student not found' });
+
+    res.json({
+      _id: fullStudent._id,
+      name: fullStudent.name,
+      rollNumber: fullStudent.rollNumber,
+      registrationNumber: fullStudent.registrationNumber || '',
+      email: fullStudent.email || '',
+      contactNo: fullStudent.contactNo || '',
+      series: fullStudent.series,
+      department: fullStudent.department,
+      departmentName: fullStudent.departmentRef?.name || fullStudent.department,
+      facultyName: fullStudent.facultyRef?.name || '',
+      semester: fullStudent.semester || '',
+      session: fullStudent.session || '',
+      section: fullStudent.section || '',
+      batch: fullStudent.batch || '',
+      gender: fullStudent.gender || '',
+      bloodGroup: fullStudent.bloodGroup || '',
+      address: fullStudent.address || '',
+      regularStatus: fullStudent.regularStatus || 'Regular',
+      status: fullStudent.status || 'active',
+      avatarUrl: fullStudent.avatarUrl || '',
+      createdAt: fullStudent.createdAt
     });
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -367,5 +510,8 @@ const getStudentMarks = async (req, res) => {
 
 module.exports = {
   getStudentCourses,
-  getStudentMarks
+  getStudentMarks,
+  getStudentAcademicHistory,
+  getStudentProfile
 };
+

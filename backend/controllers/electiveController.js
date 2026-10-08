@@ -1054,6 +1054,11 @@ const submitStudentVote = async (req, res) => {
       return res.status(400).json({ message: 'Voting is currently closed for this elective course.' });
     }
 
+    // Validate deadline
+    if (offering.selectionCloseAt && new Date() > new Date(offering.selectionCloseAt)) {
+      return res.status(400).json({ message: 'Voting deadline has expired for this elective course.' });
+    }
+
     // Validate course is part of offering
     const allowedCourseIds = (offering.availableCourses || []).map(c => c.toString());
     if (offering.course) allowedCourseIds.push(offering.course.toString());
@@ -1065,11 +1070,15 @@ const submitStudentVote = async (req, res) => {
     const courseDoc = await Course.findById(courseId);
     if (!courseDoc) return res.status(404).json({ message: 'Course document not found' });
 
-    // Upsert vote
+    // Upsert vote & check duplicates
     let selection = await ElectiveSelection.findOne({ studentId: student._id, offeringId });
 
     if (selection && selection.status === 'APPROVED') {
       return res.status(400).json({ message: 'Your elective choice has already been finalized by Admin and cannot be changed.' });
+    }
+
+    if (selection && selection.selectedCourse?.toString() === courseDoc._id.toString()) {
+      return res.status(400).json({ message: 'Duplicate vote blocked: You have already voted for this course.' });
     }
 
     if (!selection) {

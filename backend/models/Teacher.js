@@ -14,6 +14,10 @@ const teacherSchema = new mongoose.Schema({
     uppercase: true, 
     trim: true 
   },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   email: {
     type: String,
     trim: true,

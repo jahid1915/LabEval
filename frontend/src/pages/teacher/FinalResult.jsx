@@ -5,7 +5,6 @@ import { Download, Search, GraduationCap, Sliders, CheckCircle2, Layout, Layers 
 import { motion } from 'framer-motion';
 import { useLocation } from 'react-router-dom';
 import { AuthContext } from '../../context/AuthContext';
-import { generateRUETPDFReport, generateRUETXLSXReport } from '../../utils/ruetReportGenerator';
 import EvaluationLayoutModal, { getStoredLayoutConfig } from '../../components/EvaluationLayoutModal';
 
 const DEFAULT_CONFIG = {
@@ -64,6 +63,7 @@ const FinalResult = () => {
 
   const exportPDF = async () => {
     try {
+      const { generateRUETPDFReport } = await import('../../utils/ruetReportGenerator');
       await generateRUETPDFReport({
         courseCode: course?.courseCode || courseId,
         courseName: course?.courseName || 'Lab Sessional',
@@ -100,8 +100,9 @@ const FinalResult = () => {
     }
   };
 
-  const exportExcel = () => {
+  const exportExcel = async () => {
     try {
+      const { generateRUETXLSXReport } = await import('../../utils/ruetReportGenerator');
       generateRUETXLSXReport({
         courseCode: course?.courseCode || courseId,
         courseName: course?.courseName || 'Lab Sessional',

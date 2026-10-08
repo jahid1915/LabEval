@@ -9,61 +9,119 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkUserLoggedIn = () => {
+    const checkUserLoggedIn = async () => {
       const storedUser = localStorage.getItem('user');
       const token = localStorage.getItem('token');
       if (storedUser && token) {
-        setUser(JSON.parse(storedUser));
+        try {
+          const parsed = JSON.parse(storedUser);
+          setUser(parsed);
+          // Verify and refresh profile from backend
+          const res = await api.get('/auth/me');
+          if (res.data?.success && res.data?.user) {
+            setUser(res.data.user);
+            localStorage.setItem('user', JSON.stringify(res.data.user));
+          }
+        } catch {
+          // Token expired or invalid
+          localStorage.removeItem('user');
+          localStorage.removeItem('token');
+          setUser(null);
+        }
       }
       setLoading(false);
     };
     checkUserLoggedIn();
   }, []);
 
-  const login = async (role, credentials) => {
+  /**
+   * Unified Login:
+   * Accepts (credentials) or (role, credentials) for backwards compatibility.
+   */
+  const login = async (roleOrCreds, maybeCreds) => {
     try {
-      let endpoint = '/auth/student-login';
-      if (role === 'teacher') endpoint = '/auth/teacher-login';
-      if (role === 'admin')   endpoint = '/auth/admin-login';
+      let credentials = {};
+      if (typeof roleOrCreds === 'object' && roleOrCreds !== null) {
+        credentials = roleOrCreds;
+      } else {
+        credentials = maybeCreds || {};
+      }
 
-      const response = await api.post(endpoint, credentials);
-      const userData = response.data;
-      
+      // Ensure identifier key is set
+      const identifier = credentials.identifier || credentials.loginIdentifier || credentials.rollNumber || credentials.teacherId || credentials.headId || credentials.username;
+      const payload = {
+        identifier,
+        password: credentials.password
+      };
+
+      const response = await api.post('/auth/login', payload);
+      const data = response.data;
+      const userData = data.user || data;
+      const token = data.token || userData.token;
+
       localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', userData.token);
+      localStorage.setItem('token', token);
       setUser(userData);
-      return { success: true, user: userData };
+      return { success: true, user: userData, token };
     } catch (error) {
-      return { success: false, message: error.response?.data?.message || 'Login failed' };
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Login failed. Please check your credentials.'
+      };
     }
   };
 
-  const logout = () => {
-    localStorage.removeItem('user');
-    localStorage.removeItem('token');
-    setUser(null);
+  /**
+   * Role-specific Registration:
+   * Supports 'student', 'teacher', and 'department_head'.
+   * Admin self-registration is strictly blocked.
+   */
+  const register = async (role, data) => {
+    if (role === 'admin') {
+      return {
+        success: false,
+        message: 'Administrator accounts cannot be registered publicly.'
+      };
+    }
+
+    try {
+      let endpoint = '/auth/register/student';
+      if (role === 'teacher') endpoint = '/auth/register/teacher';
+      else if (role === 'department_head' || role === 'head') endpoint = '/auth/register/head';
+
+      const response = await api.post(endpoint, data);
+      const resData = response.data;
+      const userData = resData.user || resData;
+      const token = resData.token || userData.token;
+
+      if (token) {
+        localStorage.setItem('user', JSON.stringify(userData));
+        localStorage.setItem('token', token);
+        setUser(userData);
+      }
+      return { success: true, user: userData, token };
+    } catch (error) {
+      return {
+        success: false,
+        message: error.response?.data?.message || 'Registration failed. Please check your inputs.'
+      };
+    }
   };
 
-  const register = async (role, credentials) => {
+  const logout = async () => {
     try {
-      let endpoint = '/auth/student-register';
-      if (role === 'teacher') endpoint = '/auth/teacher-register';
-      if (role === 'admin')   endpoint = '/auth/admin-register';
-
-      const response = await api.post(endpoint, credentials);
-      const userData = response.data;
-      
-      localStorage.setItem('user', JSON.stringify(userData));
-      localStorage.setItem('token', userData.token);
-      setUser(userData);
-      return { success: true, user: userData };
-    } catch (error) {
-      return { success: false, message: error.response?.data?.message || 'Registration failed' };
+      await api.post('/auth/logout');
+    } catch {
+      // Ignore network errors on logout
+    } finally {
+      localStorage.removeItem('user');
+      localStorage.removeItem('token');
+      setUser(null);
     }
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout }}>
+    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser }}>
       {children}
     </AuthContext.Provider>
   );

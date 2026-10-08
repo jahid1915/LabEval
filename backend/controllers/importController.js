@@ -44,6 +44,15 @@ const upload = multer({
   }
 });
 
+// ── Server-Side Short-Lived Import Session Store (TTL: 30 mins) ───────────────
+const importSessions = new Map();
+setInterval(() => {
+  const now = Date.now();
+  for (const [id, sess] of importSessions.entries()) {
+    if (sess.expiresAt < now) importSessions.delete(id);
+  }
+}, 10 * 60 * 1000);
+
 const uploadMiddleware = upload.single('file');
 
 const CHUNK_SIZE = 500;
@@ -128,9 +137,32 @@ const parseUpload = async (req, res) => {
       }
     }
 
+    const importSessionId = `SESS-${uuidv4()}`;
+    const initialCredentialConfig = {
+      usernameField: 'rollNumber',
+      passwordField: 'registrationNumber'
+    };
+
+    importSessions.set(importSessionId, {
+      importSessionId,
+      adminId: req.user?._id,
+      rows,
+      headers,
+      fileName: req.file.originalname,
+      fileSize: req.file.size,
+      sheetName,
+      mapping: autoMapping || {},
+      corrections: {},
+      credentialConfig: initialCredentialConfig,
+      status: 'UPLOADED',
+      createdAt: Date.now(),
+      expiresAt: Date.now() + 2 * 60 * 60 * 1000 // 2 hours TTL
+    });
+
     return res.json({
       success: true,
       data: {
+        importSessionId,
         fileName: req.file.originalname,
         fileSize: req.file.size,
         sheetNames,
@@ -140,13 +172,14 @@ const parseUpload = async (req, res) => {
         totalColumns: headers.length,
         headers,
         autoMapping,
+        mapping: autoMapping,
+        credentialConfig: initialCredentialConfig,
         detectedSeries,
         detectedDepartment,
         detectedSession: detectedSeries ? getSessionFromSeries(detectedSeries) : '',
         detectedHeaderRow,
         candidateHeaderRows: candidateHeaderRows || [],
-        sampleRows: rows.slice(0, 100), // provide first 100 rows for instant preview
-        allRows: rows,
+        allRows: rows, // COMPLETE dataset — never truncated
         availableDepartments: deptCodes
       }
     });
@@ -155,32 +188,197 @@ const parseUpload = async (req, res) => {
   }
 };
 
+// ── Session Management API Handlers (Requirements 2, 8, 10, 34, 35) ────────
+const getSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const sess = importSessions.get(sessionId);
+    if (!sess) {
+      return res.status(404).json({ success: false, message: 'Import session expired or not found. Please upload again.', code: 'SESSION_NOT_FOUND' });
+    }
+    if (sess.adminId && req.user?._id && sess.adminId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Access denied to this import session', code: 'UNAUTHORIZED_SESSION' });
+    }
+
+    return res.json({
+      success: true,
+      data: {
+        importSessionId: sess.importSessionId,
+        fileName: sess.fileName,
+        fileSize: sess.fileSize,
+        sheetName: sess.sheetName,
+        totalRows: sess.rows.length,
+        headers: sess.headers,
+        mapping: sess.mapping,
+        credentialConfig: sess.credentialConfig,
+        corrections: sess.corrections,
+        status: sess.status,
+        expiresAt: sess.expiresAt
+      }
+    });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const updateSessionMapping = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const sess = importSessions.get(sessionId);
+    if (!sess) {
+      return res.status(404).json({ success: false, message: 'Session expired or not found', code: 'SESSION_NOT_FOUND' });
+    }
+    if (sess.adminId && req.user?._id && sess.adminId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Access denied', code: 'UNAUTHORIZED_SESSION' });
+    }
+
+    if (req.body.mapping && typeof req.body.mapping === 'object') {
+      sess.mapping = { ...sess.mapping, ...req.body.mapping };
+      sess.status = 'MAPPED';
+    }
+    return res.json({ success: true, data: { mapping: sess.mapping, status: sess.status } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const updateSessionCorrection = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const sess = importSessions.get(sessionId);
+    if (!sess) {
+      return res.status(404).json({ success: false, message: 'Session expired or not found', code: 'SESSION_NOT_FOUND' });
+    }
+    if (sess.adminId && req.user?._id && sess.adminId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Access denied', code: 'UNAUTHORIZED_SESSION' });
+    }
+
+    const { rowIndex, field, value, batch } = req.body;
+    if (Array.isArray(batch)) {
+      for (const item of batch) {
+        if (item.rowIndex !== undefined && item.field) {
+          if (!sess.corrections[item.rowIndex]) sess.corrections[item.rowIndex] = {};
+          sess.corrections[item.rowIndex][item.field] = item.value !== undefined ? String(item.value).trim() : '';
+        }
+      }
+    } else if (rowIndex !== undefined && field) {
+      if (!sess.corrections[rowIndex]) sess.corrections[rowIndex] = {};
+      sess.corrections[rowIndex][field] = value !== undefined ? String(value).trim() : '';
+    }
+
+    return res.json({ success: true, data: { corrections: sess.corrections } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const updateSessionCredentials = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const sess = importSessions.get(sessionId);
+    if (!sess) {
+      return res.status(404).json({ success: false, message: 'Session expired or not found', code: 'SESSION_NOT_FOUND' });
+    }
+    if (sess.adminId && req.user?._id && sess.adminId.toString() !== req.user._id.toString()) {
+      return res.status(403).json({ success: false, message: 'Access denied', code: 'UNAUTHORIZED_SESSION' });
+    }
+
+    const { usernameField, passwordField } = req.body;
+    if (usernameField) sess.credentialConfig.usernameField = usernameField;
+    if (passwordField) sess.credentialConfig.passwordField = passwordField;
+
+    return res.json({ success: true, data: { credentialConfig: sess.credentialConfig } });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+const deleteSession = async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    importSessions.delete(sessionId);
+    return res.json({ success: true, message: 'Import session cancelled and cleaned up.' });
+  } catch (error) {
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ── POST /api/import/students/preview ────────────────────────────────────────
-// Step 2 & 3: Validate, Selective Mapping, Duplicate Detection, Summary
+// Step 2 & 3: Validate, Selective Mapping, Duplicate Detection, Full Summary
 const previewImport = async (req, res) => {
   try {
     const {
-      rows: rawRows,
-      mapping,
+      importSessionId,
+      rows: directRows,
+      mapping: clientMapping,
       selectedFields,
-      duplicateMatchingField = 'rollNumber',
+      duplicateMatchingField: clientDupField,
       duplicateAction = 'skip',
       importMode = 'upsert',
       overrides = {},
-      selectedRowIndices = null
+      selectedRowIndices = null,
+      credentialConfig: clientCredConfig,
+      corrections: clientCorrections
     } = req.body;
 
-    if (!rawRows || !Array.isArray(rawRows) || rawRows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No rows provided', code: 'NO_ROWS' });
+    let sess = null;
+    if (importSessionId) {
+      sess = importSessions.get(importSessionId);
+      if (sess && sess.adminId && req.user?._id && sess.adminId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: 'Access denied to this import session', code: 'UNAUTHORIZED_SESSION' });
+      }
     }
+
+    let rawRows = directRows;
+    if ((!rawRows || !Array.isArray(rawRows) || rawRows.length === 0) && sess) {
+      rawRows = sess.rows;
+    }
+
+    if (!rawRows || !Array.isArray(rawRows) || rawRows.length === 0) {
+      return res.status(400).json({ success: false, message: 'No rows provided or session expired. Please re-upload.', code: 'NO_ROWS' });
+    }
+
+    const mapping = clientMapping || (sess ? sess.mapping : null);
     if (!mapping || Object.keys(mapping).length === 0) {
       return res.status(400).json({ success: false, message: 'Column mapping is required', code: 'NO_MAPPING' });
     }
 
+    // Persist mapping into session
+    if (sess) {
+      sess.mapping = mapping;
+      sess.status = 'REVIEWING';
+    }
+
+    // Credentials config (Requirements 23, 24)
+    const credentialConfig = {
+      usernameField: clientCredConfig?.usernameField || sess?.credentialConfig?.usernameField || 'rollNumber',
+      passwordField: clientCredConfig?.passwordField || sess?.credentialConfig?.passwordField || 'registrationNumber'
+    };
+    if (sess) {
+      sess.credentialConfig = credentialConfig;
+    }
+
+    const duplicateMatchingField = clientDupField || credentialConfig.usernameField || 'rollNumber';
+
+    // Merge corrections: session corrections + client corrections
+    const allCorrections = { ...(sess?.corrections || {}), ...(clientCorrections || {}) };
+    if (sess && clientCorrections) {
+      sess.corrections = allCorrections;
+    }
+
+    // Apply corrections onto raw rows
+    const rowsWithCorrections = rawRows.map(r => {
+      const rowCorr = allCorrections[r._rowIndex];
+      if (rowCorr) {
+        return { ...r, ...rowCorr, _hasCorrection: true };
+      }
+      return r;
+    });
+
     // Filter to selected row indices if admin toggled specific rows
     const rowsToProcess = (selectedRowIndices && Array.isArray(selectedRowIndices) && selectedRowIndices.length > 0)
-      ? rawRows.filter(r => selectedRowIndices.includes(r._rowIndex))
-      : rawRows;
+      ? rowsWithCorrections.filter(r => selectedRowIndices.includes(r._rowIndex))
+      : rowsWithCorrections;
 
     const departments = await Department.find({ status: 'active' }).select('code').lean();
     const validDeptCodes = departments.map(d => d.code);
@@ -194,7 +392,7 @@ const previewImport = async (req, res) => {
       overrides.department = adminDeptCode;
     }
 
-    // Apply selective mapping (Requirement 9: only selected fields are mapped)
+    // Apply selective mapping
     const mappedRows = applyMapping(rowsToProcess, mapping, selectedFields);
 
     const validRows = [];
@@ -203,10 +401,42 @@ const previewImport = async (req, res) => {
 
     for (const row of mappedRows) {
       const { valid, data, errors } = validateRow(row, row._rowIndex, validDeptCodes, overrides, adminDeptCode);
-      if (valid) {
-        validRows.push({ ...data, _rowIndex: row._rowIndex });
+
+      // Validate selected credential fields exist on this row (Requirement 23, 24)
+      const usernameVal = data[credentialConfig.usernameField] || row[credentialConfig.usernameField];
+      if (!usernameVal || String(usernameVal).trim() === '') {
+        errors.push({
+          row: row._rowIndex,
+          field: credentialConfig.usernameField,
+          message: `Missing student username (Field "${credentialConfig.usernameField}" is empty)`
+        });
+      }
+
+      const passwordVal = data[credentialConfig.passwordField] || row[credentialConfig.passwordField];
+      if (!passwordVal || String(passwordVal).trim() === '') {
+        errors.push({
+          row: row._rowIndex,
+          field: credentialConfig.passwordField,
+          message: `Missing initial password value (Field "${credentialConfig.passwordField}" is empty)`
+        });
+      }
+
+      if (valid && errors.length === 0) {
+        validRows.push({
+          ...data,
+          _rowIndex: row._rowIndex,
+          _hasCorrection: !!row._hasCorrection,
+          _usernameVal: String(usernameVal || '').trim(),
+          _passwordPreview: String(passwordVal || '').trim()
+        });
       } else {
-        invalidRows.push({ rowIndex: row._rowIndex, rollNumber: row.rollNumber || '', name: row.name || '', errors });
+        invalidRows.push({
+          rowIndex: row._rowIndex,
+          rollNumber: row.rollNumber || '',
+          name: row.name || '',
+          _hasCorrection: !!row._hasCorrection,
+          errors
+        });
         errors.forEach(err => {
           rowErrors.push({
             row: row._rowIndex,
@@ -218,7 +448,7 @@ const previewImport = async (req, res) => {
       }
     }
 
-    // In-file duplicate detection based on duplicateMatchingField
+    // In-file duplicate detection based on duplicateMatchingField / usernameField
     const keyInFile = new Map();
     const fileDuplicates = [];
     const deduplicatedValid = [];
@@ -226,6 +456,7 @@ const previewImport = async (req, res) => {
     const getMatchValue = (item, fieldKey) => {
       if (fieldKey === 'registrationNumber') return item.registrationNumber || item.registrationNo || '';
       if (fieldKey === 'email') return (item.email || item.studentEmail || '').toLowerCase();
+      if (item[fieldKey]) return String(item[fieldKey]).trim();
       return item.rollNumber || '';
     };
 
@@ -319,9 +550,10 @@ const previewImport = async (req, res) => {
     } else if (duplicateAction === 'create_new') {
       willBeAdded += existingStudentsDiff.length;
     } else {
-      // default: 'skip'
       willBeSkipped = existingStudentsDiff.length;
     }
+
+    const editedCount = Object.keys(allCorrections).length;
 
     return res.json({
       success: true,
@@ -336,16 +568,22 @@ const previewImport = async (req, res) => {
           existingStudents: existingStudentsDiff.length,
           willBeAdded,
           willBeUpdated,
-          willBeSkipped
+          willBeSkipped,
+          editedCount,
+          status: (invalidRows.length === 0 && fileDuplicates.length === 0 && deduplicatedValid.length > 0)
+            ? 'READY'
+            : 'NEEDS_CORRECTION'
         },
+        credentialConfig,
         duplicateMatchingField,
         duplicateAction,
         importMode,
-        existingDiff: existingStudentsDiff.slice(0, 100),
-        rowErrors: rowErrors.slice(0, 200),
+        existingDiff: existingStudentsDiff,
+        rowErrors,
         totalErrors: rowErrors.length,
-        sampleNew: newStudents.slice(0, 5),
-        sampleExisting: existingStudentsDiff.slice(0, 5)
+        // COMPLETE formatted preview dataset — NEVER sliced
+        formattedPreview: deduplicatedValid,
+        invalidRows
       }
     });
   } catch (error) {
@@ -362,22 +600,50 @@ const executeImport = async (req, res) => {
 
   try {
     const {
+      importSessionId,
       fileName,
       fileSize,
       sheetName = 'Students',
-      rows: rawRows,
-      mapping,
+      rows: directRows,
+      mapping: clientMapping,
       selectedFields,
-      duplicateMatchingField = 'rollNumber',
+      duplicateMatchingField: clientDupField,
       duplicateAction = 'skip',
       importMode = 'upsert',
       overrides = {},
-      selectedRowIndices = null
+      selectedRowIndices = null,
+      credentialConfig: clientCredConfig,
+      corrections: clientCorrections
     } = req.body;
 
-    if (!rawRows || !Array.isArray(rawRows) || rawRows.length === 0) {
-      return res.status(400).json({ success: false, message: 'No rows provided', code: 'NO_ROWS' });
+    let sess = null;
+    if (importSessionId) {
+      sess = importSessions.get(importSessionId);
+      if (sess && sess.adminId && req.user?._id && sess.adminId.toString() !== req.user._id.toString()) {
+        return res.status(403).json({ success: false, message: 'Access denied to this import session', code: 'UNAUTHORIZED_SESSION' });
+      }
     }
+
+    let rawRows = directRows;
+    if ((!rawRows || !Array.isArray(rawRows) || rawRows.length === 0) && sess) {
+      rawRows = sess.rows;
+    }
+
+    if (!rawRows || !Array.isArray(rawRows) || rawRows.length === 0) {
+      return res.status(400).json({ success: false, message: 'No rows provided or session expired. Please re-upload.', code: 'NO_ROWS' });
+    }
+
+    const mapping = clientMapping || (sess ? sess.mapping : null);
+    if (!mapping || Object.keys(mapping).length === 0) {
+      return res.status(400).json({ success: false, message: 'Column mapping is required', code: 'NO_MAPPING' });
+    }
+
+    const credentialConfig = {
+      usernameField: clientCredConfig?.usernameField || sess?.credentialConfig?.usernameField || 'rollNumber',
+      passwordField: clientCredConfig?.passwordField || sess?.credentialConfig?.passwordField || 'registrationNumber'
+    };
+
+    const duplicateMatchingField = clientDupField || credentialConfig.usernameField || 'rollNumber';
 
     const adminId = req.user._id;
     const adminName = req.user.name || req.user.username || 'Admin';
@@ -402,9 +668,17 @@ const executeImport = async (req, res) => {
       startedAt: new Date()
     });
 
+    // Apply corrections (session + request)
+    const allCorrections = { ...(sess?.corrections || {}), ...(clientCorrections || {}) };
+    const rowsWithCorrections = rawRows.map(r => {
+      const rowCorr = allCorrections[r._rowIndex];
+      if (rowCorr) return { ...r, ...rowCorr };
+      return r;
+    });
+
     const rowsToProcess = (selectedRowIndices && Array.isArray(selectedRowIndices) && selectedRowIndices.length > 0)
-      ? rawRows.filter(r => selectedRowIndices.includes(r._rowIndex))
-      : rawRows;
+      ? rowsWithCorrections.filter(r => selectedRowIndices.includes(r._rowIndex))
+      : rowsWithCorrections;
 
     const departments = await Department.find({ status: 'active' }).select('_id code faculty').lean();
     const deptMap = {};
@@ -429,7 +703,27 @@ const executeImport = async (req, res) => {
 
     for (const row of mappedRows) {
       const { valid, data, errors } = validateRow(row, row._rowIndex, validDeptCodes, overrides, adminDeptCode);
-      if (valid) {
+
+      // Validate credential fields exist
+      const usernameVal = data[credentialConfig.usernameField] || row[credentialConfig.usernameField];
+      if (!usernameVal || String(usernameVal).trim() === '') {
+        errors.push({
+          row: row._rowIndex,
+          field: credentialConfig.usernameField,
+          message: `Missing student username (Field "${credentialConfig.usernameField}" is empty)`
+        });
+      }
+
+      const passwordVal = data[credentialConfig.passwordField] || row[credentialConfig.passwordField];
+      if (!passwordVal || String(passwordVal).trim() === '') {
+        errors.push({
+          row: row._rowIndex,
+          field: credentialConfig.passwordField,
+          message: `Missing initial password value (Field "${credentialConfig.passwordField}" is empty)`
+        });
+      }
+
+      if (valid && errors.length === 0) {
         validRows.push({ ...data, _rowIndex: row._rowIndex });
       } else {
         invalidCount++;
@@ -447,6 +741,7 @@ const executeImport = async (req, res) => {
     const getMatchValue = (item, fieldKey) => {
       if (fieldKey === 'registrationNumber') return item.registrationNumber || '';
       if (fieldKey === 'email') return (item.email || '').toLowerCase();
+      if (item[fieldKey]) return String(item[fieldKey]).trim();
       return item.rollNumber || '';
     };
 
@@ -479,13 +774,19 @@ const executeImport = async (req, res) => {
       if (v) existingMap.set(v, s);
     });
 
-    // Pre-hash default passwords for new students
+    // Pre-hash default passwords for new students (strictly use configured passwordField as initial password)
     const newItems = deduplicatedValid.filter(r => !existingMap.has(getMatchValue(r, duplicateMatchingField)));
     const passwordHashMap = {};
+    const passField = credentialConfig.passwordField || 'registrationNumber';
+
     await Promise.all(
       newItems.map(async (item) => {
+        const defaultPass = item[passField] ? String(item[passField]).trim() : '';
+        if (!defaultPass) {
+          throw new Error(`Student "${item.rollNumber || item.name}" is missing required initial password value in column mapped to "${passField}".`);
+        }
         if (!passwordHashMap[item.rollNumber]) {
-          passwordHashMap[item.rollNumber] = await bcrypt.hash(item.rollNumber, 10);
+          passwordHashMap[item.rollNumber] = await bcrypt.hash(defaultPass, 10);
         }
       })
     );
@@ -636,7 +937,7 @@ const executeImport = async (req, res) => {
       skipped: totalSkipped,
       failed: totalFailed
     };
-    importJob.rowErrors = rowErrors.slice(0, 100);
+    importJob.rowErrors = rowErrors;
     await importJob.save();
 
     await logAudit({
@@ -648,12 +949,17 @@ const executeImport = async (req, res) => {
       newValues: importJob.stats
     });
 
+    // Clean up temporary import session
+    if (importSessionId) {
+      importSessions.delete(importSessionId);
+    }
+
     return res.json({
       success: true,
       message: `Import completed: ${totalInserted} added, ${totalUpdated} updated, ${totalSkipped} skipped, ${totalFailed} failed`,
       jobId,
       stats: importJob.stats,
-      errors: rowErrors.slice(0, 50),
+      errors: rowErrors,
       totalErrors: rowErrors.length
     });
   } catch (error) {
@@ -949,5 +1255,10 @@ module.exports = {
   getImportHistory,
   getImportJobDetail,
   getSessionForSeries,
-  exportStudents
+  exportStudents,
+  getSession,
+  updateSessionMapping,
+  updateSessionCorrection,
+  updateSessionCredentials,
+  deleteSession
 };

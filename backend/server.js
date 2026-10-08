@@ -10,6 +10,7 @@ const { v4: uuidv4 } = require('uuid');
 const http = require('http');
 const connectDB = require('./config/db');
 const { syncTeacherDutyStatuses } = require('./utils/dutyStatusCron');
+const { syncUsers } = require('./utils/userSync');
 const { initSocket } = require('./utils/socketManager');
 
 // ── Environment Validation ────────────────────────────────────────────────────
@@ -21,7 +22,8 @@ if (missingEnv.length > 0) {
 }
 
 // ── Database Connection ───────────────────────────────────────────────────────
-connectDB().then(() => {
+connectDB().then(async () => {
+  await syncUsers();
   syncTeacherDutyStatuses();
   setInterval(syncTeacherDutyStatuses, 60 * 60 * 1000);
 });
@@ -155,6 +157,7 @@ app.use('/api/notifications',    generalLimiter, require('./routes/notificationR
 app.use('/api/analytics',        generalLimiter, require('./routes/analyticsRoutes'));
 app.use('/api/audit-logs',       generalLimiter, require('./routes/auditRoutes'));
 app.use('/api/search',           generalLimiter, require('./routes/searchRoutes'));
+app.use('/api/users',            generalLimiter, require('./routes/userRoutes'));
 
 // ── Role Portals ──────────────────────────────────────────────────────────────
 app.use('/api/electives',        generalLimiter, require('./routes/electiveRoutes'));

@@ -105,6 +105,12 @@ const importStudents = async (req, res) => {
         continue;
       }
 
+      const regNo = (row.registrationNumber || row.registrationNo)?.trim();
+      if (!row.password && !regNo) {
+        errors.push({ row: i + 1, error: 'Registration number is required as initial password' });
+        continue;
+      }
+
       try {
         const cleanRoll = row.rollNumber.trim();
         const cleanDept = row.department.trim().toUpperCase();
@@ -125,7 +131,7 @@ const importStudents = async (req, res) => {
             existing.facultyRef = deptDoc.faculty;
           }
           if (seriesDoc) existing.seriesRef = seriesDoc._id;
-          if (row.registrationNumber) existing.registrationNumber = row.registrationNumber.trim();
+          if (regNo) existing.registrationNumber = regNo;
           if (row.contactNo) existing.contactNo = row.contactNo.trim();
           if (row.email) existing.email = row.email.trim().toLowerCase();
           if (row.status) existing.status = row.status;
@@ -135,7 +141,7 @@ const importStudents = async (req, res) => {
           await Student.create({
             name: row.name.trim(),
             rollNumber: cleanRoll,
-            registrationNumber: row.registrationNumber?.trim() || '',
+            registrationNumber: regNo,
             series: cleanSeries,
             seriesRef: seriesDoc ? seriesDoc._id : null,
             department: cleanDept,
@@ -143,7 +149,7 @@ const importStudents = async (req, res) => {
             facultyRef: deptDoc ? deptDoc.faculty : null,
             contactNo: row.contactNo?.trim() || 'N/A',
             email: row.email?.trim().toLowerCase() || '',
-            password: row.password || cleanRoll,
+            password: row.password || regNo,
             status: row.status || 'active'
           });
           inserted++;

@@ -4,55 +4,47 @@ import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Upload, FileSpreadsheet, CheckCircle2, AlertCircle, ArrowRight,
-  ArrowLeft, Download, Play, Eye, RefreshCw, X, ChevronDown, ChevronUp,
+  ArrowLeft, Download, Play, RefreshCw, X, ChevronDown, ChevronUp,
   ChevronLeft, ChevronRight, Maximize2, Minimize2,
   Users, AlertTriangle, Info, Loader2, FileCheck, History,
-  SkipForward, Pencil, Search, Filter, SlidersHorizontal, Save, Bookmark,
-  CheckSquare, Square, Layers, Sparkles, Database, ShieldAlert, Trash2,
-  Columns, XCircle, Link2, Unlink, Plus, Cloud, CloudUpload, Sheet
+  Pencil, Search, Filter, SlidersHorizontal, Save, Bookmark,
+  CheckSquare, Square, Database, Plus, CloudUpload, Sheet,
+  KeyRound, ShieldCheck, Check, Sparkles
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
 import api from '../../api/axios';
 import { AuthContext } from '../../context/AuthContext';
 
-// ── Core DB Fields ────────────────────────────────────────────────────────
+// ── Core DB Fields Definition ────────────────────────────────────────────────
 const DB_FIELDS = [
   { value: '', label: '— Ignore this column —', key: null },
-  { value: 'rollNumber', label: 'Roll Number * (Unique ID)', required: true, core: true },
+  { value: 'rollNumber', label: 'Student ID / Roll Number *', required: true, core: true },
   { value: 'name', label: 'Student Name *', required: true, core: true },
-  { value: 'department', label: 'Department *', core: true },
-  { value: 'series', label: 'Series *', core: true },
   { value: 'registrationNumber', label: 'Registration Number', core: true },
   { value: 'email', label: 'Student Email', core: true },
-  { value: 'contactNo', label: 'Phone / Contact No', core: true },
+  { value: 'department', label: 'Department *', core: true },
+  { value: 'series', label: 'Series *', core: true },
   { value: 'semester', label: 'Current Semester', core: true },
   { value: 'session', label: 'Academic Session', core: true },
+  { value: 'contactNo', label: 'Phone / Contact No', core: true },
   { value: 'regularStatus', label: 'Regular / Irregular', core: true },
   { value: 'status', label: 'Account Status', core: true },
   { value: 'batch', label: 'Batch / Group', core: true },
   { value: 'section', label: 'Section', core: true },
-  // Common Demographic & Profile Fields
+  // Demographic / Profile Fields
   { value: 'nameBangla', label: 'Student Name (Bangla)' },
   { value: 'fatherName', label: "Father's Name" },
   { value: 'motherName', label: "Mother's Name" },
   { value: 'gender', label: 'Gender' },
   { value: 'bloodGroup', label: 'Blood Group' },
   { value: 'dob', label: 'Date of Birth' },
-  { value: 'nationality', label: 'Nationality' },
-  { value: 'admissionDate', label: 'Admission Date' },
-  { value: 'city', label: 'City / District' },
-  { value: 'country', label: 'Country' },
-  { value: 'year', label: 'Academic Year / Level' },
   { value: 'address', label: 'Address' },
 ];
 
 const IMPORT_MODES = [
-  { id: 'upsert', label: 'Add + Update (Recommended)', desc: 'Insert new students and update existing records', icon: '🔄', color: 'border-blue-500 bg-blue-50 dark:bg-blue-950/30' },
-  { id: 'add_new', label: 'Add New Only', desc: 'Only insert students that do not already exist', icon: '➕', color: 'border-emerald-500 bg-emerald-50 dark:bg-emerald-950/30' },
-  { id: 'update_existing', label: 'Update Existing Only', desc: 'Only update records already in the database', icon: '✏️', color: 'border-amber-500 bg-amber-50 dark:bg-amber-950/30' },
+  { id: 'upsert', label: 'Add + Update (Recommended)', desc: 'Insert new students, update existing info (never resets password)' },
+  { id: 'add_new', label: 'Add New Only', desc: 'Only insert students that do not already exist' },
+  { id: 'update_existing', label: 'Update Existing Only', desc: 'Only update existing student records' },
 ];
-
-const STEPS = ['Upload', 'Preview', 'Column Mapping', 'Validation', 'Import'];
 
 export default function StudentImportPage() {
   const navigate = useNavigate();
@@ -60,73 +52,73 @@ export default function StudentImportPage() {
   const defaultUserDept = user?.departmentCode || user?.department || '';
   const fileInputRef = useRef(null);
   const dropZoneRef = useRef(null);
+  const tableContainerRef = useRef(null);
 
-  // Wizard
+  // ── High-Level Step State: 0 = Upload, 1 = Review & Correct, 2 = Completed ──
   const [step, setStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [actionLoading, setActionLoading] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // Step 1: Upload
+  // ── Import Session & File Data ───────────────────────────────────────────
   const [file, setFile] = useState(null);
+  const [importSessionId, setImportSessionId] = useState('');
+  const [fileStats, setFileStats] = useState({ fileName: '', fileSize: 0, totalRows: 0, totalCols: 0 });
   const [sheetNames, setSheetNames] = useState([]);
   const [sheetsInfo, setSheetsInfo] = useState([]);
   const [selectedSheet, setSelectedSheet] = useState('');
   const [headers, setHeaders] = useState([]);
-  const [allRawRows, setAllRawRows] = useState([]);
-  const [fileStats, setFileStats] = useState({ fileName: '', fileSize: 0, totalRows: 0, totalCols: 0 });
+  const [allRawRows, setAllRawRows] = useState([]); // COMPLETE dataset: all 61, 500, or 5000 rows!
   const [availableDepartments, setAvailableDepartments] = useState(['ETE', 'CSE', 'EEE', 'CE', 'ME', 'IPE']);
 
-  // Overrides
-  const [detectedSeries, setDetectedSeries] = useState('');
-  const [overrideSeries, setOverrideSeries] = useState('');
+  // Overrides & Defaults
   const [overrideDept, setOverrideDept] = useState(defaultUserDept);
+  const [overrideSeries, setOverrideSeries] = useState('');
   const [overrideSession, setOverrideSession] = useState('');
 
-  // Auto-sync default department from logged in user if not already set
+  // ── One-Time Mapping Modal State ─────────────────────────────────────────
+  const [isMappingModalOpen, setIsMappingModalOpen] = useState(false);
+  const [mapping, setMapping] = useState({});
+  const [customFieldMappings, setCustomFieldMappings] = useState({});
+  const [duplicateKey, setDuplicateKey] = useState('rollNumber');
+  const [duplicateAction, setDuplicateAction] = useState('skip');
+  const [importMode, setImportMode] = useState('upsert');
+
+  // ── Student Login Credentials Configuration (Requirements 23, 24, 25) ─────
+  const [credentialConfig, setCredentialConfig] = useState({
+    usernameField: 'rollNumber',
+    passwordField: 'registrationNumber'
+  });
+
+  // ── Inline Corrections: { [rowIndex]: { [field]: value } } ───────────────
+  const [corrections, setCorrections] = useState({});
+  const [editingCell, setEditingCell] = useState(null); // { rowIndex, field }
+  const [cellEditValue, setCellEditValue] = useState('');
+
+  // ── Search, Filters, Sorting & Pagination ────────────────────────────────
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterDept, setFilterDept] = useState('all');
+  const [filterSeries, setFilterSeries] = useState('all');
+  const [filterStatus, setFilterStatus] = useState('all'); // 'all' | 'valid' | 'invalid' | 'edited'
+  const [sortCol, setSortCol] = useState(null);
+  const [sortOrder, setSortOrder] = useState('asc');
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(25);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // ── Backend Preview & Validation Cache ───────────────────────────────────
+  const [backendSummary, setBackendSummary] = useState(null);
+  const [executeResult, setExecuteResult] = useState(null);
+  const [importProgress, setImportProgress] = useState(0);
+
+  // Sync default user department
   useEffect(() => {
     if (!overrideDept && defaultUserDept) {
       setOverrideDept(defaultUserDept);
     }
   }, [defaultUserDept]);
 
-  // Step 2: Preview & Dynamic Editing
-  const [previewSearch, setPreviewSearch] = useState('');
-  const [sortCol, setSortCol] = useState(null);
-  const [sortOrder, setSortOrder] = useState('asc');
-  const [page, setPage] = useState(1);
-  const [pageSize, setPageSize] = useState(25);
-  const [selectedRowIndices, setSelectedRowIndices] = useState(new Set());
-  const [detectedHeaderRow, setDetectedHeaderRow] = useState(1);
-  const [candidateHeaderRows, setCandidateHeaderRows] = useState([]);
-  const [headerRowIndex, setHeaderRowIndex] = useState(0);
-  const [isEditMode, setIsEditMode] = useState(false);
-  const [isFullscreen, setIsFullscreen] = useState(false);
-  const tableContainerRef = useRef(null);
-
-  // Step 3: Mapping
-  const [mapping, setMapping] = useState({});
-  const [customFieldMappings, setCustomFieldMappings] = useState({});
-  const [newCustomFieldName, setNewCustomFieldName] = useState('');
-  const [duplicateKey, setDuplicateKey] = useState('rollNumber');
-  const [duplicateAction, setDuplicateAction] = useState('skip');
-  const [importMode, setImportMode] = useState('upsert');
-
-  // Templates
-  const [savedTemplates, setSavedTemplates] = useState([]);
-  const [saveTemplateModal, setSaveTemplateModal] = useState(false);
-  const [newTemplateName, setNewTemplateName] = useState('');
-
-  // Step 4: Validation/Preview Summary
-  const [previewSummary, setPreviewSummary] = useState(null);
-
-  // Step 5: Result
-  const [executeResult, setExecuteResult] = useState(null);
-  const [importProgress, setImportProgress] = useState(0);
-
-  // ── Init ────────────────────────────────────────────────────────────────
   useEffect(() => {
-    loadMappingTemplates();
     loadDepartments();
   }, []);
 
@@ -137,28 +129,46 @@ export default function StudentImportPage() {
       if (Array.isArray(data)) {
         setAvailableDepartments(data.map(d => d.code || d.departmentCode || d).filter(Boolean));
       }
-    } catch { /* fallback defaults */ }
+    } catch { /* fallback */ }
   };
 
-  const loadMappingTemplates = async () => {
-    try {
-      const res = await api.get('/import/mapping-templates');
-      if (res.data?.success && Array.isArray(res.data.data)) {
-        setSavedTemplates(res.data.data);
+  // ── Combined Effective Mapping ───────────────────────────────────────────
+  const fullMapping = useMemo(() => {
+    const combined = { ...mapping };
+    Object.entries(customFieldMappings).forEach(([h, customName]) => {
+      if (customName) combined[h] = customName;
+    });
+    return combined;
+  }, [mapping, customFieldMappings]);
+
+  // Available options for Credential Field Selection
+  const credentialFieldOptions = useMemo(() => {
+    const list = [];
+    const addedKeys = new Set();
+
+    Object.entries(fullMapping).forEach(([excelH, dbF]) => {
+      if (dbF && !addedKeys.has(dbF)) {
+        addedKeys.add(dbF);
+        const def = DB_FIELDS.find(f => f.value === dbF);
+        list.push({
+          value: dbF,
+          label: `${def?.label || dbF} (from "${excelH}")`
+        });
       }
-    } catch { /* silent */ }
-  };
+    });
 
-  // ── File Handling ───────────────────────────────────────────────────────
+    if (!addedKeys.has('rollNumber')) {
+      list.unshift({ value: 'rollNumber', label: 'Student ID / Roll Number (Mandatory ID)' });
+    }
+    return list;
+  }, [fullMapping]);
+
+  // ── File Upload & Complete Parse (Section 1 & 2) ─────────────────────────
   const processFile = async (selected) => {
     if (!selected) return;
     const ext = selected.name.split('.').pop().toLowerCase();
     if (!['xlsx', 'xls'].includes(ext)) {
       toast.error('Only .xlsx and .xls files are supported');
-      return;
-    }
-    if (selected.size > 20 * 1024 * 1024) {
-      toast.error('File size exceeds 20 MB limit');
       return;
     }
 
@@ -174,19 +184,30 @@ export default function StudentImportPage() {
 
       if (res.data.success) {
         const d = res.data.data;
-        setFileStats({ fileName: d.fileName, fileSize: d.fileSize, totalRows: d.totalRows, totalCols: d.totalColumns });
+        // Exact rows from backend — NEVER truncated
+        const parsedRows = (d.allRows || []).map((r, idx) => ({
+          ...r,
+          _rowIndex: r._rowIndex || idx + 1
+        }));
+
+        setFileStats({
+          fileName: d.fileName,
+          fileSize: d.fileSize,
+          totalRows: d.totalRows || parsedRows.length,
+          totalCols: d.totalColumns || (d.headers || []).length
+        });
         setSheetNames(d.sheetNames || ['Sheet1']);
         setSheetsInfo(d.sheetsInfo || []);
-        setSelectedSheet(d.selectedSheet || d.sheetNames[0]);
+        setSelectedSheet(d.selectedSheet || d.sheetNames?.[0] || 'Sheet1');
         setHeaders(d.headers || []);
-        setAllRawRows(d.allRows || []);
-        setSelectedRowIndices(new Set((d.allRows || []).map(r => r._rowIndex)));
-        setMapping(d.autoMapping || {});
-        setDetectedHeaderRow(d.detectedHeaderRow || 1);
-        setCandidateHeaderRows(d.candidateHeaderRows || []);
-        setHeaderRowIndex(d.detectedHeaderRow ? d.detectedHeaderRow - 1 : 0);
+        setImportSessionId(d.importSessionId || '');
+        setAllRawRows(parsedRows);
+        setCorrections({});
+
+        const detectedMap = d.autoMapping || {};
+        setMapping(detectedMap);
+
         if (d.detectedSeries) {
-          setDetectedSeries(d.detectedSeries);
           setOverrideSeries(d.detectedSeries);
           setOverrideSession(d.detectedSession || '');
         }
@@ -198,8 +219,18 @@ export default function StudentImportPage() {
         if (d.availableDepartments?.length > 0) {
           setAvailableDepartments(d.availableDepartments);
         }
+
+        // Setup credentials default
+        const cred = d.credentialConfig || {
+          usernameField: 'rollNumber',
+          passwordField: 'registrationNumber'
+        };
+        setCredentialConfig(cred);
+
+        // Move to Review Step & Open Column Mapping Modal for one-time review
         setStep(1);
-        toast.success(`Parsed: ${d.totalRows} rows, ${d.headers.length} columns (Header at Row #${d.detectedHeaderRow || 1})`);
+        setIsMappingModalOpen(true);
+        toast.success(`Excel loaded: Recognized ${d.totalRows || parsedRows.length} total rows & ${(d.headers || []).length} columns.`);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to parse Excel file');
@@ -209,324 +240,406 @@ export default function StudentImportPage() {
     }
   };
 
-  const handleFileChange = (e) => {
-    processFile(e.target.files?.[0]);
+  // ── Mapping Modal Close / Apply Behavior (Sections 7, 8, 9, 43, 44) ──────
+  // Clicking "Apply Mapping" OR clicking "✕" / Close button:
+  // MUST NOT reset import, MUST NOT delete session, MUST NOT make admin map again.
+  // It simply saves the current mapping to state & backend session, closes the modal,
+  // and reveals the Mapped / Edited Student Table!
+  const handleCloseOrApplyMapping = async () => {
+    setIsMappingModalOpen(false);
+
+    // Persist mapping to backend session in background
+    if (importSessionId) {
+      try {
+        await api.patch(`/import/session/${importSessionId}/mapping`, {
+          mapping: fullMapping
+        });
+      } catch { /* non-blocking */ }
+    }
+
+    // Trigger authoritative backend preview validation
+    triggerAuthoritativeValidation();
   };
 
-  const handleDrop = useCallback((e) => {
-    e.preventDefault();
-    setIsDragging(false);
-    processFile(e.dataTransfer.files[0]);
-  }, []);
-
-  const handleDragOver = useCallback((e) => {
-    e.preventDefault();
-    setIsDragging(true);
-  }, []);
-
-  const handleDragLeave = useCallback(() => {
-    setIsDragging(false);
-  }, []);
-
-  // Sheet change
-  const handleSheetChange = async (sheetName) => {
-    setSelectedSheet(sheetName);
-    if (!file) return;
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('sheetName', sheetName);
-      if (headerRowIndex !== null && headerRowIndex !== undefined) {
-        formData.append('headerRowIndex', headerRowIndex);
-      }
-      const res = await api.post('/import/students/parse', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      if (res.data.success) {
-        const d = res.data.data;
-        setHeaders(d.headers || []);
-        setAllRawRows(d.allRows || []);
-        setFileStats(prev => ({ ...prev, totalRows: d.totalRows, totalCols: d.totalColumns }));
-        setSelectedRowIndices(new Set((d.allRows || []).map(r => r._rowIndex)));
-        setMapping(d.autoMapping || {});
-        setDetectedHeaderRow(d.detectedHeaderRow || 1);
-        setCandidateHeaderRows(d.candidateHeaderRows || []);
-        toast.info(`Switched to "${sheetName}" (${d.totalRows} rows, ${d.totalColumns} columns)`);
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to load sheet');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // Header Row Change
-  const handleHeaderRowChange = async (rowIdx) => {
-    if (!file) return;
-    setLoading(true);
-    try {
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('sheetName', selectedSheet);
-      formData.append('headerRowIndex', rowIdx);
-      const res = await api.post('/import/students/parse', formData, {
-        headers: { 'Content-Type': 'multipart/form-data' }
-      });
-      if (res.data.success) {
-        const d = res.data.data;
-        setHeaderRowIndex(rowIdx);
-        setDetectedHeaderRow(d.detectedHeaderRow || (rowIdx + 1));
-        setHeaders(d.headers || []);
-        setAllRawRows(d.allRows || []);
-        setFileStats(prev => ({ ...prev, totalRows: d.totalRows, totalCols: d.totalColumns }));
-        setSelectedRowIndices(new Set((d.allRows || []).map(r => r._rowIndex)));
-        setMapping(d.autoMapping || {});
-        setPage(1);
-        toast.info(`Switched to Header Row #${rowIdx + 1} (${d.totalColumns} columns detected)`);
-      }
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to switch header row');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  // ── Dynamic In-place Editing Helpers ─────────────────────────────────────
-  const handleCellChange = (rowIndex, colName, value) => {
-    setAllRawRows(prev => prev.map(r => {
-      if (r._rowIndex === rowIndex) {
-        return { ...r, [colName]: value };
-      }
-      return r;
-    }));
-  };
-
-  const handleAddRow = () => {
-    const newIdx = allRawRows.length > 0 ? Math.max(...allRawRows.map(r => r._rowIndex)) + 1 : 1;
-    const newRow = { _rowIndex: newIdx };
-    headers.forEach(h => { newRow[h] = ''; });
-    setAllRawRows(prev => [newRow, ...prev]);
-    setSelectedRowIndices(prev => new Set([newIdx, ...prev]));
-    setFileStats(prev => ({ ...prev, totalRows: prev.totalRows + 1 }));
-    setPage(1);
-    toast.success('New editable row added at the top');
-  };
-
-  const handleDeleteRow = (rowIndex) => {
-    setAllRawRows(prev => prev.filter(r => r._rowIndex !== rowIndex));
-    setSelectedRowIndices(prev => {
-      const next = new Set(prev);
-      next.delete(rowIndex);
-      return next;
-    });
-    setFileStats(prev => ({ ...prev, totalRows: Math.max(0, prev.totalRows - 1) }));
-    toast.info(`Removed row #${rowIndex}`);
-  };
-
-  const scrollTable = (direction) => {
-    if (!tableContainerRef.current) return;
-    const offset = direction === 'left' ? -380 : 380;
-    tableContainerRef.current.scrollBy({ left: offset, behavior: 'smooth' });
-  };
-
-  // ── Preview Computed ────────────────────────────────────────────────────
-  const filteredRows = useMemo(() => {
-    let rows = [...allRawRows];
-    if (previewSearch.trim()) {
-      const q = previewSearch.toLowerCase();
-      rows = rows.filter(row => headers.some(h => String(row[h] || '').toLowerCase().includes(q)));
-    }
-    if (sortCol) {
-      rows.sort((a, b) => {
-        const va = String(a[sortCol] || '');
-        const vb = String(b[sortCol] || '');
-        const cmp = va.localeCompare(vb, undefined, { numeric: true });
-        return sortOrder === 'asc' ? cmp : -cmp;
-      });
-    }
-    return rows;
-  }, [allRawRows, previewSearch, sortCol, sortOrder, headers]);
-
-  const totalPages = Math.ceil(filteredRows.length / pageSize) || 1;
-  const paginatedRows = useMemo(() => {
-    const start = (page - 1) * pageSize;
-    return filteredRows.slice(start, start + pageSize);
-  }, [filteredRows, page, pageSize]);
-
-  // ── Data Analysis ───────────────────────────────────────────────────────
-  const dataAnalysis = useMemo(() => {
-    const emptyCells = allRawRows.reduce((count, row) => {
-      return count + headers.filter(h => !row[h] || String(row[h]).trim() === '').length;
-    }, 0);
-
-    const rollHeader = Object.keys(mapping).find(k => mapping[k] === 'rollNumber');
-    const duplicateRows = new Set();
-    if (rollHeader) {
-      const seen = new Map();
-      allRawRows.forEach(r => {
-        const val = r[rollHeader];
-        if (val && seen.has(val)) { duplicateRows.add(r._rowIndex); duplicateRows.add(seen.get(val)); }
-        else if (val) seen.set(val, r._rowIndex);
-      });
-    }
-
-    return {
-      totalRows: allRawRows.length,
-      totalCols: headers.length,
-      emptyCells,
-      duplicateRows: duplicateRows.size,
-      selectedRows: selectedRowIndices.size
-    };
-  }, [allRawRows, headers, mapping, selectedRowIndices]);
-
-  // ── Combined Mapping (core + custom) ────────────────────────────────────
-  const fullMapping = useMemo(() => {
-    const combined = { ...mapping };
-    Object.entries(customFieldMappings).forEach(([excelCol, customName]) => {
-      if (customName) combined[excelCol] = customName;
-    });
-    return combined;
-  }, [mapping, customFieldMappings]);
-
-  const selectedFields = useMemo(() => {
-    return [...new Set(Object.values(fullMapping).filter(Boolean))];
-  }, [fullMapping]);
-
-  // ── Template ────────────────────────────────────────────────────────────
-  const handleApplyTemplate = (tplId) => {
-    const found = savedTemplates.find(t => t._id === tplId);
-    if (found?.columnMapping) {
-      setMapping(found.columnMapping);
-      toast.success(`Applied template: "${found.templateName}"`);
-    }
-  };
-
-  const handleSaveTemplate = async () => {
-    if (!newTemplateName.trim()) { toast.error('Template name required'); return; }
-    try {
-      await api.post('/import/mapping-templates', {
-        templateName: newTemplateName.trim(),
-        columnMapping: fullMapping,
-        selectedFields,
-        department: overrideDept || undefined,
-        series: overrideSeries || undefined
-      });
-      toast.success('Template saved!');
-      setSaveTemplateModal(false);
-      setNewTemplateName('');
-      loadMappingTemplates();
-    } catch (err) {
-      toast.error(err.response?.data?.message || 'Failed to save template');
-    }
-  };
-
-  // ── Validate & Preview ──────────────────────────────────────────────────
-  const handleValidate = async (deptOverride = null) => {
-    const mappedVals = Object.values(fullMapping).filter(Boolean);
-    if (!mappedVals.includes('rollNumber')) {
-      toast.error('Roll Number mapping is mandatory');
-      return;
-    }
-    if (selectedRowIndices.size === 0) {
-      toast.error('Select at least one row');
-      return;
-    }
-
-    const deptToUse = (typeof deptOverride === 'string' && deptOverride ? deptOverride : overrideDept) || defaultUserDept || '';
-    if (deptOverride && typeof deptOverride === 'string') {
-      setOverrideDept(deptOverride);
-    }
-
+  // ── Authoritative Validation Pipeline (Sections 20, 21, 47) ──────────────
+  const triggerAuthoritativeValidation = async () => {
+    if (!importSessionId && allRawRows.length === 0) return;
     setActionLoading(true);
+
     try {
       const res = await api.post('/import/students/preview', {
+        importSessionId,
         rows: allRawRows,
         mapping: fullMapping,
-        selectedFields,
+        credentialConfig,
+        corrections,
         duplicateMatchingField: duplicateKey,
         duplicateAction,
         importMode,
         overrides: {
           series: overrideSeries.trim(),
-          department: (deptToUse || '').trim(),
+          department: (overrideDept || defaultUserDept || '').trim(),
           session: overrideSession.trim()
-        },
-        selectedRowIndices: Array.from(selectedRowIndices)
-      });
-      if (res.data.success) {
-        setPreviewSummary(res.data.data);
-        setStep(3);
-        if (deptOverride) {
-          toast.success(`Department "${deptToUse}" applied! ${res.data.data?.summary?.validRows || 0} valid records.`);
         }
+      });
+
+      if (res.data.success) {
+        setBackendSummary(res.data.data);
       }
     } catch (err) {
-      toast.error(err.response?.data?.message || 'Validation failed');
+      console.warn('Preview validation notice:', err.response?.data?.message);
     } finally {
       setActionLoading(false);
     }
   };
 
-  // ── Execute Import ──────────────────────────────────────────────────────
-  const handleExecuteImport = async () => {
-    setActionLoading(true);
-    setImportProgress(0);
+  // Re-run validation whenever credentialConfig or mapping changes
+  useEffect(() => {
+    if (step === 1 && importSessionId) {
+      const timer = setTimeout(() => {
+        triggerAuthoritativeValidation();
+      }, 400);
+      return () => clearTimeout(timer);
+    }
+  }, [credentialConfig.usernameField, credentialConfig.passwordField, overrideDept, overrideSeries]);
 
-    // Simulate progress for UX
-    const progressInterval = setInterval(() => {
-      setImportProgress(prev => {
-        if (prev >= 90) { clearInterval(progressInterval); return 90; }
-        return prev + Math.random() * 15;
+  // ── Inline Cell Correction (Sections 17, 18, 19, 20) ─────────────────────
+  const startCellEdit = (rowIndex, field, currentVal) => {
+    setEditingCell({ rowIndex, field });
+    setCellEditValue(currentVal !== undefined && currentVal !== null ? String(currentVal) : '');
+  };
+
+  const saveCellEdit = async () => {
+    if (!editingCell) return;
+    const { rowIndex, field } = editingCell;
+    const trimmedVal = cellEditValue.trim();
+
+    // Check if changed
+    const originalRow = allRawRows.find(r => r._rowIndex === rowIndex);
+    const existingVal = corrections[rowIndex]?.[field] !== undefined
+      ? corrections[rowIndex][field]
+      : (originalRow?.[field] ?? '');
+
+    if (String(existingVal) !== trimmedVal) {
+      // Update local state
+      const nextCorrections = {
+        ...corrections,
+        [rowIndex]: {
+          ...(corrections[rowIndex] || {}),
+          [field]: trimmedVal
+        }
+      };
+      setCorrections(nextCorrections);
+
+      // Persist correction to backend session (Section 18)
+      if (importSessionId) {
+        api.patch(`/import/session/${importSessionId}/correction`, {
+          rowIndex,
+          field,
+          value: trimmedVal
+        }).catch(() => {});
+      }
+
+      toast.info(`Updated row #${rowIndex} [${field}]: "${trimmedVal}"`, { autoClose: 1800 });
+      // Re-trigger live validation
+      setTimeout(() => triggerAuthoritativeValidation(), 200);
+    }
+
+    setEditingCell(null);
+  };
+
+  const handleCellKeyDown = (e) => {
+    if (e.key === 'Enter') {
+      saveCellEdit();
+    } else if (e.key === 'Escape') {
+      setEditingCell(null);
+    }
+  };
+
+  // ── Delete Row (✕ Cross Icon) ────────────────────────────────────────────
+  const handleDeleteRow = (rowIndex) => {
+    const updated = allRawRows.filter(r => r._rowIndex !== rowIndex);
+    // Keep sequential numbering
+    const reindexed = updated.map((r, idx) => ({ ...r, _rowIndex: idx + 1 }));
+    setAllRawRows(reindexed);
+    setFileStats(prev => ({ ...prev, totalRows: Math.max(0, prev.totalRows - 1) }));
+
+    // Clean up corrections for this row
+    const nextCorr = { ...corrections };
+    delete nextCorr[rowIndex];
+    setCorrections(nextCorr);
+
+    toast.info(`Removed row #${rowIndex}`);
+    setTimeout(() => triggerAuthoritativeValidation(), 200);
+  };
+
+  // ── Add New Row at Top ───────────────────────────────────────────────────
+  const handleAddNewRow = () => {
+    const newRow = { _rowIndex: 1 };
+    headers.forEach(h => { newRow[h] = ''; });
+    const updated = [newRow, ...allRawRows].map((r, idx) => ({ ...r, _rowIndex: idx + 1 }));
+    setAllRawRows(updated);
+    setFileStats(prev => ({ ...prev, totalRows: prev.totalRows + 1 }));
+    setPage(1);
+    toast.success('Added new editable row at position #1');
+    setTimeout(() => triggerAuthoritativeValidation(), 200);
+  };
+
+  // ── Effective Row Computations & Validation ──────────────────────────────
+  // Resolves: Original Excel value + Manual correction = Final Display value
+  const mappedRecords = useMemo(() => {
+    const rollHeader = Object.keys(fullMapping).find(k => fullMapping[k] === 'rollNumber') || 'rollNumber';
+    const nameHeader = Object.keys(fullMapping).find(k => fullMapping[k] === 'name') || 'name';
+    const regHeader = Object.keys(fullMapping).find(k => fullMapping[k] === 'registrationNumber') || 'registrationNumber';
+    const emailHeader = Object.keys(fullMapping).find(k => fullMapping[k] === 'email') || 'email';
+    const deptHeader = Object.keys(fullMapping).find(k => fullMapping[k] === 'department') || 'department';
+    const seriesHeader = Object.keys(fullMapping).find(k => fullMapping[k] === 'series') || 'series';
+    const semHeader = Object.keys(fullMapping).find(k => fullMapping[k] === 'semester') || 'semester';
+
+    const backendErrorMap = new Map();
+    if (backendSummary?.rowErrors) {
+      backendSummary.rowErrors.forEach(err => {
+        if (!backendErrorMap.has(err.row)) backendErrorMap.set(err.row, []);
+        backendErrorMap.get(err.row).push(err.message || `${err.field} error`);
       });
-    }, 300);
+    }
+
+    return allRawRows.map(row => {
+      const rowCorr = corrections[row._rowIndex] || {};
+      const getVal = (colKey, fallback = '') => {
+        if (rowCorr[colKey] !== undefined) return rowCorr[colKey];
+        if (row[colKey] !== undefined && row[colKey] !== null) return String(row[colKey]).trim();
+        return fallback;
+      };
+
+      const rollVal = getVal(rollHeader, row.rollNumber || '');
+      const nameVal = getVal(nameHeader, row.name || '');
+      const regVal = getVal(regHeader, row.registrationNumber || '');
+      const emailVal = getVal(emailHeader, row.email || '');
+      const deptVal = getVal(deptHeader, overrideDept || row.department || defaultUserDept || '');
+      const seriesVal = getVal(seriesHeader, overrideSeries || row.series || '');
+      const semVal = getVal(semHeader, row.semester || '');
+
+      // Password preview: reads from configured password field
+      let passwordRaw = '';
+      if (credentialConfig.passwordField === 'registrationNumber') passwordRaw = regVal;
+      else if (credentialConfig.passwordField === 'rollNumber') passwordRaw = rollVal;
+      else passwordRaw = getVal(credentialConfig.passwordField, '');
+
+      // Local validation checks
+      const localErrors = [];
+      if (!rollVal) localErrors.push('Missing Student ID / Roll');
+      if (!nameVal) localErrors.push('Missing Student Name');
+      if (!deptVal) localErrors.push('Missing Department');
+      if (!seriesVal) localErrors.push('Missing Series');
+      if (!passwordRaw) localErrors.push(`Missing password value from "${credentialConfig.passwordField}"`);
+      if (emailVal && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal)) {
+        localErrors.push('Invalid email format');
+      }
+
+      // Backend errors override/augment
+      const beErrors = backendErrorMap.get(row._rowIndex) || [];
+      const combinedErrors = Array.from(new Set([...localErrors, ...beErrors]));
+
+      const isEdited = Object.keys(rowCorr).length > 0;
+
+      return {
+        _rowIndex: row._rowIndex,
+        rollNumber: rollVal,
+        name: nameVal,
+        registrationNumber: regVal,
+        email: emailVal,
+        department: deptVal,
+        series: seriesVal,
+        semester: semVal,
+        passwordPreview: passwordRaw,
+        isValid: combinedErrors.length === 0,
+        errors: combinedErrors,
+        isEdited,
+        rawHeaders: {
+          rollHeader, nameHeader, regHeader, emailHeader, deptHeader, seriesHeader, semHeader
+        }
+      };
+    });
+  }, [allRawRows, fullMapping, corrections, credentialConfig, overrideDept, overrideSeries, defaultUserDept, backendSummary]);
+
+  // ── Import Summary Calculation (Section 22) ──────────────────────────────
+  const summaryStats = useMemo(() => {
+    const total = mappedRecords.length;
+    let valid = 0;
+    let invalid = 0;
+    let edited = 0;
+
+    // Check duplicate student IDs inside mapped records
+    const seenRolls = new Map();
+    let duplicateCount = 0;
+
+    mappedRecords.forEach(r => {
+      if (r.isEdited) edited++;
+      if (r.rollNumber) {
+        if (seenRolls.has(r.rollNumber)) {
+          duplicateCount++;
+        } else {
+          seenRolls.set(r.rollNumber, r._rowIndex);
+        }
+      }
+      if (r.isValid) valid++;
+      else invalid++;
+    });
+
+    const isReady = total > 0 && invalid === 0 && duplicateCount === 0;
+
+    return {
+      total,
+      valid,
+      invalid,
+      duplicates: duplicateCount,
+      edited,
+      status: isReady ? 'Ready to Import' : 'Needs Correction'
+    };
+  }, [mappedRecords]);
+
+  // ── Search, Filter & Sort ────────────────────────────────────────────────
+  const filteredRecords = useMemo(() => {
+    let result = [...mappedRecords];
+
+    // Search (Section 14)
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      result = result.filter(r =>
+        r.rollNumber.toLowerCase().includes(q) ||
+        r.name.toLowerCase().includes(q) ||
+        r.registrationNumber.toLowerCase().includes(q) ||
+        r.email.toLowerCase().includes(q) ||
+        r.department.toLowerCase().includes(q) ||
+        r.series.toLowerCase().includes(q) ||
+        r.semester.toLowerCase().includes(q)
+      );
+    }
+
+    // Filter by Department (Section 15)
+    if (filterDept !== 'all') {
+      result = result.filter(r => r.department?.toUpperCase() === filterDept.toUpperCase());
+    }
+
+    // Filter by Series (Section 15)
+    if (filterSeries !== 'all') {
+      result = result.filter(r => r.series === filterSeries);
+    }
+
+    // Filter by Validation Status (Section 15)
+    if (filterStatus === 'valid') {
+      result = result.filter(r => r.isValid);
+    } else if (filterStatus === 'invalid') {
+      result = result.filter(r => !r.isValid);
+    } else if (filterStatus === 'edited') {
+      result = result.filter(r => r.isEdited);
+    }
+
+    // Sorting (Section 16)
+    if (sortCol) {
+      result.sort((a, b) => {
+        const valA = String(a[sortCol] || '');
+        const valB = String(b[sortCol] || '');
+        const cmp = valA.localeCompare(valB, undefined, { numeric: true });
+        return sortOrder === 'asc' ? cmp : -cmp;
+      });
+    }
+
+    return result;
+  }, [mappedRecords, searchQuery, filterDept, filterSeries, filterStatus, sortCol, sortOrder]);
+
+  // Pagination (Section 12 & 13: Virtualized/Paged rendering without dropping data)
+  const totalPages = Math.ceil(filteredRecords.length / pageSize) || 1;
+  const paginatedRecords = useMemo(() => {
+    if (pageSize >= 10000) return filteredRecords;
+    const start = (page - 1) * pageSize;
+    return filteredRecords.slice(start, start + pageSize);
+  }, [filteredRecords, page, pageSize]);
+
+  // Unique series list for filter dropdown
+  const uniqueSeriesList = useMemo(() => {
+    const set = new Set();
+    mappedRecords.forEach(r => { if (r.series) set.add(r.series); });
+    return Array.from(set).sort();
+  }, [mappedRecords]);
+
+  // ── Final Confirm Import Execution (Sections 29, 30, 48) ─────────────────
+  const handleConfirmImport = async () => {
+    if (summaryStats.invalid > 0) {
+      toast.error(`Please correct all ${summaryStats.invalid} invalid rows before confirming.`);
+      return;
+    }
+    if (summaryStats.total === 0) {
+      toast.error('No students found to import');
+      return;
+    }
+
+    setActionLoading(true);
+    setImportProgress(10);
+
+    const progressTimer = setInterval(() => {
+      setImportProgress(prev => (prev >= 90 ? 90 : prev + Math.floor(Math.random() * 15) + 5));
+    }, 250);
 
     try {
       const res = await api.post('/import/students/execute', {
+        importSessionId,
         fileName: fileStats.fileName,
         fileSize: fileStats.fileSize,
         sheetName: selectedSheet,
         rows: allRawRows,
         mapping: fullMapping,
-        selectedFields,
+        credentialConfig,
+        corrections,
         duplicateMatchingField: duplicateKey,
         duplicateAction,
         importMode,
         overrides: {
           series: overrideSeries.trim(),
-          department: (overrideDept.trim() || defaultUserDept || ''),
+          department: (overrideDept || defaultUserDept || '').trim(),
           session: overrideSession.trim()
-        },
-        selectedRowIndices: Array.from(selectedRowIndices)
+        }
       });
 
-      clearInterval(progressInterval);
+      clearInterval(progressTimer);
       setImportProgress(100);
 
       if (res.data.success) {
         setExecuteResult(res.data);
-        setStep(4);
-        toast.success(res.data.message || 'Import completed!');
+        setStep(2);
+        toast.success(res.data.message || 'Students imported successfully!');
       }
     } catch (err) {
-      clearInterval(progressInterval);
+      clearInterval(progressTimer);
       setImportProgress(0);
-      toast.error(err.response?.data?.message || 'Import failed');
+      toast.error(err.response?.data?.message || 'Import failed. Check server logs.');
     } finally {
       setActionLoading(false);
     }
   };
 
-  const resetAll = () => {
-    setStep(0); setFile(null); setAllRawRows([]); setHeaders([]);
+  // ── Cancel Import Session (Section 44) ───────────────────────────────────
+  const handleCancelImport = async () => {
+    if (!window.confirm('Are you sure you want to cancel and abandon this import session?')) return;
+    if (importSessionId) {
+      api.delete(`/import/session/${importSessionId}`).catch(() => {});
+    }
+    setStep(0);
+    setFile(null);
+    setImportSessionId('');
+    setAllRawRows([]);
+    setHeaders([]);
+    setCorrections({});
     setFileStats({ fileName: '', fileSize: 0, totalRows: 0, totalCols: 0 });
-    setSelectedRowIndices(new Set()); setMapping({}); setCustomFieldMappings({});
-    setPreviewSummary(null); setExecuteResult(null); setImportProgress(0);
+    setBackendSummary(null);
+    setExecuteResult(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+    toast.info('Import session cancelled.');
   };
 
   const formatBytes = (bytes) => {
-    if (bytes === 0) return '0 B';
+    if (!bytes) return '0 B';
     const k = 1024;
     const sizes = ['B', 'KB', 'MB', 'GB'];
     const i = Math.floor(Math.log(bytes) / Math.log(k));
@@ -535,7 +648,7 @@ export default function StudentImportPage() {
 
   return (
     <div className="space-y-5 max-w-[1400px] mx-auto pb-12">
-      {/* ── Header ──────────────────────────────────────────────────────── */}
+      {/* ── Top Header ─────────────────────────────────────────────────────── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-5 shadow-sm">
         <div className="flex items-center gap-4">
           <div className="w-12 h-12 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/20">
@@ -543,99 +656,71 @@ export default function StudentImportPage() {
           </div>
           <div>
             <h1 className="text-xl sm:text-2xl font-heading font-extrabold text-slate-900 dark:text-white">
-              Excel Import Wizard
+              Student Excel Import
             </h1>
-            <p className="text-sm text-slate-500 dark:text-slate-400 mt-0.5">
-              Dynamic column mapping · Validation · Bulk import to MongoDB
+            <p className="text-xs sm:text-sm text-slate-500 dark:text-slate-400 mt-0.5">
+              Exact XLSX preservation · Persistent column mapping · Inline correction · Credential assignment
             </p>
           </div>
         </div>
         <div className="flex items-center gap-2 flex-wrap">
           <button onClick={() => navigate('/admin/import-history')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-            <History size={16} /> Import History
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
+            <History size={15} /> Import History
           </button>
           <button onClick={() => navigate('/admin/students')}
-            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-sm font-semibold hover:bg-slate-800 dark:hover:bg-white transition-colors">
-            <Database size={16} /> Student Database
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-xl bg-slate-900 dark:bg-slate-100 text-white dark:text-slate-900 text-xs font-semibold hover:bg-slate-800 dark:hover:bg-white transition-colors">
+            <Database size={15} /> Student Database
           </button>
         </div>
       </div>
 
-      {/* ── Step Indicator ──────────────────────────────────────────────── */}
-      <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
-        <div className="flex items-center justify-between max-w-4xl mx-auto gap-2 py-1 overflow-x-auto">
-          {STEPS.map((sName, idx) => {
-            const isCompleted = idx < step;
-            const isCurrent = idx === step;
-            return (
-              <div key={sName} className="flex items-center gap-3">
-                <button type="button" disabled={idx > step}
-                  onClick={() => { if (idx < step) setStep(idx); }}
-                  className={`flex items-center gap-2 px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
-                    isCurrent ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/25 ring-2 ring-indigo-300 dark:ring-indigo-800'
-                    : isCompleted ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-600 dark:text-emerald-400 hover:bg-emerald-100 cursor-pointer'
-                    : 'text-slate-400 bg-slate-100 dark:bg-slate-800/50 cursor-not-allowed'}`}>
-                  <span className={`w-5 h-5 rounded-full flex items-center justify-center text-[11px] font-bold ${
-                    isCurrent ? 'bg-white text-indigo-600'
-                    : isCompleted ? 'bg-emerald-500 text-white'
-                    : 'bg-slate-300 dark:bg-slate-700 text-slate-600'}`}>
-                    {isCompleted ? '✓' : idx + 1}
-                  </span>
-                  <span className="hidden sm:inline">{sName}</span>
-                </button>
-                {idx < STEPS.length - 1 && (
-                  <div className={`w-8 sm:w-16 h-0.5 ${idx < step ? 'bg-emerald-500' : 'bg-slate-200 dark:bg-slate-700'}`} />
-                )}
-              </div>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ══════════════ STEP 0: Upload ══════════════ */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          STEP 0: UPLOAD XLSX FILE (Sections 1, 2, 3)
+      ══════════════════════════════════════════════════════════════════════ */}
       {step === 0 && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm">
           <div
             ref={dropZoneRef}
-            onDrop={handleDrop}
-            onDragOver={handleDragOver}
-            onDragLeave={handleDragLeave}
+            onDrop={(e) => { e.preventDefault(); setIsDragging(false); processFile(e.dataTransfer.files[0]); }}
+            onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
+            onDragLeave={() => setIsDragging(false)}
             onClick={() => fileInputRef.current?.click()}
             className={`relative border-2 border-dashed rounded-2xl p-12 text-center cursor-pointer transition-all ${
               isDragging
-                ? 'border-indigo-400 bg-indigo-50 dark:bg-indigo-950/30 scale-[1.01]'
-                : 'border-slate-300 dark:border-slate-700 hover:border-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800/50'}`}>
+                ? 'border-indigo-500 bg-indigo-50/60 dark:bg-indigo-950/30 scale-[1.01]'
+                : 'border-slate-300 dark:border-slate-700 hover:border-indigo-400 hover:bg-slate-50 dark:hover:bg-slate-800/40'}`}>
             {loading ? (
               <div className="flex flex-col items-center gap-4">
-                <Loader2 size={48} className="text-indigo-500 animate-spin" />
-                <p className="text-slate-600 dark:text-slate-400 font-medium">Parsing Excel file...</p>
+                <Loader2 size={46} className="text-indigo-600 animate-spin" />
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">
+                  Parsing complete Excel workbook & staging session...
+                </p>
               </div>
             ) : (
               <div className="flex flex-col items-center gap-4">
-                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-900/50 dark:to-purple-900/50 flex items-center justify-center">
-                  <FileSpreadsheet size={36} className="text-indigo-500" />
+                <div className="w-20 h-20 rounded-2xl bg-gradient-to-br from-indigo-100 to-purple-100 dark:from-indigo-950/60 dark:to-purple-950/60 flex items-center justify-center">
+                  <FileSpreadsheet size={36} className="text-indigo-600 dark:text-indigo-400" />
                 </div>
                 <div>
                   <p className="text-lg font-heading font-bold text-slate-900 dark:text-white mb-1">
-                    {isDragging ? 'Drop your file here' : 'Drag & drop your Excel file'}
+                    {isDragging ? 'Drop your Excel file here' : 'Upload Student Excel File'}
                   </p>
                   <p className="text-sm text-slate-500 dark:text-slate-400">
-                    or <span className="text-indigo-600 dark:text-indigo-400 font-semibold">click to browse</span> · Supports .xlsx and .xls
+                    Drag and drop or <span className="text-indigo-600 dark:text-indigo-400 font-semibold underline">browse file</span> (.xlsx, .xls)
                   </p>
                 </div>
-                <div className="flex items-center gap-4 mt-2 text-xs text-slate-400">
-                  <span>Max 20 MB</span>
+                <div className="flex items-center gap-3 text-xs text-slate-400 mt-1">
+                  <span>Supports complete datasets (60+, 500, 5000+ students)</span>
                   <span>·</span>
-                  <span>Multiple sheets supported</span>
+                  <span>Zero truncation</span>
                 </div>
               </div>
             )}
-            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={handleFileChange} className="hidden" />
+            <input ref={fileInputRef} type="file" accept=".xlsx,.xls" onChange={(e) => processFile(e.target.files?.[0])} className="hidden" />
           </div>
 
-          {/* Download Template */}
           <div className="mt-6 flex items-center justify-center">
             <a href="#" onClick={async (e) => {
               e.preventDefault();
@@ -646,802 +731,757 @@ export default function StudentImportPage() {
                 a.download = 'LabEval_Student_Import_Template.xlsx'; a.click();
                 URL.revokeObjectURL(url);
               } catch { toast.error('Failed to download template'); }
-            }} className="inline-flex items-center gap-2 text-sm text-indigo-600 dark:text-indigo-400 hover:underline font-medium">
-              <Download size={15} /> Download import template
+            }} className="inline-flex items-center gap-2 text-xs font-semibold text-indigo-600 dark:text-indigo-400 hover:underline">
+              <Download size={14} /> Download official student import template (.xlsx)
             </a>
           </div>
         </motion.div>
       )}
 
-      {/* ══════════════ STEP 1: Excel Preview ══════════════ */}
+      {/* ══════════════════════════════════════════════════════════════════════
+          STEP 1: MAPPED & EDITABLE STUDENT TABLE (Sections 4, 11-23, 45)
+      ══════════════════════════════════════════════════════════════════════ */}
       {step === 1 && (
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          {/* File Info + Sheet Selector */}
+          
+          {/* ── 1. Import Summary Header Bar (Section 22) ───────────────────── */}
           <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
-            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center">
-                  <FileCheck size={24} className="text-emerald-600 dark:text-emerald-400" />
+            <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-4 pb-4 border-b border-slate-100 dark:border-slate-800">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/40 flex items-center justify-center">
+                  <FileCheck size={22} className="text-emerald-600 dark:text-emerald-400" />
                 </div>
                 <div>
-                  <p className="font-heading font-bold text-slate-900 dark:text-white">{fileStats.fileName}</p>
-                  <div className="flex items-center gap-3 mt-1 text-xs text-slate-500 dark:text-slate-400 flex-wrap">
-                    <span>{formatBytes(fileStats.fileSize)}</span>
-                    <span>·</span>
-                    <span>{fileStats.totalRows} rows</span>
-                    <span>·</span>
-                    <span>{fileStats.totalCols} columns</span>
-                    <span>·</span>
-                    <span>{sheetNames.length} sheet{sheetNames.length !== 1 ? 's' : ''}</span>
+                  <div className="flex items-center gap-2">
+                    <span className="text-sm font-bold text-slate-900 dark:text-white">{fileStats.fileName || 'students.xlsx'}</span>
+                    <span className="text-[11px] font-mono px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-slate-500">
+                      {formatBytes(fileStats.fileSize)}
+                    </span>
                   </div>
+                  <p className="text-xs text-slate-500 mt-0.5">
+                    Session: <span className="font-mono text-indigo-500 font-semibold">{importSessionId.slice(0, 13)}...</span> · Complete dataset staged on server
+                  </p>
                 </div>
               </div>
 
-              {sheetNames.length > 1 && (
-                <div className="flex items-center gap-2">
-                  <Sheet size={15} className="text-slate-400" />
-                  <select value={selectedSheet} onChange={e => handleSheetChange(e.target.value)}
-                    className="px-3 py-2 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500">
-                    {sheetNames.map(s => {
-                      const info = sheetsInfo?.find(si => si.name === s);
-                      return <option key={s} value={s}>{s} {info ? `(${info.rowCount} rows)` : ''}</option>;
-                    })}
-                  </select>
-                </div>
-              )}
+              {/* Status Badge & Actions */}
+              <div className="flex items-center gap-3 flex-wrap">
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${
+                  summaryStats.status === 'Ready to Import'
+                    ? 'bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300 border-emerald-200 dark:border-emerald-800'
+                    : 'bg-amber-50 dark:bg-amber-950/40 text-amber-700 dark:text-amber-300 border-amber-200 dark:border-amber-800'
+                }`}>
+                  {summaryStats.status === 'Ready to Import' ? <CheckCircle2 size={14} /> : <AlertTriangle size={14} />}
+                  Status: {summaryStats.status}
+                </span>
+
+                <button
+                  type="button"
+                  onClick={() => setIsMappingModalOpen(true)}
+                  className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-700 dark:text-indigo-300 text-xs font-bold hover:bg-indigo-100 transition-colors"
+                >
+                  <SlidersHorizontal size={14} /> Map Columns
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCancelImport}
+                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:text-rose-600 hover:bg-rose-50 text-xs font-semibold transition-colors"
+                >
+                  <X size={14} /> Cancel Import
+                </button>
+              </div>
             </div>
 
-            {/* Candidate Header Row Switcher Banner */}
-            {candidateHeaderRows.length > 1 && (
-              <div className="mt-4 bg-indigo-50/70 dark:bg-indigo-950/30 border border-indigo-100 dark:border-indigo-900/60 rounded-xl p-3.5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 text-xs">
-                <div className="flex items-center gap-2.5">
-                  <span className="px-2 py-0.5 rounded-md bg-indigo-600 text-white font-bold text-[11px] tracking-wide">
-                    Header Row
-                  </span>
-                  <span className="text-slate-700 dark:text-slate-300">
-                    Active column titles from <strong>Row #{detectedHeaderRow}</strong> ({headers.length} columns). Switch if needed:
-                  </span>
-                </div>
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  {candidateHeaderRows.map(cand => (
-                    <button
-                      key={cand.rowIndex}
-                      type="button"
-                      onClick={() => handleHeaderRowChange(cand.rowIndex)}
-                      className={`px-3 py-1 rounded-lg font-semibold transition-all ${
-                        (headerRowIndex === cand.rowIndex)
-                          ? 'bg-indigo-600 text-white shadow-sm ring-2 ring-indigo-300 dark:ring-indigo-700'
-                          : 'bg-white dark:bg-slate-800 text-slate-700 dark:text-slate-300 border border-slate-200 dark:border-slate-700 hover:bg-slate-100 dark:hover:bg-slate-700'
-                      }`}
-                    >
-                      Row {cand.rowNumber} ({cand.cellCount || cand.nonBlankCount} columns)
-                    </button>
-                  ))}
-                </div>
+            {/* Quick Metrics Grid (Section 22) */}
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 pt-4">
+              <div className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 text-center border border-slate-100 dark:border-slate-800">
+                <p className="text-[11px] font-semibold text-slate-500 uppercase tracking-wider">Total Rows</p>
+                <p className="text-xl font-heading font-extrabold text-slate-900 dark:text-white mt-0.5">
+                  {summaryStats.total}
+                </p>
+                <span className="text-[10px] text-slate-400">100% Recognized</span>
               </div>
-            )}
-
-            {/* Data Quality Summary */}
-            <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mt-4">
-              {[
-                { label: 'Total Rows', value: dataAnalysis.totalRows, color: 'text-blue-600' },
-                { label: 'Total Columns', value: headers.length, color: 'text-indigo-600' },
-                { label: 'Selected Rows', value: dataAnalysis.selectedRows, color: 'text-emerald-600' },
-                { label: 'Empty Cells', value: dataAnalysis.emptyCells, color: dataAnalysis.emptyCells > 0 ? 'text-amber-600' : 'text-slate-400' },
-                { label: 'Duplicate Rows', value: dataAnalysis.duplicateRows, color: dataAnalysis.duplicateRows > 0 ? 'text-rose-600' : 'text-slate-400' },
-              ].map(item => (
-                <div key={item.label} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-3 text-center">
-                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400">{item.label}</p>
-                  <p className={`text-lg font-heading font-extrabold ${item.color}`}>{item.value.toLocaleString()}</p>
-                </div>
-              ))}
+              <div className="bg-emerald-50/60 dark:bg-emerald-950/30 rounded-xl p-3 text-center border border-emerald-100 dark:border-emerald-900/40">
+                <p className="text-[11px] font-semibold text-emerald-700 dark:text-emerald-300 uppercase tracking-wider">Valid Rows</p>
+                <p className="text-xl font-heading font-extrabold text-emerald-600 dark:text-emerald-400 mt-0.5">
+                  {summaryStats.valid}
+                </p>
+                <span className="text-[10px] text-emerald-600">Ready to persist</span>
+              </div>
+              <div className={`rounded-xl p-3 text-center border ${
+                summaryStats.invalid > 0
+                  ? 'bg-rose-50/70 dark:bg-rose-950/30 border-rose-200 dark:border-rose-900/40 text-rose-600'
+                  : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 text-slate-400'
+              }`}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider">Invalid Rows</p>
+                <p className="text-xl font-heading font-extrabold mt-0.5">{summaryStats.invalid}</p>
+                <span className="text-[10px]">{summaryStats.invalid > 0 ? 'Click cell to correct' : 'Zero errors'}</span>
+              </div>
+              <div className={`rounded-xl p-3 text-center border ${
+                summaryStats.duplicates > 0
+                  ? 'bg-orange-50/70 dark:bg-orange-950/30 border-orange-200 text-orange-600'
+                  : 'bg-slate-50 dark:bg-slate-800/50 border-slate-100 dark:border-slate-800 text-slate-400'
+              }`}>
+                <p className="text-[11px] font-semibold uppercase tracking-wider">Duplicates</p>
+                <p className="text-xl font-heading font-extrabold mt-0.5">{summaryStats.duplicates}</p>
+                <span className="text-[10px]">{summaryStats.duplicates > 0 ? 'Duplicate in file' : 'None detected'}</span>
+              </div>
+              <div className="bg-indigo-50/60 dark:bg-indigo-950/30 rounded-xl p-3 text-center border border-indigo-100 dark:border-indigo-900/40">
+                <p className="text-[11px] font-semibold text-indigo-700 dark:text-indigo-300 uppercase tracking-wider">Edited Cells</p>
+                <p className="text-xl font-heading font-extrabold text-indigo-600 dark:text-indigo-400 mt-0.5">
+                  {summaryStats.edited}
+                </p>
+                <span className="text-[10px] text-indigo-500">✎ Manual overrides</span>
+              </div>
             </div>
           </div>
 
-          {/* Preview & Dynamic Editing Table Container */}
-          <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm transition-all ${
-            isFullscreen ? 'fixed inset-4 z-50 rounded-2xl flex flex-col p-6 shadow-2xl bg-white dark:bg-slate-900' : 'rounded-2xl overflow-hidden'
-          }`}>
-            {/* Toolbar */}
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex flex-wrap items-center justify-between gap-3 bg-slate-50/60 dark:bg-slate-900">
-              <div className="flex items-center gap-3 flex-1 min-w-[240px]">
-                <div className="relative flex-1 max-w-md">
-                  <Search size={15} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-                  <input
-                    type="text"
-                    value={previewSearch}
-                    onChange={e => { setPreviewSearch(e.target.value); setPage(1); }}
-                    placeholder="Search across all columns..."
-                    className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500"
-                  />
+          {/* ── 2. Student Login Credential Assignment (Sections 23, 24, 25, 49) ── */}
+          <div className="bg-gradient-to-r from-indigo-50/70 via-purple-50/40 to-slate-50 dark:from-indigo-950/30 dark:via-purple-950/20 dark:to-slate-900 border border-indigo-100 dark:border-indigo-900/50 rounded-2xl p-5 shadow-sm">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+              <div className="space-y-1">
+                <div className="flex items-center gap-2">
+                  <KeyRound size={17} className="text-indigo-600 dark:text-indigo-400" />
+                  <h3 className="text-sm font-heading font-bold text-slate-900 dark:text-white">
+                    Student Login Credential Configuration
+                  </h3>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-200">
+                    Authoritative
+                  </span>
                 </div>
-                <span className="text-xs text-slate-500 whitespace-nowrap">
-                  Selected: <strong className="text-indigo-600 dark:text-indigo-400">{selectedRowIndices.size}</strong> of {allRawRows.length}
-                </span>
+                <p className="text-xs text-slate-600 dark:text-slate-400 max-w-2xl">
+                  Choose which imported Excel column serves as the Student Username (immutable) and which field sets their initial password. Passwords are securely hashed with bcrypt.
+                </p>
               </div>
 
-              <div className="flex items-center gap-2 flex-wrap">
-                {/* Dynamic Edit Mode Toggle */}
-                <button
-                  type="button"
-                  onClick={() => setIsEditMode(prev => !prev)}
-                  className={`inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold transition-all ${
-                    isEditMode
-                      ? 'bg-emerald-600 text-white shadow-md shadow-emerald-500/20 ring-2 ring-emerald-400'
-                      : 'border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700'
-                  }`}
-                >
-                  <Pencil size={13} />
-                  {isEditMode ? '✓ Editing Mode ON' : '✏️ Enable Edit Mode'}
-                </button>
-
-                {/* Add Row Button */}
-                <button
-                  type="button"
-                  onClick={handleAddRow}
-                  className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700"
-                >
-                  <Plus size={13} /> Add Row
-                </button>
-
-                {/* Fast Horizontal Scroll Controls */}
-                <div className="flex items-center border border-slate-200 dark:border-slate-700 rounded-xl overflow-hidden bg-white dark:bg-slate-800">
-                  <button
-                    type="button"
-                    title="Scroll Left"
-                    onClick={() => scrollTable('left')}
-                    className="px-2.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1 text-xs font-medium"
+              <div className="flex flex-wrap items-center gap-3">
+                {/* Username Field Dropdown */}
+                <div className="flex flex-col">
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Username Field:
+                  </label>
+                  <select
+                    value={credentialConfig.usernameField}
+                    onChange={(e) => setCredentialConfig(prev => ({ ...prev, usernameField: e.target.value }))}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs focus:ring-2 focus:ring-indigo-500 outline-none"
                   >
-                    <ChevronLeft size={14} /> <span>Left</span>
-                  </button>
-                  <div className="w-[1px] h-4 bg-slate-200 dark:bg-slate-700" />
-                  <button
-                    type="button"
-                    title="Scroll Right"
-                    onClick={() => scrollTable('right')}
-                    className="px-2.5 py-2 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-600 dark:text-slate-300 flex items-center gap-1 text-xs font-medium"
-                  >
-                    <span>Right</span> <ChevronRight size={14} />
-                  </button>
+                    {credentialFieldOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
                 </div>
 
-                {/* Rows per page */}
-                <div className="flex items-center gap-1 text-xs text-slate-500">
+                {/* Password Field Dropdown */}
+                <div className="flex flex-col">
+                  <label className="text-[11px] font-bold text-slate-600 dark:text-slate-400 mb-1">
+                    Initial Password Field:
+                  </label>
+                  <select
+                    value={credentialConfig.passwordField}
+                    onChange={(e) => setCredentialConfig(prev => ({ ...prev, passwordField: e.target.value }))}
+                    className="px-3 py-1.5 text-xs font-semibold rounded-xl border border-indigo-200 dark:border-indigo-800 bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-xs focus:ring-2 focus:ring-indigo-500 outline-none"
+                  >
+                    {credentialFieldOptions.map(opt => (
+                      <option key={opt.value} value={opt.value}>{opt.label}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* ── 3. Table Toolbar (Search, Filters, Rows Per Page, Add Row) ───── */}
+          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm space-y-3">
+            <div className="flex flex-wrap items-center justify-between gap-3">
+              {/* Search Box (Section 14) */}
+              <div className="relative flex-1 min-w-[260px] max-w-md">
+                <Search size={15} className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400" />
+                <input
+                  type="text"
+                  value={searchQuery}
+                  onChange={(e) => { setSearchQuery(e.target.value); setPage(1); }}
+                  placeholder="Search Student ID, Name, Reg No, Email, Dept, Series..."
+                  className="w-full pl-9 pr-3 py-2 text-xs rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-indigo-500 font-medium"
+                />
+              </div>
+
+              {/* Filtering Controls (Section 15) */}
+              <div className="flex items-center gap-2 flex-wrap">
+                {/* Department Filter */}
+                <select
+                  value={filterDept}
+                  onChange={(e) => { setFilterDept(e.target.value); setPage(1); }}
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                >
+                  <option value="all">All Depts</option>
+                  {availableDepartments.map(d => (
+                    <option key={d} value={d}>{d}</option>
+                  ))}
+                </select>
+
+                {/* Series Filter */}
+                {uniqueSeriesList.length > 0 && (
+                  <select
+                    value={filterSeries}
+                    onChange={(e) => { setFilterSeries(e.target.value); setPage(1); }}
+                    className="px-2.5 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                  >
+                    <option value="all">All Series</option>
+                    {uniqueSeriesList.map(s => (
+                      <option key={s} value={s}>Series '{s}</option>
+                    ))}
+                  </select>
+                )}
+
+                {/* Validation Status Filter */}
+                <select
+                  value={filterStatus}
+                  onChange={(e) => { setFilterStatus(e.target.value); setPage(1); }}
+                  className="px-2.5 py-1.5 text-xs font-medium rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
+                >
+                  <option value="all">All Status</option>
+                  <option value="valid">Valid Only ({summaryStats.valid})</option>
+                  <option value="invalid">Invalid Only ({summaryStats.invalid})</option>
+                  <option value="edited">Edited Only ({summaryStats.edited})</option>
+                </select>
+
+                {/* Page Size Selector */}
+                <div className="flex items-center gap-1 text-xs text-slate-500 pl-2 border-l border-slate-200 dark:border-slate-700">
                   <span>Show:</span>
                   <select
                     value={pageSize}
-                    onChange={e => { setPageSize(Number(e.target.value)); setPage(1); }}
-                    className="px-2 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-semibold"
+                    onChange={(e) => { setPageSize(Number(e.target.value)); setPage(1); }}
+                    className="px-2 py-1 text-xs font-bold rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200"
                   >
                     <option value={15}>15</option>
                     <option value={25}>25</option>
                     <option value={50}>50</option>
                     <option value={100}>100</option>
-                    <option value={10000}>All ({allRawRows.length})</option>
+                    <option value={250}>250</option>
+                    <option value={10000}>All ({mappedRecords.length})</option>
                   </select>
                 </div>
+
+                {/* Add Row Button */}
+                <button
+                  type="button"
+                  onClick={handleAddNewRow}
+                  className="inline-flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 text-xs font-semibold"
+                >
+                  <Plus size={13} /> Add Row
+                </button>
 
                 {/* Fullscreen Toggle */}
                 <button
                   type="button"
                   onClick={() => setIsFullscreen(prev => !prev)}
-                  title={isFullscreen ? 'Exit Fullscreen' : 'View Fullscreen'}
-                  className="p-2 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700"
+                  className="p-1.5 rounded-xl border border-slate-200 dark:border-slate-700 text-slate-500 hover:text-slate-900 dark:hover:text-white"
+                  title="Toggle Fullscreen"
                 >
-                  {isFullscreen ? <Minimize2 size={15} /> : <Maximize2 size={15} />}
+                  {isFullscreen ? <Minimize2 size={14} /> : <Maximize2 size={14} />}
                 </button>
               </div>
             </div>
 
-            {/* Scrollable Table Area with Both Left-Right and Up-Down Scrollbars */}
+            <div className="flex items-center justify-between text-[11px] text-slate-500 pt-1">
+              <span>
+                Showing <strong>{paginatedRecords.length}</strong> of <strong>{filteredRecords.length}</strong> matching rows ({mappedRecords.length} total in import session)
+              </span>
+              <span className="italic text-slate-400">
+                💡 Double-click any cell to edit · Press Enter to save correction
+              </span>
+            </div>
+          </div>
+
+          {/* ── 4. Complete Mapped & Editable Student Table (Sections 11-13, 17-21) ── */}
+          <div className={`bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 shadow-sm transition-all ${
+            isFullscreen ? 'fixed inset-4 z-50 rounded-2xl flex flex-col p-6 shadow-2xl bg-white dark:bg-slate-900' : 'rounded-2xl overflow-hidden'
+          }`}>
             <div
               ref={tableContainerRef}
-              className={`overflow-x-auto overflow-y-auto border-t border-slate-200 dark:border-slate-800 ${
-                isFullscreen ? 'flex-1 max-h-none' : 'max-h-[560px]'
-              }`}
+              className={`overflow-x-auto overflow-y-auto ${isFullscreen ? 'flex-1 max-h-none' : 'max-h-[580px]'}`}
               style={{ scrollbarWidth: 'thin' }}
             >
               <table className="min-w-max w-full text-xs text-left border-separate border-spacing-0 bg-white dark:bg-slate-900">
-                <thead className="sticky top-0 z-20 shadow-sm">
-                  <tr>
-                    {/* Unified Sticky Frozen Row Selector Column (Checkbox + #) */}
-                    <th className="sticky left-0 top-0 z-30 bg-slate-100 dark:bg-slate-800 px-3 py-3 text-center w-[74px] min-w-[74px] max-w-[74px] border-b border-r-2 border-slate-300 dark:border-slate-700 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.12)]">
-                      <div className="flex items-center justify-center gap-2">
-                        <button
-                          type="button"
-                          onClick={() => {
-                            if (selectedRowIndices.size === allRawRows.length) setSelectedRowIndices(new Set());
-                            else setSelectedRowIndices(new Set(allRawRows.map(r => r._rowIndex)));
-                          }}
-                          className="text-slate-500 hover:text-indigo-600"
-                        >
-                          {selectedRowIndices.size === allRawRows.length ? (
-                            <CheckSquare size={15} className="text-indigo-600" />
-                          ) : (
-                            <Square size={15} />
-                          )}
-                        </button>
-                        <span className="font-bold text-slate-600 dark:text-slate-300 uppercase tracking-wider text-[11px]">#</span>
+                <thead className="sticky top-0 z-20 shadow-xs bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-300">
+                  <tr className="border-b border-slate-200 dark:border-slate-700 uppercase font-bold text-[10px] tracking-wider select-none">
+                    <th className="sticky left-0 top-0 z-30 bg-slate-100 dark:bg-slate-800 px-3 py-3 text-center w-12 border-b border-r border-slate-200 dark:border-slate-700">
+                      #
+                    </th>
+                    <th
+                      onClick={() => { setSortCol('rollNumber'); setSortOrder(sortCol === 'rollNumber' && sortOrder === 'asc' ? 'desc' : 'asc'); }}
+                      className="px-3.5 py-3 cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors border-b border-r border-slate-200 dark:border-slate-700 min-w-[130px]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Student ID / Roll *</span>
+                        {sortCol === 'rollNumber' && (sortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
                       </div>
                     </th>
-
-                    {/* All Dynamic Excel Columns */}
-                    {headers.map((h, colIdx) => (
-                      <th
-                        key={h + colIdx}
-                        className="sticky top-0 z-20 px-3.5 py-3 text-left cursor-pointer group select-none whitespace-nowrap min-w-[210px] border-b border-r border-slate-200 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/70 dark:hover:bg-slate-700/60 transition-colors"
-                        onClick={() => {
-                          setSortCol(sortCol === h && sortOrder === 'desc' ? null : h);
-                          setSortOrder(sortCol === h && sortOrder === 'asc' ? 'desc' : 'asc');
-                        }}
-                      >
-                        <div className="flex items-center justify-between gap-2">
-                          <div className="flex items-center gap-1.5 font-bold text-slate-700 dark:text-slate-200 uppercase tracking-wider">
-                            <span>{h}</span>
-                            {sortCol === h && (
-                              sortOrder === 'asc' ? <ChevronUp size={13} className="text-indigo-500" /> : <ChevronDown size={13} className="text-indigo-500" />
-                            )}
-                          </div>
-                          <span className="text-[10px] text-slate-400 font-mono font-normal">C{colIdx + 1}</span>
-                        </div>
-                        {mapping[h] && (
-                          <span className="inline-block mt-1 px-1.5 py-0.5 rounded text-[10px] bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 font-semibold border border-indigo-200 dark:border-indigo-800">
-                            → {mapping[h]}
-                          </span>
-                        )}
-                      </th>
-                    ))}
+                    <th
+                      onClick={() => { setSortCol('name'); setSortOrder(sortCol === 'name' && sortOrder === 'asc' ? 'desc' : 'asc'); }}
+                      className="px-3.5 py-3 cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors border-b border-r border-slate-200 dark:border-slate-700 min-w-[180px]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Student Name *</span>
+                        {sortCol === 'name' && (sortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => { setSortCol('registrationNumber'); setSortOrder(sortCol === 'registrationNumber' && sortOrder === 'asc' ? 'desc' : 'asc'); }}
+                      className="px-3.5 py-3 cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors border-b border-r border-slate-200 dark:border-slate-700 min-w-[140px]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Registration No</span>
+                        {sortCol === 'registrationNumber' && (sortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                      </div>
+                    </th>
+                    <th
+                      onClick={() => { setSortCol('email'); setSortOrder(sortCol === 'email' && sortOrder === 'asc' ? 'desc' : 'asc'); }}
+                      className="px-3.5 py-3 cursor-pointer hover:bg-slate-200/60 dark:hover:bg-slate-700/60 transition-colors border-b border-r border-slate-200 dark:border-slate-700 min-w-[180px]"
+                    >
+                      <div className="flex items-center justify-between">
+                        <span>Email</span>
+                        {sortCol === 'email' && (sortOrder === 'asc' ? <ChevronUp size={12} /> : <ChevronDown size={12} />)}
+                      </div>
+                    </th>
+                    <th className="px-3.5 py-3 border-b border-r border-slate-200 dark:border-slate-700 min-w-[100px]">Department</th>
+                    <th className="px-3.5 py-3 border-b border-r border-slate-200 dark:border-slate-700 min-w-[80px]">Series</th>
+                    <th className="px-3.5 py-3 border-b border-r border-slate-200 dark:border-slate-700 min-w-[80px]">Semester</th>
+                    <th className="px-3.5 py-3 border-b border-r border-slate-200 dark:border-slate-700 min-w-[130px]">
+                      Initial Password
+                    </th>
+                    <th className="px-3.5 py-3 border-b border-r border-slate-200 dark:border-slate-700 min-w-[150px]">Validation Status</th>
+                    <th className="px-3 py-3 border-b text-center w-12">Action</th>
                   </tr>
                 </thead>
 
-                <tbody className="bg-white dark:bg-slate-900">
-                  {paginatedRows.map(row => {
-                    const isSelected = selectedRowIndices.has(row._rowIndex);
-                    return (
-                      <tr
-                        key={row._rowIndex}
-                        className={`transition-colors group ${
-                          isSelected
-                            ? 'hover:bg-indigo-50/40 dark:hover:bg-indigo-950/25'
-                            : 'opacity-40 hover:opacity-75 bg-slate-50/50 dark:bg-slate-900/50'
-                        }`}
-                      >
-                        {/* Unified Sticky Frozen Row Selector Column (Checkbox + # + Delete) */}
-                        <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 group-hover:bg-slate-50 dark:group-hover:bg-slate-850 px-2.5 py-2 text-center w-[74px] min-w-[74px] max-w-[74px] border-b border-r-2 border-slate-200 dark:border-slate-800 shadow-[3px_0_6px_-2px_rgba(0,0,0,0.08)]">
-                          <div className="flex items-center justify-between gap-1">
-                            <button
-                              type="button"
-                              onClick={() => {
-                                const next = new Set(selectedRowIndices);
-                                next.has(row._rowIndex) ? next.delete(row._rowIndex) : next.add(row._rowIndex);
-                                setSelectedRowIndices(next);
-                              }}
-                              className="text-slate-400 hover:text-indigo-600 shrink-0"
-                            >
-                              {isSelected ? <CheckSquare size={14} className="text-indigo-600" /> : <Square size={14} />}
-                            </button>
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-800 bg-white dark:bg-slate-900">
+                  {paginatedRecords.length === 0 ? (
+                    <tr>
+                      <td colSpan={11} className="py-12 text-center text-slate-400 italic">
+                        No students match the current filters or search query.
+                      </td>
+                    </tr>
+                  ) : (
+                    paginatedRecords.map((item, idx) => {
+                      const displaySeq = (page - 1) * pageSize + idx + 1;
+                      const hasRowCorr = corrections[item._rowIndex] !== undefined;
 
-                            <span className="font-mono text-xs text-slate-600 dark:text-slate-400 font-semibold flex-1 text-center">
-                              {row._rowIndex}
+                      return (
+                        <tr
+                          key={item._rowIndex}
+                          className={`transition-colors hover:bg-slate-50/80 dark:hover:bg-slate-850/60 ${
+                            !item.isValid ? 'bg-rose-50/30 dark:bg-rose-950/20' : ''
+                          }`}
+                        >
+                          {/* Row # */}
+                          <td className="sticky left-0 z-10 bg-white dark:bg-slate-900 px-3 py-2 text-center font-mono text-slate-400 font-bold border-b border-r border-slate-100 dark:border-slate-800">
+                            {displaySeq}
+                          </td>
+
+                          {/* Student ID / Roll Number (Editable) */}
+                          <td
+                            onDoubleClick={() => startCellEdit(item._rowIndex, item.rawHeaders.rollHeader, item.rollNumber)}
+                            className="px-3.5 py-2 font-mono font-bold border-b border-r border-slate-100 dark:border-slate-800 cursor-pointer"
+                          >
+                            {editingCell?.rowIndex === item._rowIndex && editingCell?.field === item.rawHeaders.rollHeader ? (
+                              <input
+                                autoFocus
+                                type="text"
+                                value={cellEditValue}
+                                onChange={(e) => setCellEditValue(e.target.value)}
+                                onBlur={saveCellEdit}
+                                onKeyDown={handleCellKeyDown}
+                                className="w-full px-2 py-0.5 text-xs rounded border border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none"
+                              />
+                            ) : (
+                              <div className="flex items-center gap-1.5 text-indigo-600 dark:text-indigo-400">
+                                <span>{item.rollNumber || <span className="text-rose-500 italic">Empty</span>}</span>
+                                {corrections[item._rowIndex]?.[item.rawHeaders.rollHeader] !== undefined && (
+                                  <span className="text-[10px] text-amber-500 font-normal" title="Manually edited">✎</span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Name (Editable) */}
+                          <td
+                            onDoubleClick={() => startCellEdit(item._rowIndex, item.rawHeaders.nameHeader, item.name)}
+                            className="px-3.5 py-2 font-medium text-slate-800 dark:text-slate-200 border-b border-r border-slate-100 dark:border-slate-800 cursor-pointer"
+                          >
+                            {editingCell?.rowIndex === item._rowIndex && editingCell?.field === item.rawHeaders.nameHeader ? (
+                              <input
+                                autoFocus
+                                type="text"
+                                value={cellEditValue}
+                                onChange={(e) => setCellEditValue(e.target.value)}
+                                onBlur={saveCellEdit}
+                                onKeyDown={handleCellKeyDown}
+                                className="w-full px-2 py-0.5 text-xs rounded border border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none"
+                              />
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <span className="truncate max-w-[200px]">{item.name || <span className="text-rose-500 italic">Empty</span>}</span>
+                                {corrections[item._rowIndex]?.[item.rawHeaders.nameHeader] !== undefined && (
+                                  <span className="text-[10px] text-amber-500 font-normal" title="Manually edited">✎</span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Registration No (Editable) */}
+                          <td
+                            onDoubleClick={() => startCellEdit(item._rowIndex, item.rawHeaders.regHeader, item.registrationNumber)}
+                            className="px-3.5 py-2 font-mono text-slate-600 dark:text-slate-300 border-b border-r border-slate-100 dark:border-slate-800 cursor-pointer"
+                          >
+                            {editingCell?.rowIndex === item._rowIndex && editingCell?.field === item.rawHeaders.regHeader ? (
+                              <input
+                                autoFocus
+                                type="text"
+                                value={cellEditValue}
+                                onChange={(e) => setCellEditValue(e.target.value)}
+                                onBlur={saveCellEdit}
+                                onKeyDown={handleCellKeyDown}
+                                className="w-full px-2 py-0.5 text-xs rounded border border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none"
+                              />
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <span>{item.registrationNumber || <span className="text-slate-400 italic">—</span>}</span>
+                                {corrections[item._rowIndex]?.[item.rawHeaders.regHeader] !== undefined && (
+                                  <span className="text-[10px] text-amber-500 font-normal" title="Manually edited">✎</span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Email (Editable) */}
+                          <td
+                            onDoubleClick={() => startCellEdit(item._rowIndex, item.rawHeaders.emailHeader, item.email)}
+                            className="px-3.5 py-2 text-slate-600 dark:text-slate-300 border-b border-r border-slate-100 dark:border-slate-800 cursor-pointer"
+                          >
+                            {editingCell?.rowIndex === item._rowIndex && editingCell?.field === item.rawHeaders.emailHeader ? (
+                              <input
+                                autoFocus
+                                type="text"
+                                value={cellEditValue}
+                                onChange={(e) => setCellEditValue(e.target.value)}
+                                onBlur={saveCellEdit}
+                                onKeyDown={handleCellKeyDown}
+                                className="w-full px-2 py-0.5 text-xs rounded border border-indigo-500 bg-white dark:bg-slate-800 text-slate-900 dark:text-white outline-none"
+                              />
+                            ) : (
+                              <div className="flex items-center gap-1.5">
+                                <span className="truncate max-w-[180px]">{item.email || <span className="text-slate-400 italic">—</span>}</span>
+                                {corrections[item._rowIndex]?.[item.rawHeaders.emailHeader] !== undefined && (
+                                  <span className="text-[10px] text-amber-500 font-normal" title="Manually edited">✎</span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Department */}
+                          <td className="px-3.5 py-2 font-bold text-slate-700 dark:text-slate-300 border-b border-r border-slate-100 dark:border-slate-800">
+                            {item.department}
+                          </td>
+
+                          {/* Series */}
+                          <td className="px-3.5 py-2 text-slate-600 dark:text-slate-400 border-b border-r border-slate-100 dark:border-slate-800">
+                            '{item.series}
+                          </td>
+
+                          {/* Semester */}
+                          <td className="px-3.5 py-2 text-slate-500 border-b border-r border-slate-100 dark:border-slate-800">
+                            {item.semester || '—'}
+                          </td>
+
+                          {/* Initial Password Preview (Masked / Clear on hover) */}
+                          <td className="px-3.5 py-2 font-mono text-slate-500 border-b border-r border-slate-100 dark:border-slate-800">
+                            <span className="px-2 py-0.5 rounded bg-slate-100 dark:bg-slate-800 text-[11px] font-semibold text-slate-700 dark:text-slate-300" title={`Initial password generated from "${credentialConfig.passwordField}"`}>
+                              {item.passwordPreview ? item.passwordPreview : <span className="text-rose-500 italic">Missing</span>}
                             </span>
+                          </td>
 
+                          {/* Validation Status */}
+                          <td className="px-3.5 py-2 border-b border-r border-slate-100 dark:border-slate-800">
+                            {item.isValid ? (
+                              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-bold bg-emerald-50 dark:bg-emerald-950/50 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                                <Check size={11} /> Valid
+                              </span>
+                            ) : (
+                              <div className="flex flex-col gap-0.5" title={item.errors.join('; ')}>
+                                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[10px] font-bold bg-rose-50 dark:bg-rose-950/50 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800 w-fit">
+                                  <AlertCircle size={11} /> {item.errors[0]}
+                                </span>
+                                {item.errors.length > 1 && (
+                                  <span className="text-[9px] text-rose-500 italic pl-1">
+                                    +{item.errors.length - 1} more issue{item.errors.length > 2 ? 's' : ''}
+                                  </span>
+                                )}
+                              </div>
+                            )}
+                          </td>
+
+                          {/* Action (Delete Row Cross) */}
+                          <td className="px-3 py-2 text-center border-b border-slate-100 dark:border-slate-800">
                             <button
                               type="button"
-                              title="Delete row"
-                              onClick={() => handleDeleteRow(row._rowIndex)}
-                              className="text-slate-300 hover:text-rose-600 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded shrink-0"
+                              onClick={() => handleDeleteRow(item._rowIndex)}
+                              title={`Remove student at row #${displaySeq}`}
+                              className="text-slate-300 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 p-1 rounded-md transition-colors"
                             >
-                              <Trash2 size={13} />
+                              <X size={13} className="text-rose-500 hover:scale-110 transition-transform" />
                             </button>
-                          </div>
-                        </td>
-
-                        {/* Editable or Display Cells with Solid Background */}
-                        {headers.map(h => {
-                          const cellVal = row[h] ?? '';
-                          return (
-                            <td
-                              key={h}
-                              className="px-2.5 py-1.5 border-b border-r border-slate-100 dark:border-slate-800 min-w-[210px] bg-white dark:bg-slate-900 group-hover:bg-slate-50/70 dark:group-hover:bg-slate-850/70"
-                            >
-                              {isEditMode ? (
-                                <input
-                                  type="text"
-                                  value={cellVal}
-                                  onChange={e => handleCellChange(row._rowIndex, h, e.target.value)}
-                                  className="w-full px-2 py-1 text-xs rounded border border-indigo-200 dark:border-indigo-800 bg-indigo-50/30 dark:bg-slate-800 text-slate-900 dark:text-slate-100 focus:outline-none focus:ring-1 focus:ring-indigo-500 font-medium"
-                                />
-                              ) : (
-                                <div
-                                  onDoubleClick={() => setIsEditMode(true)}
-                                  title="Double-click to edit cell"
-                                  className="truncate max-w-[240px] text-slate-800 dark:text-slate-200 font-medium py-0.5 cursor-pointer hover:text-indigo-600"
-                                >
-                                  {cellVal !== '' ? String(cellVal) : <span className="text-slate-300 dark:text-slate-600 italic">empty</span>}
-                                </div>
-                              )}
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    );
-                  })}
+                          </td>
+                        </tr>
+                      );
+                    })
+                  )}
                 </tbody>
               </table>
             </div>
 
-            {/* Bottom Bar: Column count indicator & Pagination */}
+            {/* Pagination Controls */}
             <div className="flex flex-col sm:flex-row items-center justify-between gap-3 px-4 py-3 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900">
-              <div className="flex items-center gap-2 text-xs text-slate-500">
-                <span>↔️ Showing all <strong>{headers.length}</strong> columns</span>
-                <span>·</span>
-                <span>{filteredRows.length} total rows</span>
-                <span>·</span>
-                <span className="italic text-slate-400">Scroll right to view more columns</span>
-              </div>
+              <span className="text-xs text-slate-500">
+                Page <strong>{page}</strong> of <strong>{totalPages}</strong> ({filteredRecords.length} records)
+              </span>
 
               {totalPages > 1 && (
-                <div className="flex items-center gap-2">
-                  <p className="text-xs text-slate-400">Page {page} of {totalPages}</p>
-                  <div className="flex gap-1">
-                    <button
-                      type="button"
-                      onClick={() => setPage(p => Math.max(1, p - 1))}
-                      disabled={page <= 1}
-                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >
-                      <ChevronLeft size={14} />
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPage(p => Math.min(totalPages, p + 1))}
-                      disabled={page >= totalPages}
-                      className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800"
-                    >
-                      <ChevronRight size={14} />
-                    </button>
-                  </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={() => setPage(p => Math.max(1, p - 1))}
+                    disabled={page <= 1}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <ChevronLeft size={14} />
+                  </button>
+                  <span className="px-3 text-xs font-semibold text-slate-700 dark:text-slate-300">
+                    {page} / {totalPages}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => setPage(p => Math.min(totalPages, p + 1))}
+                    disabled={page >= totalPages}
+                    className="px-2.5 py-1.5 rounded-lg border border-slate-200 dark:border-slate-700 text-xs disabled:opacity-30 hover:bg-slate-100 dark:hover:bg-slate-800"
+                  >
+                    <ChevronRight size={14} />
+                  </button>
                 </div>
               )}
             </div>
           </div>
 
-          {/* Navigation */}
-          <div className="flex justify-between items-center pt-2">
+          {/* ── 5. Bottom Action Bar ────────────────────────────────────────── */}
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
             <button
-              onClick={() => setStep(0)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+              type="button"
+              onClick={handleCancelImport}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors"
             >
-              <ArrowLeft size={16} /> Back
+              <X size={15} /> Cancel Import
             </button>
-            <button
-              onClick={() => setStep(2)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all"
-            >
-              Next: Column Mapping <ArrowRight size={16} />
-            </button>
+
+            <div className="flex items-center gap-3">
+              <span className="text-xs font-semibold text-slate-600 dark:text-slate-400">
+                {summaryStats.valid} of {summaryStats.total} students verified & ready
+              </span>
+
+              <button
+                type="button"
+                onClick={handleConfirmImport}
+                disabled={actionLoading || summaryStats.invalid > 0 || summaryStats.total === 0}
+                className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-xs font-bold hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {actionLoading ? <Loader2 size={15} className="animate-spin" /> : <Play size={15} />}
+                Confirm Import ({summaryStats.valid} Students)
+              </button>
+            </div>
           </div>
         </motion.div>
       )}
 
-      {/* ══════════════ STEP 2: Column Mapping ══════════════ */}
-      {step === 2 && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          {/* Override Settings */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-5 shadow-sm">
-            <h3 className="text-sm font-heading font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-              <SlidersHorizontal size={16} className="text-indigo-500" /> Import Settings & Overrides
-            </h3>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-1 flex items-center justify-between">
-                  <span>Department Override</span>
-                  {overrideDept && (
-                    <span className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
-                      {overrideDept}
-                    </span>
-                  )}
-                </label>
-                <select value={overrideDept} onChange={e => setOverrideDept(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none">
-                  <option value="">Auto-detect from roll / admin</option>
-                  {availableDepartments.map(d => (
-                    <option key={d} value={d}>
-                      {d} {d === defaultUserDept ? '(Your Department)' : ''}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-1 block">Series Override</label>
-                <input type="text" value={overrideSeries} onChange={e => setOverrideSeries(e.target.value)} placeholder="e.g. 22, 25"
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none" />
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-1 block">Duplicate Matching</label>
-                <select value={duplicateKey} onChange={e => setDuplicateKey(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none">
-                  <option value="rollNumber">Roll Number</option>
-                  <option value="registrationNumber">Registration Number</option>
-                  <option value="email">Email</option>
-                </select>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-slate-500 mb-1 block">Import Mode</label>
-                <select value={importMode} onChange={e => setImportMode(e.target.value)}
-                  className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none">
-                  {IMPORT_MODES.map(m => <option key={m.id} value={m.id}>{m.icon} {m.label}</option>)}
-                </select>
-              </div>
-            </div>
-          </div>
+      {/* ══════════════════════════════════════════════════════════════════════
+          COLUMN MAPPING MODAL (Sections 7, 8, 9, 43, 44)
+          One-Time Mapping: Clicking "Apply Mapping" or "✕" Close button
+          MUST NEVER reset import or ask to map again!
+      ══════════════════════════════════════════════════════════════════════ */}
+      <AnimatePresence>
+        {isMappingModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-950/70 backdrop-blur-sm overflow-y-auto animate-in fade-in duration-200">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95, y: 15 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 15 }}
+              className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-2xl overflow-hidden flex flex-col max-h-[90vh]"
+            >
+              {/* Modal Header */}
+              <div className="p-5 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between bg-slate-50/70 dark:bg-slate-850">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-xl bg-indigo-50 dark:bg-indigo-950/60 flex items-center justify-center text-indigo-600 dark:text-indigo-400">
+                    <SlidersHorizontal size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-heading font-extrabold text-slate-900 dark:text-white">
+                      Column Mapping
+                    </h3>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                      Match Excel columns with LabEval database fields once. Saved automatically.
+                    </p>
+                  </div>
+                </div>
 
-          {/* Mapping Templates */}
-          {savedTemplates.length > 0 && (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-4 shadow-sm">
-              <div className="flex items-center gap-2 mb-3">
-                <Bookmark size={15} className="text-amber-500" />
-                <span className="text-sm font-bold text-slate-700 dark:text-slate-300">Saved Templates</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {savedTemplates.map(t => (
-                  <button key={t._id} onClick={() => handleApplyTemplate(t._id)}
-                    className="px-3 py-1.5 rounded-lg text-xs font-medium border border-amber-200 dark:border-amber-800 text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-950/30 hover:bg-amber-100 dark:hover:bg-amber-950/50 transition-colors">
-                    {t.templateName || t.name}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Column Mapping Table */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm overflow-hidden">
-            <div className="p-4 border-b border-slate-100 dark:border-slate-800 flex items-center justify-between">
-              <h3 className="text-sm font-heading font-bold text-slate-900 dark:text-white flex items-center gap-2">
-                <Link2 size={16} className="text-indigo-500" /> Column Mapping
-              </h3>
-              <div className="flex items-center gap-2">
-                <button onClick={() => setSaveTemplateModal(true)}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-400 hover:bg-slate-50 dark:hover:bg-slate-800 transition-colors">
-                  <Save size={13} /> Save Template
+                {/* ✕ Close button: preserves mapping and displays mapped table (Section 8) */}
+                <button
+                  type="button"
+                  onClick={handleCloseOrApplyMapping}
+                  className="p-2 rounded-xl text-slate-400 hover:text-slate-600 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-800 transition-colors"
+                  title="Close and view mapped student table"
+                >
+                  <X size={18} />
                 </button>
               </div>
-            </div>
 
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="bg-slate-50 dark:bg-slate-800/60">
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Excel Column</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider w-8">→</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Database Field</th>
-                    <th className="px-4 py-3 text-left text-xs font-bold text-slate-500 uppercase tracking-wider">Sample Values</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
-                  {headers.map(h => {
-                    const currentMapping = mapping[h] || '';
-                    const isCustom = !!customFieldMappings[h];
-                    const samples = allRawRows.slice(0, 3).map(r => r[h]).filter(Boolean);
-                    return (
-                      <tr key={h} className="hover:bg-slate-50 dark:hover:bg-slate-800/30">
-                        <td className="px-4 py-3">
-                          <div className="flex items-center gap-2">
-                            <FileSpreadsheet size={14} className="text-emerald-500 shrink-0" />
-                            <span className="font-medium text-slate-800 dark:text-slate-200 truncate max-w-[200px]">{h}</span>
-                          </div>
-                        </td>
-                        <td className="px-4 py-3 text-slate-400">
-                          {(currentMapping || isCustom) ? <Link2 size={14} className="text-indigo-500" /> : <Unlink size={14} />}
-                        </td>
-                        <td className="px-4 py-3">
-                          {isCustom ? (
-                            <div className="flex items-center gap-2">
-                              <span className="px-2.5 py-1 rounded-lg bg-violet-50 dark:bg-violet-950/40 text-violet-700 dark:text-violet-400 text-xs font-semibold border border-violet-200 dark:border-violet-800">
-                                Custom: {customFieldMappings[h]}
-                              </span>
-                              <button onClick={() => {
-                                const next = { ...customFieldMappings };
-                                delete next[h];
-                                setCustomFieldMappings(next);
-                              }} className="text-slate-400 hover:text-rose-500">
-                                <X size={14} />
-                              </button>
-                            </div>
-                          ) : (
-                            <div className="flex items-center gap-2">
-                              <select value={currentMapping}
-                                onChange={e => setMapping(prev => ({ ...prev, [h]: e.target.value }))}
-                                className={`flex-1 px-3 py-2 text-sm rounded-xl border outline-none transition-colors ${
-                                  currentMapping
-                                    ? 'border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/30 text-indigo-800 dark:text-indigo-300'
-                                    : 'border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-500 dark:text-slate-400'
-                                } focus:ring-2 focus:ring-indigo-500`}>
+              {/* Mapping Table */}
+              <div className="p-5 overflow-y-auto flex-1 space-y-4" style={{ scrollbarWidth: 'thin' }}>
+                <div className="bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-900/50 rounded-xl p-3 text-xs text-amber-800 dark:text-amber-300">
+                  <strong>Note:</strong> Closing with <span className="font-bold underline">✕</span> or clicking <span className="font-bold underline">Apply Mapping</span> saves your configuration into this import session and shows the complete review table. You will not have to map again.
+                </div>
+
+                <div className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden">
+                  <table className="w-full text-xs text-left">
+                    <thead className="bg-slate-50 dark:bg-slate-800/60 text-slate-600 dark:text-slate-300 font-bold border-b border-slate-200 dark:border-slate-700">
+                      <tr>
+                        <th className="px-4 py-2.5">Excel Column</th>
+                        <th className="px-2 py-2.5 text-center w-8">→</th>
+                        <th className="px-4 py-2.5">LabEval Field</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                      {headers.map(h => {
+                        const currentVal = mapping[h] || '';
+                        return (
+                          <tr key={h} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/30">
+                            <td className="px-4 py-2.5 font-medium text-slate-800 dark:text-slate-200">
+                              <div className="flex items-center gap-2">
+                                <FileSpreadsheet size={13} className="text-emerald-500 shrink-0" />
+                                <span className="truncate max-w-[200px]">{h}</span>
+                              </div>
+                            </td>
+                            <td className="px-2 py-2.5 text-center text-slate-400">→</td>
+                            <td className="px-4 py-2.5">
+                              <select
+                                value={currentVal}
+                                onChange={(e) => setMapping(prev => ({ ...prev, [h]: e.target.value }))}
+                                className={`w-full px-3 py-1.5 text-xs font-semibold rounded-lg border outline-none transition-colors ${
+                                  currentVal
+                                    ? 'border-indigo-300 dark:border-indigo-800 bg-indigo-50/40 dark:bg-indigo-950/30 text-indigo-900 dark:text-indigo-200'
+                                    : 'border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 text-slate-500'
+                                }`}
+                              >
                                 {DB_FIELDS.map(f => (
                                   <option key={f.value} value={f.value}>{f.label}</option>
                                 ))}
                               </select>
-                              <button onClick={() => {
-                                const name = prompt('Enter custom field name (e.g., fatherName, city)');
-                                if (name && name.trim()) {
-                                  setMapping(prev => { const next = { ...prev }; delete next[h]; return next; });
-                                  setCustomFieldMappings(prev => ({ ...prev, [h]: name.trim() }));
-                                }
-                              }} className="px-2 py-2 rounded-lg border border-violet-200 dark:border-violet-800 text-violet-600 dark:text-violet-400 hover:bg-violet-50 dark:hover:bg-violet-950/40 transition-colors" title="Map to Custom Field">
-                                <Plus size={14} />
-                              </button>
-                            </div>
-                          )}
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex flex-wrap gap-1">
-                            {samples.map((s, i) => (
-                              <span key={i} className="px-2 py-0.5 rounded-md bg-slate-100 dark:bg-slate-800 text-xs text-slate-600 dark:text-slate-400 truncate max-w-[120px]">
-                                {String(s).slice(0, 25)}
-                              </span>
-                            ))}
-                            {samples.length === 0 && <span className="text-xs text-slate-400 italic">No data</span>}
-                          </div>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <div className="flex justify-between">
-            <button onClick={() => setStep(1)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-              <ArrowLeft size={16} /> Back
-            </button>
-            <button onClick={handleValidate} disabled={actionLoading}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all disabled:opacity-50">
-              {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <CheckCircle2 size={16} />}
-              Validate & Preview <ArrowRight size={16} />
-            </button>
-          </div>
-        </motion.div>
-      )}
-
-      {/* ══════════════ STEP 3: Validation Summary ══════════════ */}
-      {step === 3 && previewSummary && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className="space-y-4">
-          {/* Summary Cards */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3">
-            {[
-              { label: 'Valid Records', value: previewSummary.summary?.validRows || 0, color: 'text-emerald-600', bg: 'bg-emerald-50 dark:bg-emerald-950/40', icon: CheckCircle2 },
-              { label: 'New Students', value: previewSummary.summary?.newStudents || 0, color: 'text-blue-600', bg: 'bg-blue-50 dark:bg-blue-950/40', icon: Plus },
-              { label: 'Existing', value: previewSummary.summary?.existingStudents || 0, color: 'text-amber-600', bg: 'bg-amber-50 dark:bg-amber-950/40', icon: Users },
-              { label: 'Invalid Rows', value: previewSummary.summary?.invalidRows || 0, color: 'text-rose-600', bg: 'bg-rose-50 dark:bg-rose-950/40', icon: XCircle },
-              { label: 'File Duplicates', value: previewSummary.summary?.fileDuplicates || 0, color: 'text-orange-600', bg: 'bg-orange-50 dark:bg-orange-950/40', icon: AlertTriangle },
-            ].map((item, i) => {
-              const Icon = item.icon;
-              return (
-                <div key={i} className={`rounded-xl border border-slate-200 dark:border-slate-800 p-4 ${item.bg}`}>
-                  <div className="flex items-center gap-2 mb-2">
-                    <Icon size={16} className={item.color} />
-                    <span className="text-xs font-medium text-slate-600 dark:text-slate-400">{item.label}</span>
-                  </div>
-                  <p className={`text-2xl font-heading font-extrabold ${item.color}`}>{item.value.toLocaleString()}</p>
-                </div>
-              );
-            })}
-          </div>
-
-          {/* Import Action Summary */}
-          <div className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-6 shadow-sm">
-            <h3 className="text-sm font-heading font-bold text-slate-900 dark:text-white mb-4">Import Action Summary</h3>
-            <div className="space-y-3">
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-sm text-slate-600 dark:text-slate-400">Will Be Added</span>
-                <span className="font-bold text-emerald-600">{previewSummary.summary?.willBeAdded || 0}</span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-sm text-slate-600 dark:text-slate-400">Will Be Updated</span>
-                <span className="font-bold text-blue-600">{previewSummary.summary?.willBeUpdated || 0}</span>
-              </div>
-              <div className="flex items-center justify-between py-2 border-b border-slate-100 dark:border-slate-800">
-                <span className="text-sm text-slate-600 dark:text-slate-400">Will Be Skipped</span>
-                <span className="font-bold text-amber-600">{previewSummary.summary?.willBeSkipped || 0}</span>
-              </div>
-              <div className="flex items-center justify-between py-2">
-                <span className="text-sm text-slate-600 dark:text-slate-400">Import Mode</span>
-                <span className="font-bold text-slate-900 dark:text-white">{IMPORT_MODES.find(m => m.id === importMode)?.label || importMode}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Quick Department Fix Banner if Department error exists */}
-          {previewSummary.rowErrors && previewSummary.rowErrors.some(e => e.field === 'department') && (
-            <div className="bg-amber-50 dark:bg-amber-950/40 border-2 border-amber-300 dark:border-amber-700/80 rounded-2xl p-5 shadow-sm">
-              <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                  <div className="flex items-center gap-2">
-                    <AlertTriangle className="w-5 h-5 text-amber-600 dark:text-amber-400 shrink-0" />
-                    <h4 className="font-heading font-bold text-sm text-amber-900 dark:text-amber-200">
-                      Missing Department in Excel Sheet
-                    </h4>
-                    <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-200 text-amber-900 dark:bg-amber-900 dark:text-amber-200">
-                      Quick 1-Click Fix
-                    </span>
-                  </div>
-                  <p className="text-xs text-amber-800 dark:text-amber-300 max-w-xl leading-relaxed">
-                    The uploaded Excel sheet does not have a "Department" column. Select the department for these students to resolve all {previewSummary.rowErrors.filter(e => e.field === 'department').length} errors instantly:
-                  </p>
-                </div>
-                <div className="flex items-center gap-2 shrink-0">
-                  <select
-                    value={overrideDept || defaultUserDept || (availableDepartments[0] || 'ETE')}
-                    onChange={(e) => setOverrideDept(e.target.value)}
-                    className="px-3.5 py-2 text-xs font-bold rounded-xl border border-amber-300 dark:border-amber-700 bg-white dark:bg-slate-900 text-slate-800 dark:text-white shadow-xs focus:ring-2 focus:ring-amber-500 outline-none"
-                  >
-                    <option value="">-- Choose Department --</option>
-                    {availableDepartments.map(d => (
-                      <option key={d} value={d}>
-                        {d} {d === defaultUserDept ? '(Your Department)' : ''}
-                      </option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={() => handleValidate(overrideDept || defaultUserDept || (availableDepartments[0] || 'ETE'))}
-                    disabled={actionLoading}
-                    className="inline-flex items-center gap-1.5 px-4 py-2 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-700 hover:to-amber-800 text-white text-xs font-bold shadow-md shadow-amber-600/20 transition-all disabled:opacity-50"
-                  >
-                    {actionLoading ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-                    Apply & Re-validate
-                  </button>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
               </div>
-            </div>
-          )}
 
-          {/* Error Details */}
-          {previewSummary.rowErrors && previewSummary.rowErrors.length > 0 && (
-            <div className="bg-white dark:bg-slate-900 rounded-2xl border border-rose-200 dark:border-rose-800 p-5 shadow-sm">
-              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                <h3 className="text-sm font-heading font-bold text-rose-700 dark:text-rose-400 flex items-center gap-2">
-                  <AlertCircle size={16} /> Validation Errors ({previewSummary.totalErrors || previewSummary.rowErrors.length})
-                </h3>
+              {/* Modal Footer */}
+              <div className="p-4 border-t border-slate-100 dark:border-slate-800 bg-slate-50/50 dark:bg-slate-900 flex items-center justify-between">
+                <span className="text-xs text-slate-500">
+                  {Object.values(fullMapping).filter(Boolean).length} columns mapped
+                </span>
                 <button
-                  onClick={async () => {
-                    try {
-                      const res = await api.post('/import/download-error-report', {
-                        errors: previewSummary.rowErrors
-                      }, { responseType: 'blob' });
-                      const url = URL.createObjectURL(new Blob([res.data]));
-                      const a = document.createElement('a'); a.href = url;
-                      a.download = `Import_Errors_${Date.now()}.xlsx`; a.click();
-                      URL.revokeObjectURL(url);
-                      toast.success('Downloaded error report');
-                    } catch {
-                      toast.error('Failed to download error report');
-                    }
-                  }}
-                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-rose-100 hover:bg-rose-200 dark:bg-rose-950/60 dark:hover:bg-rose-900/60 text-rose-700 dark:text-rose-300 transition-colors w-fit"
+                  type="button"
+                  onClick={handleCloseOrApplyMapping}
+                  className="inline-flex items-center gap-2 px-5 py-2 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all"
                 >
-                  <Download size={13} /> Download Error Report (.xlsx)
-                </button>
-              </div>
-              <div className="max-h-[300px] overflow-y-auto space-y-2">
-                {previewSummary.rowErrors.slice(0, 50).map((err, i) => (
-                  <div key={i} className="flex items-start gap-3 py-2 px-3 rounded-lg bg-rose-50 dark:bg-rose-950/20 text-sm">
-                    <span className="text-rose-500 font-mono text-xs shrink-0 mt-0.5">Row {err.row}</span>
-                    {err.field && <span className="text-rose-600 font-semibold text-xs shrink-0">{err.field}</span>}
-                    <span className="text-rose-700 dark:text-rose-400">{err.message}</span>
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {/* Navigation */}
-          <div className="flex justify-between">
-            <button onClick={() => setStep(2)}
-              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-              <ArrowLeft size={16} /> Back to Mapping
-            </button>
-            <button onClick={handleExecuteImport} disabled={actionLoading || (previewSummary.summary?.validRows === 0)}
-              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-gradient-to-r from-emerald-600 to-teal-600 text-white text-sm font-semibold hover:from-emerald-700 hover:to-teal-700 shadow-md shadow-emerald-500/20 transition-all disabled:opacity-50">
-              {actionLoading ? <Loader2 size={16} className="animate-spin" /> : <Play size={16} />}
-              Confirm Import
-            </button>
-          </div>
-        </motion.div>
-      )}
-
-      {/* ══════════════ STEP 4: Import Result ══════════════ */}
-      {step === 4 && (
-        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm text-center">
-          {actionLoading ? (
-            <div className="space-y-6">
-              <Loader2 size={48} className="text-indigo-500 animate-spin mx-auto" />
-              <div>
-                <p className="text-lg font-heading font-bold text-slate-900 dark:text-white mb-2">Importing Students...</p>
-                <div className="max-w-md mx-auto">
-                  <div className="w-full bg-slate-200 dark:bg-slate-700 rounded-full h-3 overflow-hidden">
-                    <motion.div className="h-full bg-gradient-to-r from-indigo-500 to-blue-500 rounded-full"
-                      animate={{ width: `${Math.min(importProgress, 100)}%` }} transition={{ duration: 0.3 }} />
-                  </div>
-                  <p className="text-sm text-slate-500 mt-2">{Math.round(importProgress)}% complete</p>
-                </div>
-              </div>
-            </div>
-          ) : executeResult ? (
-            <div className="space-y-6">
-              <div className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center mx-auto">
-                <CheckCircle2 size={40} className="text-emerald-600" />
-              </div>
-              <div>
-                <h2 className="text-2xl font-heading font-extrabold text-slate-900 dark:text-white mb-1">Import Completed</h2>
-                <p className="text-sm text-slate-500">{executeResult.message}</p>
-              </div>
-
-              {executeResult.stats && (
-                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 max-w-2xl mx-auto">
-                  {[
-                    { label: 'Inserted', value: executeResult.stats.inserted, color: 'text-emerald-600' },
-                    { label: 'Updated', value: executeResult.stats.updated, color: 'text-blue-600' },
-                    { label: 'Skipped', value: executeResult.stats.skipped, color: 'text-amber-600' },
-                    { label: 'Failed', value: executeResult.stats.failed, color: 'text-rose-600' },
-                  ].map(item => (
-                    <div key={item.label} className="bg-slate-50 dark:bg-slate-800/50 rounded-xl p-4">
-                      <p className="text-xs text-slate-500 mb-1">{item.label}</p>
-                      <p className={`text-2xl font-heading font-extrabold ${item.color}`}>{item.value}</p>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              <div className="flex items-center justify-center gap-3 pt-4">
-                <button onClick={() => navigate('/admin/students')}
-                  className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-sm font-semibold hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all">
-                  <Database size={16} /> View Student Database
-                </button>
-                <button onClick={resetAll}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <RefreshCw size={16} /> Import Another
-                </button>
-                <button onClick={() => navigate('/admin/import-history')}
-                  className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-                  <History size={16} /> Import History
-                </button>
-              </div>
-            </div>
-          ) : null}
-        </motion.div>
-      )}
-
-      {/* ── Save Template Modal ──────────────────────────────────────── */}
-      <AnimatePresence>
-        {saveTemplateModal && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-            className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm p-4" onClick={() => setSaveTemplateModal(false)}>
-            <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
-              className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-2xl w-full max-w-sm p-6" onClick={e => e.stopPropagation()}>
-              <h3 className="text-lg font-heading font-bold text-slate-900 dark:text-white mb-4 flex items-center gap-2">
-                <Bookmark size={18} className="text-amber-500" /> Save Mapping Template
-              </h3>
-              <input type="text" value={newTemplateName} onChange={e => setNewTemplateName(e.target.value)}
-                placeholder="Template name..."
-                className="w-full px-3 py-2.5 text-sm rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 text-slate-900 dark:text-white outline-none focus:ring-2 focus:ring-amber-500 mb-4" />
-              <div className="flex gap-3">
-                <button onClick={() => setSaveTemplateModal(false)}
-                  className="flex-1 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-sm font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800">
-                  Cancel
-                </button>
-                <button onClick={handleSaveTemplate}
-                  className="flex-1 py-2.5 rounded-xl bg-amber-500 text-white text-sm font-semibold hover:bg-amber-600">
-                  Save
+                  <Check size={14} /> Apply Mapping & View Table
                 </button>
               </div>
             </motion.div>
-          </motion.div>
+          </div>
         )}
       </AnimatePresence>
+
+      {/* ══════════════════════════════════════════════════════════════════════
+          STEP 2: IMPORT COMPLETION RESULT (Sections 48, 49, 50)
+      ══════════════════════════════════════════════════════════════════════ */}
+      {step === 2 && executeResult && (
+        <motion.div initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }}
+          className="bg-white dark:bg-slate-900 rounded-3xl border border-slate-200 dark:border-slate-800 p-8 shadow-sm text-center max-w-2xl mx-auto space-y-6">
+          <div className="w-20 h-20 rounded-full bg-emerald-100 dark:bg-emerald-950/50 flex items-center justify-center mx-auto shadow-inner">
+            <CheckCircle2 size={44} className="text-emerald-600" />
+          </div>
+
+          <div>
+            <h2 className="text-2xl font-heading font-extrabold text-slate-900 dark:text-white">
+              Import Completed Successfully
+            </h2>
+            <p className="text-sm text-slate-500 mt-1">
+              {executeResult.message || 'All valid student records have been written to MongoDB.'}
+            </p>
+          </div>
+
+          {executeResult.stats && (
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+              <div className="bg-emerald-50 dark:bg-emerald-950/40 rounded-2xl p-4 border border-emerald-100 dark:border-emerald-900/40">
+                <p className="text-xs text-emerald-700 dark:text-emerald-300 font-semibold uppercase">Created</p>
+                <p className="text-2xl font-extrabold text-emerald-600 mt-1">{executeResult.stats.inserted || 0}</p>
+              </div>
+              <div className="bg-blue-50 dark:bg-blue-950/40 rounded-2xl p-4 border border-blue-100 dark:border-blue-900/40">
+                <p className="text-xs text-blue-700 dark:text-blue-300 font-semibold uppercase">Updated</p>
+                <p className="text-2xl font-extrabold text-blue-600 mt-1">{executeResult.stats.updated || 0}</p>
+              </div>
+              <div className="bg-amber-50 dark:bg-amber-950/40 rounded-2xl p-4 border border-amber-100 dark:border-amber-900/40">
+                <p className="text-xs text-amber-700 dark:text-amber-300 font-semibold uppercase">Skipped</p>
+                <p className="text-2xl font-extrabold text-amber-600 mt-1">{executeResult.stats.skipped || 0}</p>
+              </div>
+              <div className="bg-rose-50 dark:bg-rose-950/40 rounded-2xl p-4 border border-rose-100 dark:border-rose-900/40">
+                <p className="text-xs text-rose-700 dark:text-rose-300 font-semibold uppercase">Failed</p>
+                <p className="text-2xl font-extrabold text-rose-600 mt-1">{executeResult.stats.failed || 0}</p>
+              </div>
+            </div>
+          )}
+
+          <div className="bg-slate-50 dark:bg-slate-800/50 rounded-2xl p-4 text-xs text-slate-600 dark:text-slate-400 space-y-1 text-left">
+            <p className="font-bold text-slate-800 dark:text-slate-200">✓ Security & Immutability Guarantee:</p>
+            <p>• Student accounts created with immutable username: <span className="font-mono text-indigo-500">{credentialConfig.usernameField}</span></p>
+            <p>• Initial passwords hashed with Argon2id/bcrypt from field: <span className="font-mono text-indigo-500">{credentialConfig.passwordField}</span></p>
+            <p>• Existing student accounts were updated safely without modifying existing passwords.</p>
+          </div>
+
+          <div className="flex items-center justify-center gap-3 pt-2">
+            <button
+              onClick={() => navigate('/admin/students')}
+              className="inline-flex items-center gap-2 px-6 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 shadow-md shadow-indigo-500/20 transition-all"
+            >
+              <Database size={15} /> View Student Database
+            </button>
+            <button
+              onClick={() => {
+                setStep(0);
+                setFile(null);
+                setImportSessionId('');
+                setAllRawRows([]);
+                setCorrections({});
+                setBackendSummary(null);
+                setExecuteResult(null);
+              }}
+              className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl border border-slate-200 dark:border-slate-700 text-xs font-semibold text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-800"
+            >
+              <RefreshCw size={15} /> Import Another File
+            </button>
+          </div>
+        </motion.div>
+      )}
     </div>
   );
 }

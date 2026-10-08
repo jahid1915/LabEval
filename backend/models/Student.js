@@ -22,6 +22,10 @@ const studentSchema = new mongoose.Schema({
     unique: true,
     trim: true 
   },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User'
+  },
   registrationNumber: {
     type: String,
     trim: true,

@@ -14,6 +14,14 @@ const adminSchema = new mongoose.Schema({
     lowercase: true,
     trim: true,
   },
+  headId: {
+    type: String,
+    trim: true,
+  },
+  user: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'User',
+  },
   email: {
     type: String,
     required: true,

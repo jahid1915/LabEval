@@ -77,7 +77,7 @@ const sendOtpEmail = async ({ to, userName, otp, role, identifier }) => {
       <div class="otp-container">
         <div class="otp-label">Verification OTP Code</div>
         <div class="otp-code">${otp}</div>
-        <div class="expiry">⏱ Valid for 10 minutes only</div>
+        <div class="expiry">⏱ Valid for 5 minutes only</div>
       </div>
 
       <div class="details">
@@ -104,28 +104,19 @@ const sendOtpEmail = async ({ to, userName, otp, role, identifier }) => {
       const info = await transporter.sendMail({
         from: `"LabEval RUET" <${process.env.EMAIL_USER}>`,
         to,
-        subject: `[LabEval RUET] Password Reset OTP Code: ${otp}`,
-        text: `Your LabEval RUET password change OTP is ${otp}. It is valid for 10 minutes.`,
+        subject: `LabEval Password Reset OTP`,
+        text: `Your LabEval RUET password change OTP is ${otp}. It is valid for 5 minutes. Do not share this code with anyone.`,
         html: htmlContent
       });
-      console.log(`✅ [Email Service] OTP successfully sent to ${to} (Message ID: ${info.messageId})`);
+      console.log(`✅ [Email Service] OTP successfully dispatched to ${to} (Message ID: ${info.messageId})`);
       return { success: true, mode: 'smtp', messageId: info.messageId };
     } catch (err) {
-      console.warn(`⚠️ [Email Service] SMTP send failed: ${err.message}. Logging OTP for fallback.`);
-      console.log(`\n======================================================`);
-      console.log(`📧 [FALLBACK OTP] To: ${to}`);
-      console.log(`🔑 [OTP CODE]: ${otp} (Valid for 10 minutes)`);
-      console.log(`======================================================\n`);
-      return { success: true, mode: 'fallback', error: err.message };
+      console.warn(`⚠️ [Email Service] SMTP send failed: ${err.message}`);
+      return { success: false, mode: 'fallback', error: err.message };
     }
   } else {
-    // Development / demo environment without SMTP credentials
-    console.log(`\n======================================================`);
-    console.log(`📧 [LOCAL DEV EMAIL] No EMAIL_USER/EMAIL_PASS configured in .env`);
-    console.log(`👤 Recipient: ${userName} (${to})`);
-    console.log(`🔑 OTP CODE: ${otp}`);
-    console.log(`⏱ Expires in: 10 minutes`);
-    console.log(`======================================================\n`);
+    // Development / demo environment without SMTP credentials — do not log raw OTP
+    console.log(`📧 [LOCAL DEV EMAIL] Password reset OTP dispatched for ${userName} (${to}) [Expires in: 5 minutes]`);
     return { success: true, mode: 'dev' };
   }
 };

@@ -1,4 +1,5 @@
 const jwt = require('jsonwebtoken');
+const User = require('../models/User');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
 const Admin = require('../models/Admin');
@@ -13,105 +14,186 @@ const protect = async (req, res, next) => {
       token = req.headers.authorization.split(' ')[1];
       const decoded = jwt.verify(token, process.env.JWT_SECRET);
       
-      if (decoded.role === 'teacher') {
-        req.user = await Teacher.findById(decoded.id).select('-password');
-      } else if (decoded.role === 'student') {
-        req.user = await Student.findById(decoded.id).select('-password');
-      } else if (['admin', 'department_head', 'super_admin'].includes(decoded.role)) {
-        req.user = await Admin.findById(decoded.id).select('-password');
+      const commonFields = '-password -passwordHash -__v -enrolledCourses';
+
+      // 1. Look up central User
+      let authUser = null;
+      if (decoded.userId) {
+        authUser = await User.findById(decoded.userId).select('-passwordHash');
+      } else if (decoded.id) {
+        authUser = await User.findOne({
+          $or: [{ _id: decoded.id }, { profileRef: decoded.id }]
+        }).select('-passwordHash');
       }
 
-      if (!req.user) {
-        return res.status(401).json({ message: 'Not authorized, user not found' });
+      // 2. Look up role profile document for DB queries
+      let profileDoc = null;
+      const targetRole = authUser?.role || decoded.role;
+
+      if (targetRole === 'teacher') {
+        profileDoc = await Teacher.findById(authUser?.profileRef || decoded.id).select(commonFields).lean();
+      } else if (targetRole === 'student') {
+        profileDoc = await Student.findById(authUser?.profileRef || decoded.id).select(commonFields).lean();
+      } else if (['admin', 'department_head', 'super_admin'].includes(targetRole)) {
+        profileDoc = await Admin.findById(authUser?.profileRef || decoded.id).select(commonFields).lean();
       }
+
+      if (!authUser && !profileDoc) {
+        return res.status(401).json({ success: false, message: 'Not authorized, user not found', code: 'USER_NOT_FOUND' });
+      }
+
+      // Check account status
+      const accountStatus = authUser?.status || (profileDoc?.status === 'active' ? 'ACTIVE' : profileDoc?.status?.toUpperCase());
+      if (accountStatus === 'SUSPENDED') {
+        return res.status(403).json({ success: false, message: 'Account is suspended. Please contact administrator.', code: 'ACCOUNT_SUSPENDED' });
+      }
+      if (accountStatus === 'INACTIVE') {
+        return res.status(403).json({ success: false, message: 'Account is inactive. Please contact administrator.', code: 'ACCOUNT_INACTIVE' });
+      }
+
+      // Build unified req.user with profileDoc properties and authUser
+      req.user = profileDoc ? { ...profileDoc } : { _id: authUser._id, name: authUser.name };
+      req.user.userId = authUser?._id || req.user._id;
+      req.user.role = authUser?.role || decoded.role;
+      req.user.department = req.user.department || authUser?.department || '';
+      req.user.departmentCode = req.user.departmentCode || authUser?.department || '';
+      req.authUser = authUser;
 
       return next();
     } catch (error) {
-      console.error(error);
-      return res.status(401).json({ message: 'Not authorized, token failed' });
+      console.error('Auth protect error:', error.message);
+      return res.status(401).json({ success: false, message: 'Not authorized, token failed or expired', code: 'TOKEN_INVALID' });
     }
   }
 
   if (!token) {
-    return res.status(401).json({ message: 'Not authorized, no token' });
+    return res.status(401).json({ success: false, message: 'Not authorized, no token provided', code: 'NO_TOKEN' });
   }
+};
+
+// Generic Role-based authorization factory
+const requireRole = (...roles) => {
+  return (req, res, next) => {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Authentication required' });
+    }
+    const userRole = req.user.role;
+    if (roles.includes(userRole)) {
+      return next();
+    }
+    return res.status(403).json({
+      success: false,
+      message: `Access forbidden: Requires one of [${roles.join(', ')}] role. Your role is '${userRole}'.`,
+      code: 'FORBIDDEN_ROLE'
+    });
+  };
 };
 
 const teacherOnly = (req, res, next) => {
-  if (req.user && req.user.role === 'teacher') {
-    next();
-  } else {
-    res.status(403).json({ message: 'Not authorized as teacher' });
-  }
+  if (req.user && req.user.role === 'teacher') return next();
+  res.status(403).json({ success: false, message: 'Access forbidden: Teacher privileges required', code: 'FORBIDDEN_TEACHER' });
 };
 
 const studentOnly = (req, res, next) => {
-  if (req.user && req.user.role === 'student') {
-    next();
-  } else {
-    res.status(403).json({ message: 'Not authorized as student' });
-  }
+  if (req.user && req.user.role === 'student') return next();
+  res.status(403).json({ success: false, message: 'Access forbidden: Student privileges required', code: 'FORBIDDEN_STUDENT' });
 };
 
+// Strict Admin-only middleware (Only global Admin, NOT department heads)
 const adminOnly = (req, res, next) => {
-  if (req.user && ['admin', 'department_head', 'super_admin'].includes(req.user.role)) {
-    next();
-  } else {
-    res.status(403).json({ message: 'Not authorized as administrator or department head' });
+  if (req.user && (req.user.role === 'admin' || req.user.role === 'super_admin')) {
+    return next();
   }
+  res.status(403).json({ success: false, message: 'Access forbidden: System Administrator privileges required', code: 'FORBIDDEN_ADMIN' });
+};
+
+// Allows Administrator or Department Head
+const adminOrHead = (req, res, next) => {
+  if (req.user && ['admin', 'department_head', 'super_admin'].includes(req.user.role)) {
+    return next();
+  }
+  res.status(403).json({ success: false, message: 'Access forbidden: Administrator or Department Head required', code: 'FORBIDDEN_ADMIN_OR_HEAD' });
 };
 
 const adminOrTeacher = (req, res, next) => {
   if (req.user && (['admin', 'department_head', 'super_admin'].includes(req.user.role) || req.user.role === 'teacher')) {
-    next();
-  } else {
-    res.status(403).json({ message: 'Not authorized for this resource' });
+    return next();
   }
+  res.status(403).json({ success: false, message: 'Access forbidden: Not authorized for this resource' });
 };
 
-// Strict department data isolation middleware
+// Strict Department Isolation Middleware
 const enforceDepartmentIsolation = (req, res, next) => {
-  if (!req.user) return res.status(401).json({ message: 'Authentication required' });
+  if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
 
-  // Super admin without assigned department can manage all
-  if (req.user.role === 'super_admin' && !req.user.departmentCode) {
+  // Global Admin has unrestricted cross-department access
+  if (req.user.role === 'admin' || req.user.role === 'super_admin') {
     return next();
   }
 
   const userDept = (req.user.departmentCode || req.user.department || '').trim().toUpperCase();
   if (!userDept) return next();
 
-  // If a department parameter or query or body is passed, it MUST match user's department
-  const paramDept = (req.params.department || req.params.departmentCode || '').trim().toUpperCase();
-  const queryDept = (req.query.department || req.query.departmentCode || '').trim().toUpperCase();
-  const bodyDept  = (req.body.department || req.body.departmentCode || '').trim().toUpperCase();
+  const paramDept = (req.params?.department || req.params?.departmentCode || '').trim().toUpperCase();
+  const queryDept = (req.query?.department || req.query?.departmentCode || '').trim().toUpperCase();
+  const bodyDept  = (req.body?.department || req.body?.departmentCode || '').trim().toUpperCase();
 
   if (paramDept && paramDept !== userDept) {
     return res.status(403).json({
-      message: `Department Isolation Violation: You are not authorized to access department '${paramDept}'. Your department is '${userDept}'.`
+      success: false,
+      message: `Department Isolation Violation: You are not authorized to access department '${paramDept}'. Your authorized department is '${userDept}'.`,
+      code: 'DEPARTMENT_ISOLATION_VIOLATION'
     });
   }
   if (queryDept && queryDept !== userDept) {
     return res.status(403).json({
-      message: `Department Isolation Violation: You are not authorized to access department '${queryDept}'. Your department is '${userDept}'.`
+      success: false,
+      message: `Department Isolation Violation: You are not authorized to access department '${queryDept}'. Your authorized department is '${userDept}'.`,
+      code: 'DEPARTMENT_ISOLATION_VIOLATION'
     });
   }
   if (bodyDept && bodyDept !== userDept) {
     return res.status(403).json({
-      message: `Department Isolation Violation: You cannot create or assign records for department '${bodyDept}'. Your department is '${userDept}'.`
+      success: false,
+      message: `Department Isolation Violation: You cannot create or assign records for department '${bodyDept}'. Your authorized department is '${userDept}'.`,
+      code: 'DEPARTMENT_ISOLATION_VIOLATION'
     });
   }
 
-  // Force department filter for controllers
   req.userDepartment = userDept;
   next();
 };
 
-// Resource-level verification: Teacher can only access assigned course / course offering
+// Student Resource Ownership Verification
+const requireStudentOwnership = (req, res, next) => {
+  if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
+
+  // Admins, Department Heads, and Teachers can view student records
+  if (['admin', 'department_head', 'super_admin', 'teacher'].includes(req.user.role)) {
+    return next();
+  }
+
+  if (req.user.role === 'student') {
+    const requestedRoll = req.params.rollNumber || req.params.studentId || req.query.rollNumber;
+    const ownRoll = req.user.rollNumber || req.authUser?.loginIdentifier;
+
+    if (requestedRoll && ownRoll && requestedRoll !== ownRoll) {
+      return res.status(403).json({
+        success: false,
+        message: 'Access Denied: You are only authorized to view your own academic records.',
+        code: 'OWNERSHIP_VIOLATION'
+      });
+    }
+  }
+
+  next();
+};
+
+// Teacher Course Assignment Access Verification
 const requireTeacherCourseAccess = async (req, res, next) => {
   if (['admin', 'department_head', 'super_admin'].includes(req.user.role)) return next();
   if (req.user.role !== 'teacher') {
-    return res.status(403).json({ message: 'Teacher credentials required' });
+    return res.status(403).json({ success: false, message: 'Teacher credentials required' });
   }
 
   const courseCodeOrId = req.params.courseId || req.params.offeringId || req.body.courseId || req.query.courseId;
@@ -155,6 +237,7 @@ const requireTeacherCourseAccess = async (req, res, next) => {
 
     if (!isAuthorized) {
       return res.status(403).json({
+        success: false,
         message: 'Access Denied: You are not assigned to this course.'
       });
     }
@@ -162,16 +245,19 @@ const requireTeacherCourseAccess = async (req, res, next) => {
     next();
   } catch (err) {
     console.error('Course access check error:', err);
-    res.status(500).json({ message: 'Internal authorization error' });
+    res.status(500).json({ success: false, message: 'Internal authorization error' });
   }
 };
 
 module.exports = {
   protect,
+  requireRole,
   teacherOnly,
   studentOnly,
   adminOnly,
+  adminOrHead,
   adminOrTeacher,
   enforceDepartmentIsolation,
+  requireStudentOwnership,
   requireTeacherCourseAccess
 };

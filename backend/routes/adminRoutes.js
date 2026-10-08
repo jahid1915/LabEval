@@ -23,10 +23,11 @@ const {
   getStudentStats
 } = require('../controllers/adminController');
 const { importTeachers, importStudents } = require('../controllers/dataTransferController');
-const { protect, adminOnly } = require('../middleware/authMiddleware');
+const { protect, adminOrHead, enforceDepartmentIsolation } = require('../middleware/authMiddleware');
 
 router.use(protect);
-router.use(adminOnly);
+router.use(adminOrHead);
+router.use(enforceDepartmentIsolation);
 
 // ── System Statistics ────────────────────────────────────────────────
 router.get('/stats', getSystemStats);

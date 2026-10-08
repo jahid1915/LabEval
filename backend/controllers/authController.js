@@ -1,520 +1,937 @@
-const jwt     = require('jsonwebtoken');
+const jwt = require('jsonwebtoken');
+const bcrypt = require('bcryptjs');
+const User = require('../models/User');
 const Student = require('../models/Student');
 const Teacher = require('../models/Teacher');
-const Admin   = require('../models/Admin');
-const Faculty = require('../models/Faculty');
+const Admin = require('../models/Admin');
 const Department = require('../models/Department');
+const Faculty = require('../models/Faculty');
+const Series = require('../models/Series');
+const AcademicSession = require('../models/AcademicSession');
+const AuditLog = require('../models/AuditLog');
 
-const generateToken = (id, role, departmentCode = '') =>
-  jwt.sign({ id, role, departmentCode }, process.env.JWT_SECRET, { expiresIn: '30d' });
+const generateToken = (payload) => {
+  return jwt.sign(payload, process.env.JWT_SECRET, { expiresIn: '30d' });
+};
 
-// ── Student Register ────────────────────────────────────────────────
-// POST /api/auth/student-register
+// Helper to log security actions
+const logAudit = async (action, entity, entityId, details, user, req) => {
+  try {
+    await AuditLog.create({
+      userId: user?._id || null,
+      userRole: user?.role || 'system',
+      userName: user?.name || 'Anonymous',
+      action,
+      entity,
+      entityId: String(entityId || ''),
+      details,
+      ipAddress: req?.ip || req?.headers?.['x-forwarded-for'] || '',
+      userAgent: req?.headers?.['user-agent'] || '',
+    });
+  } catch (e) {
+    // Audit logging should never crash the main request flow
+    console.error('AuditLog error:', e.message);
+  }
+};
+
+// Helper to format safe user object for response
+const formatSafeUser = async (user, profileDoc = null) => {
+  let departmentName = user.department;
+  let facultyName = user.faculty;
+  let currentSemester = '';
+  let academicSession = '';
+  let series = '';
+  let designation = '';
+  let profileId = profileDoc?._id || user.profileRef || user._id;
+
+  if (user.departmentRef) {
+    const dept = await Department.findById(user.departmentRef).populate('faculty');
+    if (dept) {
+      departmentName = dept.name;
+      facultyName = dept.faculty?.name || user.faculty;
+    }
+  } else if (user.department) {
+    const dept = await Department.findOne({ code: user.department.toUpperCase() }).populate('faculty');
+    if (dept) {
+      departmentName = dept.name;
+      facultyName = dept.faculty?.name || user.faculty;
+    }
+  }
+
+  if (user.role === 'student') {
+    const sDoc = profileDoc || await Student.findById(profileId);
+    if (sDoc) {
+      currentSemester = sDoc.semester || '';
+      academicSession = sDoc.session || '';
+      series = sDoc.series || '';
+      profileId = sDoc._id;
+    }
+  } else if (user.role === 'teacher') {
+    const tDoc = profileDoc || await Teacher.findById(profileId);
+    if (tDoc) {
+      designation = tDoc.designation || 'Lecturer';
+      profileId = tDoc._id;
+    }
+  } else if (user.role === 'department_head' || user.role === 'admin') {
+    const aDoc = profileDoc || await Admin.findById(profileId);
+    if (aDoc) {
+      designation = aDoc.designation || (user.role === 'department_head' ? `Head of ${user.department}` : 'System Administrator');
+      profileId = aDoc._id;
+    }
+  }
+
+  return {
+    _id: profileId,
+    id: profileId,
+    userId: user._id,
+    role: user.role,
+    identifier: user.loginIdentifier,
+    loginIdentifier: user.loginIdentifier,
+    name: user.name,
+    email: user.email || '',
+    phone: user.phone || '',
+    contactNo: user.phone || '',
+    department: user.department || '',
+    departmentCode: user.department || '',
+    departmentName,
+    faculty: user.faculty || '',
+    facultyName,
+    status: user.status,
+    currentSemester,
+    academicSession,
+    session: academicSession,
+    series,
+    designation,
+    mustChangePassword: user.mustChangePassword || false,
+    // Role-specific convenience getters
+    rollNumber: user.role === 'student' ? user.loginIdentifier : undefined,
+    teacherId: user.role === 'teacher' ? user.loginIdentifier : undefined,
+    headId: user.role === 'department_head' ? user.loginIdentifier : undefined,
+    username: user.role === 'admin' ? user.loginIdentifier : undefined,
+  };
+};
+
+// ── UNIFIED LOGIN ─────────────────────────────────────────────────────────────
+// POST /api/auth/login
+const login = async (req, res) => {
+  try {
+    const identifier = req.body.identifier || req.body.loginIdentifier || req.body.rollNumber || req.body.teacherId || req.body.headId || req.body.username;
+    const password = req.body.password;
+
+    if (!identifier || !password) {
+      return res.status(400).json({
+        success: false,
+        message: 'Login identifier and password are required',
+        code: 'MISSING_CREDENTIALS'
+      });
+    }
+
+    const cleanIdentifier = String(identifier).trim();
+    const cleanLower = cleanIdentifier.toLowerCase();
+
+    // 1. Find user in central User collection
+    let user = await User.findOne({ loginIdentifierLower: cleanLower });
+
+    // Fallback search in legacy collections if not yet synchronized
+    if (!user) {
+      let legacyDoc = null;
+      let legacyRole = null;
+
+      if (cleanLower === 'admin') {
+        legacyDoc = await Admin.findOne({ username: 'admin' });
+        legacyRole = 'admin';
+      } else {
+        legacyDoc = await Student.findOne({ rollNumber: cleanIdentifier });
+        if (legacyDoc) legacyRole = 'student';
+        else {
+          legacyDoc = await Teacher.findOne({ teacherId: cleanIdentifier.toUpperCase() });
+          if (legacyDoc) legacyRole = 'teacher';
+          else {
+            legacyDoc = await Admin.findOne({ $or: [{ username: cleanLower }, { headId: cleanIdentifier.toUpperCase() }] });
+            if (legacyDoc) legacyRole = legacyDoc.role === 'department_head' ? 'department_head' : 'admin';
+          }
+        }
+      }
+
+      if (legacyDoc) {
+        user = await User.create({
+          loginIdentifier: cleanIdentifier,
+          loginIdentifierLower: cleanLower,
+          passwordHash: legacyDoc.password,
+          role: legacyRole,
+          status: legacyDoc.status === 'inactive' ? 'INACTIVE' : 'ACTIVE',
+          name: legacyDoc.name,
+          email: legacyDoc.email || '',
+          phone: legacyDoc.contactNo || '',
+          department: legacyDoc.department || legacyDoc.departmentCode || '',
+          profileRef: legacyDoc._id,
+          profileModel: legacyRole === 'student' ? 'Student' : (legacyRole === 'teacher' ? 'Teacher' : 'Admin'),
+        });
+      }
+    }
+
+    if (!user) {
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials. Please verify your ID and password.',
+        code: 'INVALID_CREDENTIALS'
+      });
+    }
+
+    // 2. Check Account Status
+    if (user.status === 'SUSPENDED') {
+      return res.status(403).json({
+        success: false,
+        message: 'This account has been suspended. Please contact the administrator.',
+        code: 'ACCOUNT_SUSPENDED'
+      });
+    }
+    if (user.status === 'INACTIVE') {
+      return res.status(403).json({
+        success: false,
+        message: 'This account is currently inactive. Please contact the administrator.',
+        code: 'ACCOUNT_INACTIVE'
+      });
+    }
+
+    // 3. Check Lockout Status
+    if (user.lockedUntil && user.lockedUntil > new Date()) {
+      const remainingMinutes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / (60 * 1000));
+      return res.status(423).json({
+        success: false,
+        message: `Too many unsuccessful login attempts. Account is temporarily locked. Please try again in ${remainingMinutes} minute(s).`,
+        code: 'ACCOUNT_LOCKED',
+        remainingMinutes
+      });
+    }
+
+    // 4. Verify Password
+    const isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
+      if (user.failedLoginAttempts >= 5) {
+        user.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15-minute lockout
+        await user.save();
+        await logAudit('LOGIN_LOCKED', 'User', user._id, `Account locked after ${user.failedLoginAttempts} failed attempts`, user, req);
+        return res.status(423).json({
+          success: false,
+          message: 'Too many unsuccessful login attempts. Your account has been temporarily locked for 15 minutes.',
+          code: 'ACCOUNT_LOCKED'
+        });
+      }
+      await user.save();
+      await logAudit('LOGIN_FAILED', 'User', user._id, `Failed login attempt (${user.failedLoginAttempts}/5)`, user, req);
+      return res.status(401).json({
+        success: false,
+        message: 'Invalid credentials. Please verify your ID and password.',
+        code: 'INVALID_CREDENTIALS'
+      });
+    }
+
+    // 5. Successful Authentication
+    user.failedLoginAttempts = 0;
+    user.lockedUntil = null;
+    user.lastLoginAt = new Date();
+    user.lastLoginIp = req.ip || req.headers['x-forwarded-for'] || '';
+    await user.save();
+
+    // 6. Token Generation
+    const profileId = user.profileRef || user._id;
+    const token = generateToken({
+      id: profileId,
+      userId: user._id,
+      role: user.role,
+      departmentCode: user.department || '',
+      sessionVersion: user.sessionVersion || 1
+    });
+
+    const safeUser = await formatSafeUser(user);
+    await logAudit('LOGIN_SUCCESS', 'User', user._id, `Successful login as ${user.role}`, user, req);
+
+    return res.status(200).json({
+      success: true,
+      message: 'Login successful',
+      user: safeUser,
+      token,
+      session: {
+        expiresAt: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString()
+      }
+    });
+  } catch (err) {
+    console.error('Unified login error:', err);
+    res.status(500).json({
+      success: false,
+      message: 'Internal server authentication error',
+      code: 'SERVER_ERROR'
+    });
+  }
+};
+
+// ── STUDENT REGISTRATION ──────────────────────────────────────────────────────
+// POST /api/auth/register/student
 const registerStudent = async (req, res) => {
-  try {
-    const { name, series, rollNumber, department, contactNo, password } = req.body;
-    if (!name || !series || !rollNumber || !department || !contactNo || !password) {
-      return res.status(400).json({ message: 'All fields are required' });
-    }
-    const cleanRoll = rollNumber.trim().toUpperCase();
-    const cleanDept = department.trim().toUpperCase();
-    const exists = await Student.findOne({ rollNumber: cleanRoll });
-    if (exists) return res.status(400).json({ message: 'Student with this ID already exists' });
-
-    const deptDoc = await Department.findOne({ code: cleanDept });
-
-    const student = await Student.create({
-      name: name.trim(),
-      series: series.trim(),
-      rollNumber: cleanRoll,
-      department: cleanDept,
-      departmentRef: deptDoc?._id,
-      facultyRef: deptDoc?.faculty,
-      contactNo: contactNo.trim(),
-      password,
-      role: 'student'
-    });
-
-    res.status(201).json({
-      _id:       student._id,
-      name:      student.name,
-      rollNumber:student.rollNumber,
-      series:    student.series,
-      department:student.department,
-      contactNo: student.contactNo,
-      role:      student.role,
-      token:     generateToken(student._id, student.role, student.department),
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// ── Student Login ───────────────────────────────────────────────────
-// POST /api/auth/student-login
-const loginStudent = async (req, res) => {
-  try {
-    const { rollNumber, password } = req.body;
-    if (!rollNumber || !password) {
-      return res.status(400).json({ message: 'Roll number and password are required' });
-    }
-    const cleanRoll = rollNumber.trim();
-    const student = await Student.findOne({ rollNumber: cleanRoll })
-      .populate('departmentRef', 'name code')
-      .populate('facultyRef', 'name code');
-
-    if (student && (await student.matchPassword(password))) {
-      res.json({
-        _id:        student._id,
-        name:       student.name,
-        rollNumber: student.rollNumber,
-        series:     student.series,
-        department: student.department,
-        departmentName: student.departmentRef?.name || student.department,
-        facultyName: student.facultyRef?.name || 'Faculty of Electrical & Computer Engineering',
-        contactNo:  student.contactNo,
-        role:       student.role,
-        token:      generateToken(student._id, student.role, student.department),
-      });
-    } else {
-      res.status(401).json({ message: 'Invalid Student ID or password' });
-    }
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// ── Teacher Register ────────────────────────────────────────────────
-// POST /api/auth/teacher-register
-const registerTeacher = async (req, res) => {
-  try {
-    const { name, teacherId, department, contactNo, password, designation, email } = req.body;
-    if (!name || !teacherId || !department || !contactNo || !password) {
-      return res.status(400).json({ message: 'All fields are required' });
-    }
-    const cleanId = teacherId.trim().toUpperCase();
-    const cleanDept = department.trim().toUpperCase();
-    const exists = await Teacher.findOne({ teacherId: cleanId });
-    if (exists) return res.status(400).json({ message: 'Teacher with this ID already exists' });
-
-    const deptDoc = await Department.findOne({ code: cleanDept });
-
-    const teacher = await Teacher.create({
-      name: name.trim(),
-      teacherId: cleanId,
-      department: cleanDept,
-      departmentRef: deptDoc?._id,
-      facultyRef: deptDoc?.faculty,
-      designation: designation || 'Lecturer',
-      email: email ? email.trim().toLowerCase() : '',
-      contactNo: contactNo.trim(),
-      password,
-      role: 'teacher'
-    });
-
-    res.status(201).json({
-      _id:       teacher._id,
-      name:      teacher.name,
-      teacherId: teacher.teacherId,
-      department:teacher.department,
-      designation: teacher.designation,
-      contactNo: teacher.contactNo,
-      role:      teacher.role,
-      token:     generateToken(teacher._id, teacher.role, teacher.department),
-    });
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// ── Teacher Login ───────────────────────────────────────────────────
-// POST /api/auth/teacher-login
-const loginTeacher = async (req, res) => {
-  try {
-    const { teacherId, password } = req.body;
-    if (!teacherId || !password) {
-      return res.status(400).json({ message: 'Teacher ID and password are required' });
-    }
-    const cleanId = teacherId.trim().toUpperCase();
-    const teacher = await Teacher.findOne({ teacherId: cleanId })
-      .populate('departmentRef', 'name code')
-      .populate('facultyRef', 'name code');
-
-    if (teacher && (await teacher.matchPassword(password))) {
-      res.json({
-        _id:        teacher._id,
-        name:       teacher.name,
-        teacherId:  teacher.teacherId,
-        department: teacher.department,
-        departmentName: teacher.departmentRef?.name || teacher.department,
-        facultyName: teacher.facultyRef?.name || 'Faculty of Electrical & Computer Engineering',
-        designation: teacher.designation,
-        dutyStatus: teacher.dutyStatus,
-        contactNo:  teacher.contactNo,
-        role:       teacher.role,
-        token:      generateToken(teacher._id, teacher.role, teacher.department),
-      });
-    } else {
-      res.status(401).json({ message: 'Invalid Teacher ID or password' });
-    }
-  } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// ── Admin / Department Head Register ────────────────────────────────
-// POST /api/auth/admin-register
-const registerAdmin = async (req, res) => {
   try {
     const {
       name,
-      username,
-      email,
+      rollNumber,
+      session,
+      academicSession,
+      series,
+      phone,
       contactNo,
+      email,
+      department,
+      faculty,
       password,
-      facultyId,
-      departmentId,
-      designation,
-      facultyCode,
-      departmentCode,
-      facultyName,
-      departmentName
+      confirmPassword
     } = req.body;
 
-    if (!name || !username || !email || !password) {
-      return res.status(400).json({ message: 'Name, username, email, and password are required' });
+    const studentName = (name || '').trim();
+    const studentRoll = (rollNumber || '').trim();
+    const studentSession = (academicSession || session || '').trim();
+    const studentSeries = (series || '').trim();
+    const studentPhone = (contactNo || phone || '').trim();
+    const studentEmail = (email || '').trim().toLowerCase();
+    const studentDept = (department || '').trim().toUpperCase();
+    const studentFaculty = (faculty || '').trim();
+
+    // 1. Validate required fields
+    if (!studentName || !studentRoll || !studentSession || !studentSeries || !studentDept || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'All academic and identity fields are required (Name, Roll, Session, Series, Department, Password, Confirm Password)',
+        code: 'VALIDATION_ERROR'
+      });
     }
 
-    const cleanUsername = username.trim().toLowerCase();
-    const cleanEmail = email.trim().toLowerCase();
+    // 2. Validate password confirmation
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password and Confirm Password do not match',
+        code: 'PASSWORD_MISMATCH'
+      });
+    }
 
-    const exists = await Admin.findOne({
-      $or: [{ username: cleanUsername }, { email: cleanEmail }]
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long',
+        code: 'PASSWORD_TOO_SHORT'
+      });
+    }
+
+    // 3. Unique Student ID enforcement
+    const existingUser = await User.findOne({ loginIdentifierLower: studentRoll.toLowerCase() });
+    const existingStudent = await Student.findOne({ rollNumber: studentRoll });
+
+    if (existingUser || existingStudent) {
+      return res.status(409).json({
+        success: false,
+        message: 'A student with this Roll Number / Student ID already exists.',
+        code: 'DUPLICATE_STUDENT_ID'
+      });
+    }
+
+    // 4. Resolve Department, Faculty, Series references
+    const deptDoc = await Department.findOne({ code: studentDept }).populate('faculty');
+    const facultyRef = deptDoc?.faculty?._id || null;
+    const seriesDoc = await Series.findOne({ seriesName: studentSeries });
+    const sessionDoc = await AcademicSession.findOne({ sessionName: studentSession });
+
+    // 5. Create Central User
+    const passwordHash = await User.hashPassword(password);
+    const user = await User.create({
+      loginIdentifier: studentRoll,
+      loginIdentifierLower: studentRoll.toLowerCase(),
+      passwordHash,
+      role: 'student',
+      status: 'ACTIVE',
+      name: studentName,
+      email: studentEmail,
+      phone: studentPhone,
+      department: studentDept,
+      departmentRef: deptDoc?._id || null,
+      faculty: deptDoc?.faculty?.name || studentFaculty,
+      facultyRef: facultyRef,
     });
-    if (exists) return res.status(400).json({ message: 'Admin with this username or email already exists' });
 
-    let deptDoc = null;
-    let facultyDoc = null;
+    // 6. Create Student Profile linked to User
+    const student = await Student.create({
+      name: studentName,
+      rollNumber: studentRoll,
+      series: studentSeries,
+      seriesRef: seriesDoc?._id || null,
+      session: studentSession,
+      academicSessionRef: sessionDoc?._id || null,
+      department: studentDept,
+      departmentRef: deptDoc?._id || null,
+      facultyRef: facultyRef,
+      contactNo: studentPhone,
+      email: studentEmail,
+      password, // Pre-save hook hashes this in Student model
+      role: 'student',
+      status: 'active',
+      user: user._id
+    });
 
-    if (departmentId) {
-      deptDoc = await Department.findById(departmentId);
-    } else if (departmentCode) {
-      deptDoc = await Department.findOne({ code: departmentCode.toUpperCase() });
+    user.profileRef = student._id;
+    user.profileModel = 'Student';
+    await user.save();
+
+    await logAudit('STUDENT_REGISTERED', 'Student', student._id, `Student ${studentRoll} registered`, user, req);
+
+    const safeUser = await formatSafeUser(user, student);
+    const token = generateToken({
+      id: student._id,
+      userId: user._id,
+      role: 'student',
+      departmentCode: studentDept,
+      sessionVersion: 1
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Student account created successfully',
+      user: safeUser,
+      token
+    });
+  } catch (err) {
+    console.error('Student registration error:', err);
+    if (err.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'A student with this Roll Number / Student ID already exists.',
+        code: 'DUPLICATE_STUDENT_ID'
+      });
     }
+    res.status(500).json({
+      success: false,
+      message: 'Student registration failed: ' + err.message,
+      code: 'SERVER_ERROR'
+    });
+  }
+};
 
-    if (facultyId) {
-      facultyDoc = await Faculty.findById(facultyId);
-    } else if (facultyCode) {
-      facultyDoc = await Faculty.findOne({ code: facultyCode.toUpperCase() });
-    } else if (deptDoc?.faculty) {
-      facultyDoc = await Faculty.findById(deptDoc.faculty);
-    }
-
-    const resolvedDeptCode = deptDoc?.code || departmentCode || '';
-    const resolvedDeptName = deptDoc?.name || departmentName || '';
-    const resolvedFacultyCode = facultyDoc?.code || facultyCode || '';
-    const resolvedFacultyName = facultyDoc?.name || facultyName || '';
-
-    const admin = await Admin.create({
-      name: name.trim(),
-      username: cleanUsername,
-      email: cleanEmail,
-      contactNo: contactNo ? contactNo.trim() : '',
+// ── TEACHER REGISTRATION ──────────────────────────────────────────────────────
+// POST /api/auth/register/teacher
+const registerTeacher = async (req, res) => {
+  try {
+    const {
+      name,
+      teacherId,
+      phone,
+      contactNo,
+      email,
+      department,
+      faculty,
       password,
-      role: resolvedDeptCode ? 'department_head' : 'admin',
-      designation: designation || (resolvedDeptCode ? `Head of ${resolvedDeptCode} Department` : 'System Administrator'),
-      faculty: facultyDoc?._id,
+      confirmPassword,
+      designation
+    } = req.body;
+
+    const teacherName = (name || '').trim();
+    const cleanId = (teacherId || '').trim().toUpperCase();
+    const teacherPhone = (contactNo || phone || '').trim();
+    const teacherEmail = (email || '').trim().toLowerCase();
+    const cleanDept = (department || '').trim().toUpperCase();
+
+    // 1. Validate required fields
+    if (!teacherName || !cleanId || !cleanDept || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required (Name, Teacher ID, Department, Password, Confirm Password)',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password and Confirm Password do not match',
+        code: 'PASSWORD_MISMATCH'
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long',
+        code: 'PASSWORD_TOO_SHORT'
+      });
+    }
+
+    // 2. Unique Teacher ID check
+    const existingUser = await User.findOne({ loginIdentifierLower: cleanId.toLowerCase() });
+    const existingTeacher = await Teacher.findOne({ teacherId: cleanId });
+
+    if (existingUser || existingTeacher) {
+      return res.status(409).json({
+        success: false,
+        message: 'This Teacher ID is already registered.',
+        code: 'DUPLICATE_TEACHER_ID'
+      });
+    }
+
+    // 3. Resolve department and faculty
+    const deptDoc = await Department.findOne({ code: cleanDept }).populate('faculty');
+    const facultyRef = deptDoc?.faculty?._id || null;
+    const facultyName = deptDoc?.faculty?.name || faculty || '';
+
+    // 4. Create User
+    const passwordHash = await User.hashPassword(password);
+    const user = await User.create({
+      loginIdentifier: cleanId,
+      loginIdentifierLower: cleanId.toLowerCase(),
+      passwordHash,
+      role: 'teacher',
+      status: 'ACTIVE',
+      name: teacherName,
+      email: teacherEmail,
+      phone: teacherPhone,
+      department: cleanDept,
+      departmentRef: deptDoc?._id || null,
+      faculty: facultyName,
+      facultyRef: facultyRef,
+    });
+
+    // 5. Create Teacher Profile
+    const teacher = await Teacher.create({
+      name: teacherName,
+      teacherId: cleanId,
+      department: cleanDept,
+      departmentRef: deptDoc?._id || null,
+      facultyRef: facultyRef,
+      designation: designation || 'Lecturer',
+      contactNo: teacherPhone || '01700000000',
+      email: teacherEmail,
+      password, // Hashed by Teacher pre-save
+      role: 'teacher',
+      status: 'active',
+      user: user._id
+    });
+
+    user.profileRef = teacher._id;
+    user.profileModel = 'Teacher';
+    await user.save();
+
+    await logAudit('TEACHER_REGISTERED', 'Teacher', teacher._id, `Teacher ${cleanId} registered`, user, req);
+
+    const safeUser = await formatSafeUser(user, teacher);
+    const token = generateToken({
+      id: teacher._id,
+      userId: user._id,
+      role: 'teacher',
+      departmentCode: cleanDept,
+      sessionVersion: 1
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Teacher account created successfully',
+      user: safeUser,
+      token
+    });
+  } catch (err) {
+    console.error('Teacher registration error:', err);
+    if (err.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'This Teacher ID is already registered.',
+        code: 'DUPLICATE_TEACHER_ID'
+      });
+    }
+    res.status(500).json({
+      success: false,
+      message: 'Teacher registration failed: ' + err.message,
+      code: 'SERVER_ERROR'
+    });
+  }
+};
+
+// ── DEPARTMENT HEAD REGISTRATION ──────────────────────────────────────────────
+// POST /api/auth/register/head
+const registerHead = async (req, res) => {
+  try {
+    const {
+      name,
+      headId,
+      phone,
+      contactNo,
+      email,
+      faculty,
+      facultyCode,
+      department,
+      departmentCode,
+      password,
+      confirmPassword,
+      designation
+    } = req.body;
+
+    const headName = (name || '').trim();
+    const cleanHeadId = (headId || '').trim().toUpperCase();
+    const headPhone = (contactNo || phone || '').trim();
+    const headEmail = (email || '').trim().toLowerCase();
+    const cleanDept = (departmentCode || department || '').trim().toUpperCase();
+
+    // 1. Validate required fields
+    if (!headName || !cleanHeadId || !cleanDept || !password || !confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'All fields are required (Name, Head ID, Department, Password, Confirm Password)',
+        code: 'VALIDATION_ERROR'
+      });
+    }
+
+    if (password !== confirmPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password and Confirm Password do not match',
+        code: 'PASSWORD_MISMATCH'
+      });
+    }
+
+    if (password.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'Password must be at least 8 characters long',
+        code: 'PASSWORD_TOO_SHORT'
+      });
+    }
+
+    // 2. Unique Head ID check
+    const existingUser = await User.findOne({ loginIdentifierLower: cleanHeadId.toLowerCase() });
+    const existingAdmin = await Admin.findOne({
+      $or: [
+        { username: cleanHeadId.toLowerCase() },
+        { headId: cleanHeadId }
+      ]
+    });
+
+    if (existingUser || existingAdmin) {
+      return res.status(409).json({
+        success: false,
+        message: 'This Head ID is already registered.',
+        code: 'DUPLICATE_HEAD_ID'
+      });
+    }
+
+    // 3. Resolve department and faculty
+    const deptDoc = await Department.findOne({ code: cleanDept }).populate('faculty');
+    const resolvedFacultyCode = deptDoc?.faculty?.code || facultyCode || '';
+    const resolvedFacultyName = deptDoc?.faculty?.name || faculty || '';
+    const resolvedFacultyRef = deptDoc?.faculty?._id || null;
+
+    // 4. Create central User with department isolation scope
+    const passwordHash = await User.hashPassword(password);
+    const user = await User.create({
+      loginIdentifier: cleanHeadId,
+      loginIdentifierLower: cleanHeadId.toLowerCase(),
+      passwordHash,
+      role: 'department_head',
+      status: 'ACTIVE',
+      name: headName,
+      email: headEmail,
+      phone: headPhone,
+      department: cleanDept,
+      departmentRef: deptDoc?._id || null,
+      faculty: resolvedFacultyName,
+      facultyRef: resolvedFacultyRef,
+    });
+
+    // 5. Create Admin document for Department Head
+    const admin = await Admin.create({
+      name: headName,
+      username: cleanHeadId.toLowerCase(),
+      headId: cleanHeadId,
+      email: headEmail || `${cleanHeadId.toLowerCase()}@ruet.ac.bd`,
+      contactNo: headPhone || '',
+      password, // Hashed by Admin pre-save
+      role: 'department_head',
+      designation: designation || `Head of ${cleanDept} Department`,
+      faculty: resolvedFacultyRef,
       facultyCode: resolvedFacultyCode,
       facultyName: resolvedFacultyName,
-      department: deptDoc?._id,
-      departmentCode: resolvedDeptCode,
-      departmentName: resolvedDeptName,
-      status: 'active'
+      department: deptDoc?._id || null,
+      departmentCode: cleanDept,
+      departmentName: deptDoc?.name || cleanDept,
+      status: 'active',
+      user: user._id
     });
 
-    res.status(201).json({
-      _id:            admin._id,
-      name:           admin.name,
-      username:       admin.username,
-      email:          admin.email,
-      contactNo:      admin.contactNo,
-      role:           'admin',
-      adminRole:      admin.role,
-      designation:    admin.designation,
-      facultyId:      admin.faculty,
-      facultyCode:    admin.facultyCode,
-      facultyName:    admin.facultyName,
-      departmentId:   admin.department,
-      departmentCode: admin.departmentCode,
-      departmentName: admin.departmentName,
-      token:          generateToken(admin._id, admin.role, admin.departmentCode),
+    user.profileRef = admin._id;
+    user.profileModel = 'Admin';
+    await user.save();
+
+    await logAudit('HEAD_REGISTERED', 'Admin', admin._id, `Department Head ${cleanHeadId} registered for ${cleanDept}`, user, req);
+
+    const safeUser = await formatSafeUser(user, admin);
+    const token = generateToken({
+      id: admin._id,
+      userId: user._id,
+      role: 'department_head',
+      departmentCode: cleanDept,
+      sessionVersion: 1
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: 'Department Head account created successfully',
+      user: safeUser,
+      token
     });
   } catch (err) {
-    res.status(500).json({ message: err.message });
-  }
-};
-
-// ── Admin / Department Head Login ───────────────────────────────────
-// POST /api/auth/admin-login
-const loginAdmin = async (req, res) => {
-  try {
-    const { username, password } = req.body;
-    if (!username || !password) {
-      return res.status(400).json({ message: 'Username/email and password are required' });
-    }
-
-    const cleanInput = username.trim().toLowerCase();
-    const admin = await Admin.findOne({
-      $or: [
-        { username: cleanInput },
-        { email: cleanInput }
-      ]
-    }).populate('department').populate('faculty');
-
-    if (admin && (await admin.matchPassword(password))) {
-      const deptCode = admin.departmentCode || admin.department?.code || '';
-      const deptName = admin.departmentName || admin.department?.name || '';
-      const facultyCode = admin.facultyCode || admin.faculty?.code || '';
-      const facultyName = admin.facultyName || admin.faculty?.name || '';
-
-      res.json({
-        _id:            admin._id,
-        name:           admin.name,
-        username:       admin.username,
-        email:          admin.email,
-        contactNo:      admin.contactNo,
-        role:           'admin',
-        adminRole:      admin.role || 'department_head',
-        designation:    admin.designation || (deptCode ? `Head of ${deptCode} Department` : 'Administrator'),
-        facultyId:      admin.faculty?._id || admin.faculty,
-        facultyCode,
-        facultyName,
-        departmentId:   admin.department?._id || admin.department,
-        departmentCode: deptCode,
-        departmentName: deptName,
-        token:          generateToken(admin._id, admin.role || 'department_head', deptCode),
+    console.error('Department Head registration error:', err);
+    if (err.code === 11000) {
+      return res.status(409).json({
+        success: false,
+        message: 'This Head ID is already registered.',
+        code: 'DUPLICATE_HEAD_ID'
       });
-    } else {
-      res.status(401).json({ message: 'Invalid Admin or Department Head credentials' });
     }
-  } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({
+      success: false,
+      message: 'Department Head registration failed: ' + err.message,
+      code: 'SERVER_ERROR'
+    });
   }
 };
 
-// ── Demo Login ──────────────────────────────────────────────────────
+// ── ADMIN PUBLIC REGISTRATION BLOCKED ─────────────────────────────────────────
+// POST /api/auth/admin-register or /api/auth/register/admin
+const registerAdmin = async (req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Public administrator registration is prohibited. Administrator accounts must be provisioned securely by system deployment.',
+    code: 'ADMIN_SIGNUP_PROHIBITED'
+  });
+};
+
+// ── GET CURRENT USER ──────────────────────────────────────────────────────────
+// GET /api/auth/me
+const getCurrentUser = async (req, res) => {
+  try {
+    if (!req.user) {
+      return res.status(401).json({ success: false, message: 'Not authenticated' });
+    }
+
+    let centralUser = null;
+    if (req.user.user) {
+      centralUser = await User.findById(req.user.user);
+    } else if (req.user.userId) {
+      centralUser = await User.findById(req.user.userId);
+    } else {
+      centralUser = await User.findOne({ profileRef: req.user._id });
+    }
+
+    if (!centralUser) {
+      return res.status(404).json({ success: false, message: 'User record not found' });
+    }
+
+    const safeUser = await formatSafeUser(centralUser, req.user);
+    return res.json({
+      success: true,
+      user: safeUser
+    });
+  } catch (err) {
+    console.error('getCurrentUser error:', err);
+    res.status(500).json({ success: false, message: 'Failed to retrieve profile: ' + err.message });
+  }
+};
+
+// ── CHANGE PASSWORD ───────────────────────────────────────────────────────────
+// POST /api/auth/change-password
+const changePassword = async (req, res) => {
+  try {
+    const { currentPassword, newPassword, confirmNewPassword } = req.body;
+
+    if (!currentPassword || !newPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'Current password and new password are required'
+      });
+    }
+
+    if (confirmNewPassword && newPassword !== confirmNewPassword) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password and confirmation do not match'
+      });
+    }
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({
+        success: false,
+        message: 'New password must be at least 8 characters long'
+      });
+    }
+
+    // Locate central User
+    let user = null;
+    if (req.user?.user) user = await User.findById(req.user.user);
+    else if (req.user?.userId) user = await User.findById(req.user.userId);
+    else if (req.user?._id) user = await User.findOne({ profileRef: req.user._id });
+
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User authentication record not found' });
+    }
+
+    const isMatch = await user.matchPassword(currentPassword);
+    if (!isMatch) {
+      return res.status(400).json({ success: false, message: 'Current password is incorrect' });
+    }
+
+    const newHash = await User.hashPassword(newPassword);
+    user.passwordHash = newHash;
+    user.passwordChangedAt = new Date();
+    user.mustChangePassword = false;
+    user.sessionVersion = (user.sessionVersion || 1) + 1;
+    await user.save();
+
+    // Sync to profile doc
+    if (user.role === 'student') {
+      const student = await Student.findById(user.profileRef);
+      if (student) {
+        student.password = newPassword;
+        await student.save();
+      }
+    } else if (user.role === 'teacher') {
+      const teacher = await Teacher.findById(user.profileRef);
+      if (teacher) {
+        teacher.password = newPassword;
+        await teacher.save();
+      }
+    } else if (user.role === 'admin' || user.role === 'department_head') {
+      const admin = await Admin.findById(user.profileRef);
+      if (admin) {
+        admin.password = newPassword;
+        await admin.save();
+      }
+    }
+
+    await logAudit('PASSWORD_CHANGED', 'User', user._id, 'Password changed successfully', user, req);
+
+    return res.json({
+      success: true,
+      message: 'Password changed successfully'
+    });
+  } catch (err) {
+    console.error('changePassword error:', err);
+    res.status(500).json({ success: false, message: 'Failed to change password: ' + err.message });
+  }
+};
+
+// ── LOGOUT / LOGOUT ALL ───────────────────────────────────────────────────────
+const logout = async (req, res) => {
+  return res.json({ success: true, message: 'Logged out successfully' });
+};
+
+const logoutAll = async (req, res) => {
+  try {
+    let user = null;
+    if (req.user?.user) user = await User.findById(req.user.user);
+    else if (req.user?.userId) user = await User.findById(req.user.userId);
+    else if (req.user?._id) user = await User.findOne({ profileRef: req.user._id });
+
+    if (user) {
+      user.sessionVersion = (user.sessionVersion || 1) + 1;
+      await user.save();
+    }
+    return res.json({ success: true, message: 'All active sessions invalidated' });
+  } catch (err) {
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ── DEMO LOGIN ────────────────────────────────────────────────────────────────
 // POST /api/auth/demo-login
 const demoLogin = async (req, res) => {
   try {
     const { role } = req.body;
+    let identifier = '2204028';
 
-    // Student Demo: Md. Jahid Hasan (Roll: 2204028, ETE, 22 Series)
-    if (role === 'student') {
-      let student = await Student.findOne({ rollNumber: '2204028' });
-      if (!student) {
-        const eteDept = await Department.findOne({ code: 'ETE' });
-        student = await Student.create({
+    if (role === 'teacher') identifier = 'ETE-294';
+    else if (role === 'admin') identifier = 'ADMIN';
+    else if (role === 'department_head' || role === 'department_head_ete') identifier = 'head-ete';
+    else if (role === 'department_head_eee') identifier = 'head-eee';
+    else if (role === 'department_head_cse') identifier = 'head-cse';
+
+    let user = await User.findOne({ loginIdentifierLower: identifier.toLowerCase() });
+
+    if (!user) {
+      // Seed if missing
+      if (identifier === 'ADMIN') {
+        const hash = await User.hashPassword('admin123');
+        user = await User.create({
+          loginIdentifier: 'ADMIN',
+          loginIdentifierLower: 'admin',
+          passwordHash: hash,
+          role: 'admin',
+          name: 'System Administrator',
+          status: 'ACTIVE',
+        });
+      } else if (role === 'student') {
+        const hash = await User.hashPassword('password123');
+        const ete = await Department.findOne({ code: 'ETE' });
+        const student = await Student.create({
           name: 'Md. Jahid Hasan',
-          series: '22',
           rollNumber: '2204028',
+          series: '22',
+          session: '2022-23',
           department: 'ETE',
-          departmentRef: eteDept?._id,
-          facultyRef: eteDept?.faculty,
+          departmentRef: ete?._id,
           contactNo: '01712345678',
           password: 'password123',
           role: 'student'
         });
-      }
-      return res.json({
-        _id:        student._id,
-        name:       student.name,
-        rollNumber: student.rollNumber,
-        series:     student.series,
-        department: student.department,
-        departmentName: 'Electronics & Telecommunication Engineering',
-        facultyName: 'Faculty of Electrical & Computer Engineering',
-        contactNo:  student.contactNo,
-        role:       'student',
-        token:      generateToken(student._id, 'student', student.department),
-      });
-    }
-
-    // Teacher Demo: Md Abu Ismail Siddique (ETE-294) - Dept of ETE, RUET
-    if (role === 'teacher') {
-      let teacher = await Teacher.findOne({ teacherId: 'ETE-294' });
-      if (!teacher) {
-        const eteDept = await Department.findOne({ code: 'ETE' });
-        teacher = await Teacher.create({
-          name: 'Md Abu Ismail Siddique',
-          teacherId: 'ETE-294',
-          designation: 'Assistant Professor',
+        user = await User.create({
+          loginIdentifier: '2204028',
+          loginIdentifierLower: '2204028',
+          passwordHash: hash,
+          role: 'student',
+          name: 'Md. Jahid Hasan',
           department: 'ETE',
-          departmentRef: eteDept?._id,
-          facultyRef: eteDept?.faculty,
-          contactNo: '01712345679',
-          email: 'saif101303@gmail.com',
-          password: 'password123',
-          role: 'teacher'
+          profileRef: student._id,
+          profileModel: 'Student',
+          status: 'ACTIVE'
         });
       }
-      return res.json({
-        _id:        teacher._id,
-        name:       teacher.name,
-        teacherId:  teacher.teacherId,
-        designation: teacher.designation,
-        department: teacher.department,
-        departmentName: 'Electronics & Telecommunication Engineering',
-        facultyName: 'Faculty of Electrical & Computer Engineering',
-        contactNo:  teacher.contactNo,
-        role:       'teacher',
-        token:      generateToken(teacher._id, 'teacher', teacher.department),
-      });
     }
 
-    // Department Head Demo: ETE
-    if (role === 'department_head_ete' || role === 'admin') {
-      const eteDept = await Department.findOne({ code: 'ETE' });
-      const eceFaculty = await Faculty.findOne({ code: 'ECE' });
-
-      let admin = await Admin.findOne({ username: 'head-ete' });
-      if (!admin) {
-        admin = await Admin.create({
-          name: 'Dr. Md. Head ETE',
-          username: 'head-ete',
-          email: 'head@ete.ruet.ac.bd',
-          contactNo: '01700000101',
-          password: 'password123',
-          role: 'department_head',
-          designation: 'Head of ETE Department',
-          faculty: eceFaculty?._id,
-          facultyCode: 'ECE',
-          facultyName: 'Faculty of Electrical & Computer Engineering',
-          department: eteDept?._id,
-          departmentCode: 'ETE',
-          departmentName: 'Electronics & Telecommunication Engineering',
-          status: 'active'
-        });
-      } else {
-        admin.departmentCode = 'ETE';
-        admin.departmentName = 'Electronics & Telecommunication Engineering';
-        admin.facultyCode = 'ECE';
-        admin.facultyName = 'Faculty of Electrical & Computer Engineering';
-        admin.department = eteDept?._id;
-        admin.faculty = eceFaculty?._id;
-        admin.role = 'department_head';
-        await admin.save();
-      }
-
-      return res.json({
-        _id:            admin._id,
-        name:           admin.name,
-        username:       admin.username,
-        email:          admin.email,
-        contactNo:      admin.contactNo,
-        role:           admin.role,
-        designation:    admin.designation,
-        facultyCode:    'ECE',
-        facultyName:    'Faculty of Electrical & Computer Engineering',
-        departmentCode: 'ETE',
-        departmentName: 'Electronics & Telecommunication Engineering',
-        token:          generateToken(admin._id, admin.role, 'ETE'),
-      });
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'Demo account not found' });
     }
 
-    // Department Head Demo: EEE
-    if (role === 'department_head_eee') {
-      const eeeDept = await Department.findOne({ code: 'EEE' });
-      const eceFaculty = await Faculty.findOne({ code: 'ECE' });
+    const safeUser = await formatSafeUser(user);
+    const token = generateToken({
+      id: user.profileRef || user._id,
+      userId: user._id,
+      role: user.role,
+      departmentCode: user.department || '',
+      sessionVersion: user.sessionVersion || 1
+    });
 
-      let admin = await Admin.findOne({ username: 'head-eee' });
-      if (!admin) {
-        admin = await Admin.create({
-          name: 'Dr. Md. Head EEE',
-          username: 'head-eee',
-          email: 'head@eee.ruet.ac.bd',
-          contactNo: '01700000102',
-          password: 'password123',
-          role: 'department_head',
-          designation: 'Head of EEE Department',
-          faculty: eceFaculty?._id,
-          facultyCode: 'ECE',
-          facultyName: 'Faculty of Electrical & Computer Engineering',
-          department: eeeDept?._id,
-          departmentCode: 'EEE',
-          departmentName: 'Electrical & Electronic Engineering',
-          status: 'active'
-        });
-      }
-
-      return res.json({
-        _id:            admin._id,
-        name:           admin.name,
-        username:       admin.username,
-        email:          admin.email,
-        contactNo:      admin.contactNo,
-        role:           admin.role,
-        designation:    admin.designation,
-        facultyCode:    'ECE',
-        facultyName:    'Faculty of Electrical & Computer Engineering',
-        departmentCode: 'EEE',
-        departmentName: 'Electrical & Electronic Engineering',
-        token:          generateToken(admin._id, admin.role, 'EEE'),
-      });
-    }
-
-    // Department Head Demo: CSE
-    if (role === 'department_head_cse') {
-      const cseDept = await Department.findOne({ code: 'CSE' });
-      const eceFaculty = await Faculty.findOne({ code: 'ECE' });
-
-      let admin = await Admin.findOne({ username: 'head-cse' });
-      if (!admin) {
-        admin = await Admin.create({
-          name: 'Dr. Md. Head CSE',
-          username: 'head-cse',
-          email: 'head@cse.ruet.ac.bd',
-          contactNo: '01700000103',
-          password: 'password123',
-          role: 'department_head',
-          designation: 'Head of CSE Department',
-          faculty: eceFaculty?._id,
-          facultyCode: 'ECE',
-          facultyName: 'Faculty of Electrical & Computer Engineering',
-          department: cseDept?._id,
-          departmentCode: 'CSE',
-          departmentName: 'Computer Science & Engineering',
-          status: 'active'
-        });
-      }
-
-      return res.json({
-        _id:            admin._id,
-        name:           admin.name,
-        username:       admin.username,
-        email:          admin.email,
-        contactNo:      admin.contactNo,
-        role:           admin.role,
-        designation:    admin.designation,
-        facultyCode:    'ECE',
-        facultyName:    'Faculty of Electrical & Computer Engineering',
-        departmentCode: 'CSE',
-        departmentName: 'Computer Science & Engineering',
-        token:          generateToken(admin._id, admin.role, 'CSE'),
-      });
-    }
-
-    return res.status(400).json({ message: 'Invalid role for demo login' });
+    return res.json({
+      success: true,
+      message: 'Demo login successful',
+      user: safeUser,
+      token
+    });
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    console.error('demoLogin error:', err);
+    res.status(500).json({ success: false, message: err.message });
   }
 };
 
 module.exports = {
+  login,
   registerStudent,
-  loginStudent,
   registerTeacher,
-  loginTeacher,
+  registerHead,
   registerAdmin,
-  loginAdmin,
+  getCurrentUser,
+  changePassword,
+  logout,
+  logoutAll,
   demoLogin
 };

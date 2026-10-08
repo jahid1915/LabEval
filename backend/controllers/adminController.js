@@ -21,7 +21,7 @@ const bcrypt = require('bcryptjs');
 
 // Helper to get department isolation filter
 const getDeptFilter = (req) => {
-  if (req.user && req.user.departmentCode && req.user.role !== 'super_admin') {
+  if (req.user && req.user.departmentCode && req.user.role !== 'super_admin' && req.user.role !== 'admin') {
     return req.user.departmentCode.toUpperCase();
   }
   return null;
@@ -405,14 +405,19 @@ const createStudent = async (req, res) => {
     const exists = await Student.findOne({ rollNumber: cleanRoll });
     if (exists) return res.status(400).json({ message: 'Roll number already registered' });
 
+    const cleanRegNo = (registrationNo !== undefined ? registrationNo : registrationNumber)?.trim() || '';
+    if (!password && !cleanRegNo) {
+      return res.status(400).json({ message: 'Registration number is required as the initial password' });
+    }
+
     const deptDoc = await Department.findOne({ code: targetDept });
-    const finalPassword = password || cleanRoll || 'Student@123';
+    const finalPassword = password || cleanRegNo;
 
     const studentData = {
       name: name.trim(),
       series: series.trim(),
       rollNumber: cleanRoll,
-      registrationNumber: (registrationNo !== undefined ? registrationNo : registrationNumber)?.trim() || '',
+      registrationNumber: cleanRegNo,
       department: targetDept,
       departmentRef: deptDoc ? deptDoc._id : null,
       facultyRef: deptDoc ? deptDoc.faculty : null,
@@ -652,7 +657,11 @@ const resetStudentPassword = async (req, res) => {
     const student = await Student.findById(req.params.id);
     if (!student) return res.status(404).json({ message: 'Student not found' });
 
-    const newPass = req.body.password || student.rollNumber;
+    const regNo = student.registrationNumber ? student.registrationNumber.trim() : '';
+    if (!req.body.password && !regNo) {
+      return res.status(400).json({ message: 'No registration number available on record to reset default password. Please specify a new password.' });
+    }
+    const newPass = req.body.password || regNo;
     const salt = await bcrypt.genSalt(10);
     student.password = await bcrypt.hash(newPass, salt);
     student.updatedAt = new Date();

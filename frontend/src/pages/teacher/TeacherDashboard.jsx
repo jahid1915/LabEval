@@ -11,11 +11,6 @@ import {
   FileText, ExternalLink, Sparkles
 } from 'lucide-react';
 import { toast } from 'react-toastify';
-import { calculateRUETGrade } from '../../utils/gradeCalculator';
-import {
-  generateRUETPDFReport,
-  generateRUETXLSXReport
-} from '../../utils/ruetReportGenerator';
 import EvaluationLayoutModal from '../../components/EvaluationLayoutModal';
 import RuetLogo from '../../components/RuetLogo';
 

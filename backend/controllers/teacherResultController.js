@@ -11,30 +11,38 @@ const FinalResult = require('../models/FinalResult');
 const { calculateRUETGrade } = require('../utils/gradeCalculator');
 const { logAudit } = require('../middleware/auditMiddleware');
 
-// Default assessment config (RUET standard: Quiz 20, Report 15, Viva 10, Test 20, Open Ended 0, Attendance 10 = Total 65 or 75)
+// LabEval Official Marking Structure (per spec): Total = 75 marks
+// Attendance(5) + Reports(10) + Performance(5) + Quiz(30) + Test(20) + Others(5)
 const DEFAULT_CONFIG = {
-  quiz:        20,
-  labReport:   15,
-  labViva:     10,
+  attendance:  5,
+  report:      10,
+  performance: 5,
+  quiz:        30,
+  test:        20,
+  others:      5,
+  // Legacy field aliases (kept for backward compat)
+  labReport:   10,
+  labViva:     0,
   labTest:     20,
   openEnded:   0,
-  attendance:  10,
-  others:      0,
-  // legacy fallback
-  performance: 5,
-  report:      10,
-  test:        20,
 };
 
-const resolveConfig = (sourceDoc) => ({
-  quiz:        sourceDoc?.assessmentConfig?.quiz        ?? sourceDoc?.defaultAssessmentConfig?.quiz        ?? DEFAULT_CONFIG.quiz,
-  labReport:   sourceDoc?.assessmentConfig?.labReport   ?? sourceDoc?.defaultAssessmentConfig?.labReport   ?? DEFAULT_CONFIG.labReport,
-  labViva:     sourceDoc?.assessmentConfig?.labViva     ?? sourceDoc?.defaultAssessmentConfig?.labViva     ?? DEFAULT_CONFIG.labViva,
-  labTest:     sourceDoc?.assessmentConfig?.labTest     ?? sourceDoc?.defaultAssessmentConfig?.labTest     ?? DEFAULT_CONFIG.labTest,
-  openEnded:   sourceDoc?.assessmentConfig?.openEnded   ?? sourceDoc?.defaultAssessmentConfig?.openEnded   ?? DEFAULT_CONFIG.openEnded,
-  attendance:  sourceDoc?.assessmentConfig?.attendance  ?? sourceDoc?.defaultAssessmentConfig?.attendance  ?? DEFAULT_CONFIG.attendance,
-  others:      sourceDoc?.assessmentConfig?.others      ?? sourceDoc?.defaultAssessmentConfig?.others      ?? DEFAULT_CONFIG.others,
-});
+const resolveConfig = (sourceDoc) => {
+  const ac = sourceDoc?.assessmentConfig || sourceDoc?.defaultAssessmentConfig || {};
+  return {
+    attendance:  ac.attendance  ?? DEFAULT_CONFIG.attendance,
+    report:      ac.report      ?? ac.labReport ?? DEFAULT_CONFIG.report,
+    performance: ac.performance ?? DEFAULT_CONFIG.performance,
+    quiz:        ac.quiz        ?? DEFAULT_CONFIG.quiz,
+    test:        ac.test        ?? ac.labTest   ?? DEFAULT_CONFIG.test,
+    others:      ac.others      ?? DEFAULT_CONFIG.others,
+    // Legacy aliases for backward compat with existing FinalResult records
+    labReport:   ac.report      ?? ac.labReport ?? DEFAULT_CONFIG.labReport,
+    labViva:     ac.labViva     ?? 0,
+    labTest:     ac.test        ?? ac.labTest   ?? DEFAULT_CONFIG.labTest,
+    openEnded:   ac.openEnded   ?? 0,
+  };
+};
 
 const getPercentageMark = (percentage, maxMark) => {
   if (percentage >= 90) return maxMark;
@@ -68,7 +76,8 @@ const getFinalResults = async (req, res) => {
     }
 
     const cfg = resolveConfig(configDoc);
-    const maxTotalMarks = (cfg.quiz + cfg.labReport + cfg.labViva + cfg.labTest + cfg.attendance + cfg.others) || 65;
+    // LabEval official: Attendance(5) + Reports(10) + Performance(5) + Quiz(30) + Test(20) + Others(5) = 75
+    const maxTotalMarks = (cfg.attendance + cfg.report + cfg.performance + cfg.quiz + cfg.test + cfg.others) || 75;
 
     const students     = await Student.find(query).sort({ rollNumber: 1 });
     const attendances  = await Attendance.find({ course: courseId });
@@ -95,39 +104,38 @@ const getFinalResults = async (req, res) => {
       const attPct       = (presentCount / totalClassesTaken) * 100;
       const attMark      = saved?.attendanceMarks !== undefined ? saved.attendanceMarks : getPercentageMark(attPct, cfg.attendance);
 
-      // Report
+      // Report (labReport alias support)
       const stuRep       = reports.filter(r => r.student.toString() === stuId);
       const submittedCnt = stuRep.filter(r => r.status === 'Submitted').length;
       const repPct       = (submittedCnt / totalClassesTaken) * 100;
-      const repMark      = saved?.reportMarks !== undefined ? saved.reportMarks : getPercentageMark(repPct, cfg.labReport);
+      const repMark      = saved?.reportMarks !== undefined ? saved.reportMarks : getPercentageMark(repPct, cfg.report);
 
-      // Viva
-      const vivaMark = saved?.vivaMarks !== undefined ? saved.vivaMarks : 0;
-
-      // Performance
+      // Performance (new field)
       const stuPerf  = performances.filter(p => p.student.toString() === stuId);
-      const perfMark = stuPerf.length > 0
-        ? Math.round((stuPerf.reduce((s, p) => s + p.marks, 0) / stuPerf.length) * 100) / 100
-        : 0;
+      const perfMark = saved?.performanceMarks !== undefined ? saved.performanceMarks :
+        (stuPerf.length > 0
+          ? Math.min(Math.round((stuPerf.reduce((s, p) => s + p.marks, 0) / stuPerf.length) * 100) / 100, cfg.performance)
+          : 0);
 
-      // Quiz
-      const quizMark = saved?.quizMarks !== undefined ? saved.quizMarks : (quizzes.find(q => q.student.toString() === stuId)?.marks || 0);
+      // Quiz (summed from multiple quiz entries, capped at cfg.quiz)
+      const stuQuizzes = quizzes.filter(q => q.student.toString() === stuId);
+      const quizMark = saved?.quizMarks !== undefined ? saved.quizMarks :
+        Math.min(stuQuizzes.reduce((s, q) => s + (q.marks || 0), 0), cfg.quiz);
 
-      // Test
-      const testMark = saved?.testMarks !== undefined ? saved.testMarks : (tests.find(t => t.student.toString() === stuId)?.marks || 0);
-
-      // Open ended
-      const openEndedMark = saved?.openEndedMarks !== undefined ? saved.openEndedMarks : 'A';
+      // Test (summed from multiple test entries, capped at cfg.test)
+      const stuTests = tests.filter(t => t.student.toString() === stuId);
+      const testMark = saved?.testMarks !== undefined ? saved.testMarks :
+        Math.min(stuTests.reduce((s, t) => s + (t.marks || 0), 0), cfg.test);
 
       // Others
       const stuOthers  = others.filter(o => o.student.toString() === stuId);
-      const otherMark  = saved?.othersMarks !== undefined ? saved.othersMarks : Math.min(stuOthers.reduce((s, o) => s + o.marks, 0), cfg.others);
+      const otherMark  = saved?.othersMarks !== undefined ? saved.othersMarks :
+        Math.min(stuOthers.reduce((s, o) => s + (o.marks || 0), 0), cfg.others);
 
-      // Total marks
-      const numOE = (openEndedMark === 'A' || isNaN(Number(openEndedMark))) ? 0 : Number(openEndedMark);
-      const totalMark = saved?.totalMarks !== undefined 
-        ? saved.totalMarks 
-        : Math.round((attMark + repMark + vivaMark + perfMark + quizMark + testMark + numOE + otherMark) * 100) / 100;
+      // Total marks = Attendance + Reports + Performance + Quiz + Test + Others
+      const totalMark = saved?.totalMarks !== undefined
+        ? saved.totalMarks
+        : Math.round((attMark + repMark + perfMark + quizMark + testMark + otherMark) * 100) / 100;
 
       const { grade, gradePoint } = calculateRUETGrade(totalMark, maxTotalMarks);
 
@@ -135,11 +143,9 @@ const getFinalResults = async (req, res) => {
         student: { _id: student._id, name: student.name, rollNumber: student.rollNumber, series: student.series, department: student.department },
         attendanceMark: attMark,
         reportMark:     repMark,
-        vivaMark:       vivaMark,
         perfMark,
         quizMark,
         testMark,
-        openEndedMark,
         otherMark,
         totalMark,
         maxTotalMarks,
@@ -159,6 +165,7 @@ const getFinalResults = async (req, res) => {
   }
 };
 
+
 // @desc Save / Submit Mark Sheet (with RUET grade & grade point calculation)
 // @route POST /api/teacher/results/:courseId/submit
 const submitMarkSheet = async (req, res) => {
@@ -174,7 +181,8 @@ const submitMarkSheet = async (req, res) => {
     const courseDoc = await Course.findOne({ courseCode: cleanCourseCode });
 
     const cfg = resolveConfig(offeringDoc || courseDoc);
-    const maxTotalMarks = (cfg.quiz + cfg.labReport + cfg.labViva + cfg.labTest + cfg.attendance + cfg.others) || 65;
+    // LabEval official: Attendance(5) + Reports(10) + Performance(5) + Quiz(30) + Test(20) + Others(5) = 75
+    const maxTotalMarks = (cfg.attendance + cfg.report + cfg.performance + cfg.quiz + cfg.test + cfg.others) || 75;
 
     const sanitizeMark = (val, max) => {
       if (val === undefined || val === null || val === '') return 0;
@@ -184,25 +192,30 @@ const submitMarkSheet = async (req, res) => {
     };
 
     const ops = records.map(async (r) => {
-      const q = sanitizeMark(r.quizMark, cfg.quiz);
-      const rep = sanitizeMark(r.reportMark, cfg.labReport);
-      const viv = sanitizeMark(r.vivaMark, cfg.labViva);
-      const t = sanitizeMark(r.testMark, cfg.labTest);
-      const oe = r.openEndedMark === 'A' ? 'A' : sanitizeMark(r.openEndedMark, cfg.openEnded || 20);
-      const att = sanitizeMark(r.attendanceMark, cfg.attendance);
-      const numOE = oe === 'A' ? 0 : oe;
-      const rawTot = r.totalMark !== undefined && !isNaN(Number(r.totalMark)) ? Number(r.totalMark) : (q + rep + viv + t + numOE + att);
+      const att  = sanitizeMark(r.attendanceMark, cfg.attendance);
+      const rep  = sanitizeMark(r.reportMark,     cfg.report);
+      const perf = sanitizeMark(r.perfMark,        cfg.performance);
+      const q    = sanitizeMark(r.quizMark,        cfg.quiz);
+      const t    = sanitizeMark(r.testMark,        cfg.test);
+      const oth  = sanitizeMark(r.otherMark,       cfg.others);
+
+      const rawTot = r.totalMark !== undefined && !isNaN(Number(r.totalMark))
+        ? Number(r.totalMark)
+        : (att + rep + perf + q + t + oth);
       const tot = sanitizeMark(rawTot, maxTotalMarks);
       const { grade, gradePoint } = calculateRUETGrade(tot, maxTotalMarks);
 
+      // Store detailedMarks in both legacy and new field names for compat
       const detailedMarks = {
-        quiz: q,
-        labReport: rep,
-        labViva: viv,
-        labTest: t,
-        openEnded: oe,
         attendance: att,
-        total: tot,
+        report:     rep,
+        labReport:  rep,
+        performance: perf,
+        quiz:        q,
+        test:        t,
+        labTest:     t,
+        others:      oth,
+        total:       tot,
         grade,
         gradePoint
       };
@@ -215,7 +228,7 @@ const submitMarkSheet = async (req, res) => {
           studentName: r.studentName || '',
           department: r.department || req.user.department,
           series: r.series || offeringDoc?.seriesName || '22',
-          semester: semester || offeringDoc?.semesterName || courseDoc?.semesterLevel || '3-2',
+          semester: semester || offeringDoc?.semesterName || courseDoc?.semesterLevel || '',
           academicSession: academicSession || offeringDoc?.sessionName || '2024-2025',
           course: cleanCourseCode,
           courseName: offeringDoc?.courseName || courseDoc?.courseName || cleanCourseCode,
@@ -223,12 +236,12 @@ const submitMarkSheet = async (req, res) => {
           teacher: req.user._id,
           teacherId: req.user.teacherId,
           teacherName: req.user.name,
-          quizMarks: q,
-          reportMarks: rep,
-          vivaMarks: viv,
-          testMarks: t,
-          openEndedMarks: oe,
           attendanceMarks: att,
+          reportMarks: rep,
+          performanceMarks: perf,
+          quizMarks: q,
+          testMarks: t,
+          othersMarks: oth,
           totalMarks: tot,
           maxTotalMarks,
           grade,
@@ -236,7 +249,7 @@ const submitMarkSheet = async (req, res) => {
           detailedMarks,
           status,
           isPublished: status === 'published',
-          publishedAt: status === 'published' ? new Date() : null
+          publishedAt: status === 'published' ? new Date() : undefined
         },
         { upsert: true, returnDocument: 'after' }
       );
@@ -251,7 +264,7 @@ const submitMarkSheet = async (req, res) => {
       details: `${req.user.name} saved marks for ${cleanCourseCode} [Status: ${status}]`
     });
 
-    res.json({ message: `Mark sheet ${status} successfully`, count: records.length });
+    res.json({ success: true, message: `Mark sheet ${status} successfully`, count: records.length });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
@@ -261,3 +274,4 @@ module.exports = {
   getFinalResults,
   submitMarkSheet
 };
+

@@ -8,14 +8,17 @@ const otpSchema = new mongoose.Schema({
     trim: true,
     index: true
   },
-  otp: {
+  otpHash: {
     type: String,
-    required: true,
-    trim: true
+    required: true
   },
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     required: true
+  },
+  studentId: {
+    type: mongoose.Schema.Types.ObjectId,
+    ref: 'Student'
   },
   userModel: {
     type: String,
@@ -36,10 +39,14 @@ const otpSchema = new mongoose.Schema({
     type: Boolean,
     default: false
   },
+  attemptCount: {
+    type: Number,
+    default: 0
+  },
   expiresAt: {
     type: Date,
     required: true,
-    default: () => new Date(Date.now() + 10 * 60 * 1000) // 10 minutes
+    default: () => new Date(Date.now() + 5 * 60 * 1000) // 5 minutes
   }
 }, { timestamps: true });
 

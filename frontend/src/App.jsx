@@ -1,75 +1,100 @@
-import React from 'react';
+import React, { Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, AuthContext } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ToastContainer } from 'react-toastify';
 import ErrorBoundary from './components/ErrorBoundary';
 import 'react-toastify/dist/ReactToastify.css';
+import ScrollToTop from './components/ScrollToTop';
 
-// Layouts
+// Layouts (loaded eagerly — small, always needed)
 import DashboardLayout from './layouts/DashboardLayout';
 import LandingLayout   from './layouts/LandingLayout';
 
+// ── Lazy-Loaded Pages ─────────────────────────────────────────────────
 // Public Pages
-import Home    from './pages/public/Home';
-import About   from './pages/public/About';
-import Contact from './pages/public/Contact';
+const Home    = React.lazy(() => import('./pages/public/Home'));
+const About   = React.lazy(() => import('./pages/public/About'));
+const Contact = React.lazy(() => import('./pages/public/Contact'));
 
-// Unified Customized Auth Page
-import AuthPage from './pages/auth/AuthPage';
-import ScrollToTop from './components/ScrollToTop';
+// Auth
+const AuthPage        = React.lazy(() => import('./pages/auth/AuthPage'));
+const AdminLoginPage  = React.lazy(() => import('./pages/auth/AdminLoginPage'));
 
 // Admin Pages
-import AdminDashboard       from './pages/admin/AdminDashboard';
-import FacultiesPage         from './pages/admin/FacultiesPage';
-import DepartmentsPage       from './pages/admin/DepartmentsPage';
-import SeriesPage            from './pages/admin/SeriesPage';
-import AcademicSessionsPage  from './pages/admin/AcademicSessionsPage';
-import TeachersPage          from './pages/admin/TeachersPage';
-import StudentsPage          from './pages/admin/StudentsPage';
-import CourseCatalogPage     from './pages/admin/CourseCatalogPage';
-import CourseOfferingsPage   from './pages/admin/CourseOfferingsPage';
-import StudentImportPage     from './pages/admin/StudentImportPage';
-import ImportHistoryPage     from './pages/admin/ImportHistoryPage';
-import ElectiveManagementPage from './pages/admin/ElectiveManagementPage';
+const AdminDashboard        = React.lazy(() => import('./pages/admin/AdminDashboard'));
+const FacultiesPage         = React.lazy(() => import('./pages/admin/FacultiesPage'));
+const DepartmentsPage       = React.lazy(() => import('./pages/admin/DepartmentsPage'));
+const SeriesPage            = React.lazy(() => import('./pages/admin/SeriesPage'));
+const AcademicSessionsPage  = React.lazy(() => import('./pages/admin/AcademicSessionsPage'));
+const TeachersPage          = React.lazy(() => import('./pages/admin/TeachersPage'));
+const StudentsPage          = React.lazy(() => import('./pages/admin/StudentsPage'));
+const CourseCatalogPage     = React.lazy(() => import('./pages/admin/CourseCatalogPage'));
+const CourseOfferingsPage   = React.lazy(() => import('./pages/admin/CourseOfferingsPage'));
+const StudentImportPage     = React.lazy(() => import('./pages/admin/StudentImportPage'));
+const ImportHistoryPage     = React.lazy(() => import('./pages/admin/ImportHistoryPage'));
+const ElectiveManagementPage = React.lazy(() => import('./pages/admin/ElectiveManagementPage'));
 
 // Teacher Pages
-import TeacherDashboard from './pages/teacher/TeacherDashboard';
-import Courses          from './pages/teacher/Courses';
-import Attendance       from './pages/teacher/Attendance';
-import Performance      from './pages/teacher/Performance';
-import Quiz             from './pages/teacher/Quiz';
-import Test             from './pages/teacher/Test';
-import Others           from './pages/teacher/Others';
-import FinalResult      from './pages/teacher/FinalResult';
-import TeacherLeavePage from './pages/teacher/TeacherLeavePage';
-import TeacherElectivesPage from './pages/teacher/TeacherElectivesPage';
+const TeacherDashboard  = React.lazy(() => import('./pages/teacher/TeacherDashboard'));
+const Courses           = React.lazy(() => import('./pages/teacher/Courses'));
+const Attendance        = React.lazy(() => import('./pages/teacher/Attendance'));
+const Performance       = React.lazy(() => import('./pages/teacher/Performance'));
+const Quiz              = React.lazy(() => import('./pages/teacher/Quiz'));
+const Test              = React.lazy(() => import('./pages/teacher/Test'));
+const Others            = React.lazy(() => import('./pages/teacher/Others'));
+const FinalResult       = React.lazy(() => import('./pages/teacher/FinalResult'));
+const TeacherLeavePage  = React.lazy(() => import('./pages/teacher/TeacherLeavePage'));
+const TeacherElectivesPage = React.lazy(() => import('./pages/teacher/TeacherElectivesPage'));
 
 // Student Pages
-import StudentDashboard from './pages/student/StudentDashboard';
-import StudentMarksPage from './pages/student/StudentMarksPage';
-import StudentElectiveSelection from './pages/student/StudentElectiveSelection';
+const StudentDashboard         = React.lazy(() => import('./pages/student/StudentDashboard'));
+const StudentMarksPage         = React.lazy(() => import('./pages/student/StudentMarksPage'));
+const StudentElectiveSelection = React.lazy(() => import('./pages/student/StudentElectiveSelection'));
+const StudentAcademicHistory   = React.lazy(() => import('./pages/student/StudentAcademicHistory'));
+const StudentProfile           = React.lazy(() => import('./pages/student/StudentProfile'));
 
-// Protected Route guard
+// ── Loading Fallback ──────────────────────────────────────────────────
+const PageLoader = () => (
+  <div className="h-screen w-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
+    <div className="flex flex-col items-center gap-3">
+      <div className="w-8 h-8 border-3 border-slate-300 dark:border-slate-600 border-t-blue-600 rounded-full animate-spin" />
+      <span className="text-sm text-slate-500 dark:text-slate-400 font-medium">Loading...</span>
+    </div>
+  </div>
+);
+
+// ── Protected Route Guard ─────────────────────────────────────────────
 const ProtectedRoute = ({ children, allowedRole }) => {
   const { user, loading } = React.useContext(AuthContext);
-  if (loading) return (
-    <div className="h-screen w-screen flex items-center justify-center bg-slate-50 dark:bg-slate-950">
-      <span className="loading loading-spinner text-primary loading-lg"></span>
-    </div>
-  );
+  if (loading) return <PageLoader />;
   if (!user) return <Navigate to="/login" replace />;
   
   const isAuthorized = allowedRole === 'admin'
-    ? (user.role === 'admin' || user.role === 'department_head')
-    : user.role === allowedRole;
+    ? (user.role === 'admin' || user.role === 'super_admin' || user.role === 'department_head')
+    : (allowedRole === 'department_head'
+      ? (user.role === 'department_head' || user.role === 'admin' || user.role === 'super_admin')
+      : user.role === allowedRole);
 
   if (allowedRole && !isAuthorized) {
-    if (user.role === 'admin' || user.role === 'department_head') return <Navigate to="/admin" replace />;
+    if (user.role === 'admin' || user.role === 'super_admin') return <Navigate to="/admin" replace />;
+    if (user.role === 'department_head') return <Navigate to="/admin" replace />;
     if (user.role === 'teacher') return <Navigate to="/teacher" replace />;
     return <Navigate to="/student" replace />;
   }
   return children;
+};
+
+// ── Hidden Admin Route Component ───────────────────────────────────────
+// If unauthenticated: displays dedicated Admin Login page
+// If authenticated as Admin or Department Head: renders Admin Dashboard
+const AdminPortalGuard = () => {
+  const { user, loading } = React.useContext(AuthContext);
+  if (loading) return <PageLoader />;
+  if (!user || (user.role !== 'admin' && user.role !== 'super_admin' && user.role !== 'department_head')) {
+    return <AdminLoginPage />;
+  }
+  return <DashboardLayout />;
 };
 
 export default function App() {
@@ -80,6 +105,7 @@ export default function App() {
         <Router>
           <ScrollToTop />
           <ToastContainer position="top-right" autoClose={3000} theme="colored" />
+          <Suspense fallback={<PageLoader />}>
           <Routes>
             {/* ── Public / Landing ──────────────────────────────── */}
             <Route element={<LandingLayout />}>
@@ -88,22 +114,20 @@ export default function App() {
               <Route path="/contact" element={<Contact />} />
             </Route>
 
-            {/* ── Unified & Customized Auth Portal ──────────────── */}
+            {/* ── Public Auth Portal (Student, Teacher, Head) ───── */}
             <Route path="/login"          element={<AuthPage />} />
-            <Route path="/signup"         element={<AuthPage />} />
             <Route path="/auth"           element={<AuthPage />} />
             <Route path="/login/student"  element={<AuthPage />} />
-            <Route path="/signup/student" element={<AuthPage />} />
             <Route path="/login/teacher"  element={<AuthPage />} />
-            <Route path="/signup/teacher" element={<AuthPage />} />
-            <Route path="/login/admin"    element={<AuthPage />} />
+            <Route path="/login/head"     element={<AuthPage />} />
 
-            {/* ── Admin Routes ──────────────────────────────────── */}
-            <Route path="/admin" element={
-              <ProtectedRoute allowedRole="admin">
-                <DashboardLayout />
-              </ProtectedRoute>
-            }>
+            <Route path="/signup"         element={<AuthPage />} />
+            <Route path="/signup/student" element={<AuthPage />} />
+            <Route path="/signup/teacher" element={<AuthPage />} />
+            <Route path="/signup/head"    element={<AuthPage />} />
+
+            {/* Hidden admin access route */}
+            <Route path="/admin" element={<AdminPortalGuard />}>
               <Route index                  element={<AdminDashboard />} />
               <Route path="faculties"       element={<FacultiesPage />} />
               <Route path="departments"     element={<DepartmentsPage />} />
@@ -117,6 +141,9 @@ export default function App() {
               <Route path="import-history"   element={<ImportHistoryPage />} />
               <Route path="electives"        element={<ElectiveManagementPage />} />
             </Route>
+
+            {/* Department Head alias */}
+            <Route path="/head" element={<Navigate to="/admin" replace />} />
 
             {/* ── Teacher Routes ────────────────────────────────── */}
             <Route path="/teacher" element={
@@ -145,11 +172,14 @@ export default function App() {
               <Route index element={<StudentDashboard />} />
               <Route path="electives" element={<StudentElectiveSelection />} />
               <Route path="marks/:courseCode" element={<StudentMarksPage />} />
+              <Route path="history" element={<StudentAcademicHistory />} />
+              <Route path="profile" element={<StudentProfile />} />
             </Route>
 
             {/* ── Catch-all ─────────────────────────────────────── */}
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
+          </Suspense>
         </Router>
         </ErrorBoundary>
       </AuthProvider>

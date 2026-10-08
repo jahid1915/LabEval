@@ -13,7 +13,12 @@ const {
   getImportHistory,
   getImportJobDetail,
   getSessionForSeries,
-  exportStudents
+  exportStudents,
+  getSession,
+  updateSessionMapping,
+  updateSessionCorrection,
+  updateSessionCredentials,
+  deleteSession
 } = require('../controllers/importController');
 const { protect, adminOnly } = require('../middleware/authMiddleware');
 
@@ -31,6 +36,13 @@ router.use(adminOnly);
 
 // Step 1: Upload and parse XLSX to inspect sheets and headers
 router.post('/students/parse', uploadMiddleware, parseUpload);
+
+// Session State Management (Requirements 2, 8, 10, 34, 35)
+router.get('/session/:sessionId', getSession);
+router.patch('/session/:sessionId/mapping', updateSessionMapping);
+router.patch('/session/:sessionId/correction', updateSessionCorrection);
+router.patch('/session/:sessionId/credentials', updateSessionCredentials);
+router.delete('/session/:sessionId', deleteSession);
 
 // Step 2 & 3: Preview import (validate, selective mapping, duplicate checks)
 router.post('/students/preview', previewImport);

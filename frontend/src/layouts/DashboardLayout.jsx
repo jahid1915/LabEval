@@ -60,6 +60,9 @@ const studentNav = [
   { heading: 'Academic' },
   { to: '/student', icon: LayoutDashboard, label: 'My Courses', end: true },
   { to: '/student/electives', icon: Sparkles, label: 'Elective Selection' },
+  { to: '/student/history', icon: FileText, label: 'Academic History' },
+  { heading: 'Account' },
+  { to: '/student/profile', icon: Users, label: 'My Profile' },
 ];
 
 /* ── Sidebar Component ───────────────────────────────────── */

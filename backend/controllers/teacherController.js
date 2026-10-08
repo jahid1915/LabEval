@@ -99,19 +99,26 @@ const saveLabRecord = async (req, res, Model) => {
     // Validate marks against course's assessmentConfig if marks are provided
     if (marks !== undefined && marks !== null) {
       const Course = require('../models/Course');
-      const courseDoc = await Course.findOne({ courseCode: courseId.trim().toUpperCase(), teacherId: req.user.teacherId });
-      if (courseDoc && courseDoc.assessmentConfig) {
-        let configKey = '';
-        if (Model.modelName === 'Performance') configKey = 'performance';
-        else if (Model.modelName === 'Quiz') configKey = 'quiz';
-        else if (Model.modelName === 'Test') configKey = 'test';
-        else if (Model.modelName === 'Others') configKey = 'others';
+      const CourseOffering = require('../models/CourseOffering');
+      const cleanCourse = courseId.trim().toUpperCase();
+      const courseDoc = await Course.findOne({ courseCode: cleanCourse }) || await CourseOffering.findOne({ courseCode: cleanCourse });
+      const config = courseDoc?.assessmentConfig || courseDoc?.defaultAssessmentConfig || {
+        performance: 5,
+        quiz: 30,
+        test: 20,
+        others: 5
+      };
 
-        if (configKey) {
-          const maxAllowed = courseDoc.assessmentConfig[configKey] ?? 75;
-          if (marks > maxAllowed) {
-            return res.status(400).json({ message: `Marks (${marks}) exceed maximum configured limit of ${maxAllowed} for ${configKey}.` });
-          }
+      let configKey = '';
+      if (Model.modelName === 'Performance') configKey = 'performance';
+      else if (Model.modelName === 'Quiz') configKey = 'quiz';
+      else if (Model.modelName === 'Test') configKey = 'test';
+      else if (Model.modelName === 'Others') configKey = 'others';
+
+      if (configKey) {
+        const maxAllowed = config[configKey] ?? 30;
+        if (Number(marks) > maxAllowed) {
+          return res.status(400).json({ message: `Marks (${marks}) exceed maximum configured limit of ${maxAllowed} for ${configKey}.` });
         }
       }
     }

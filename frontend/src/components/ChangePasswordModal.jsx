@@ -93,9 +93,6 @@ export default function ChangePasswordModal({ isOpen, onClose, initialRole = 'st
 
       const res = await api.post('/auth/send-otp', payload);
       setMaskedEmail(res.data.emailMasked || email);
-      if (res.data.devOtp) {
-        setDevOtp(res.data.devOtp);
-      }
       toast.success(res.data.message || 'OTP sent successfully to your Gmail!');
       setCountdown(60);
       setStep('verify');

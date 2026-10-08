@@ -10,7 +10,6 @@ import {
   FileText, Award, Calendar, ChevronRight, Sparkles,
   ShieldCheck, AlertCircle, CheckCircle2, Download
 } from 'lucide-react';
-import { generateStudentAcademicTranscriptPDF } from '../../utils/ruetReportGenerator';
 import RuetLogo from '../../components/RuetLogo';
 
 const ALL_SEMESTERS = ['1-1', '1-2', '2-1', '2-2', '3-1', '3-2', '4-1', '4-2'];
@@ -70,6 +69,7 @@ export default function StudentDashboard() {
   // Download Transcript PDF (Section 17 & 18)
   const handleDownloadTranscript = async () => {
     try {
+      const { generateStudentAcademicTranscriptPDF } = await import('../../utils/ruetReportGenerator');
       await generateStudentAcademicTranscriptPDF({
         student: {
           name: user?.name || 'Md. Jahid Hasan',
