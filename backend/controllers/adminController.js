@@ -780,8 +780,26 @@ const bulkStudentAction = async (req, res) => {
     let resultMessage = '';
 
     if (action === 'delete') {
-      const resDel = await Student.deleteMany(filter);
-      resultMessage = `Deleted ${resDel.deletedCount} students`;
+      const candidates = await Student.find(filter);
+      const successful = [];
+      const skipped = [];
+      for (const st of candidates) {
+        const [attCount, perfCount] = await Promise.all([
+          Attendance.countDocuments({ $or: [{ studentId: st.rollNumber }, { student: st._id }] }),
+          Performance.countDocuments({ $or: [{ studentId: st.rollNumber }, { rollNumber: st.rollNumber }] })
+        ]);
+        if (attCount > 0 || perfCount > 0) {
+          skipped.push({ id: st._id, rollNumber: st.rollNumber, reason: 'Has active academic records' });
+        } else {
+          await User.deleteMany({
+            $or: [{ loginIdentifierLower: st.rollNumber.toLowerCase() }, { profileRef: st._id }]
+          });
+          await st.deleteOne();
+          successful.push({ id: st._id, rollNumber: st.rollNumber });
+        }
+      }
+      resultMessage = `Deleted ${successful.length} students (${skipped.length} skipped due to academic records)`;
+      return res.json({ success: true, message: resultMessage, successful, skipped });
     } else if (action === 'deactivate') {
       const resUpd = await Student.updateMany(filter, { $set: { status: 'inactive', updatedAt: new Date() } });
       resultMessage = `Deactivated ${resUpd.modifiedCount} students`;
@@ -814,7 +832,7 @@ const bulkStudentAction = async (req, res) => {
   }
 };
 
-// DELETE /api/admin/students/:id
+// DELETE /api/admin/students/:id (Referential Integrity Protected)
 const deleteStudent = async (req, res) => {
   try {
     const deptFilter = getDeptFilter(req);
@@ -824,6 +842,34 @@ const deleteStudent = async (req, res) => {
     if (deptFilter && student.department !== deptFilter) {
       return res.status(403).json({ message: 'Unauthorized: Cannot delete student from another department' });
     }
+
+    // Check academic dependencies (Section 16 & 62)
+    const [attCount, perfCount, quizCount, testCount, othersCount] = await Promise.all([
+      Attendance.countDocuments({ $or: [{ studentId: student.rollNumber }, { student: student._id }] }),
+      Performance.countDocuments({ $or: [{ studentId: student.rollNumber }, { rollNumber: student.rollNumber }] }),
+      Quiz.countDocuments({ studentId: student.rollNumber }),
+      Test.countDocuments({ studentId: student.rollNumber }),
+      Others.countDocuments({ studentId: student.rollNumber })
+    ]);
+
+    const totalRecords = attCount + perfCount + quizCount + testCount + othersCount;
+    if (totalRecords > 0 && !req.query.force) {
+      return res.status(409).json({
+        success: false,
+        error: {
+          code: 'DEPENDENCY_EXISTS',
+          message: `This student has active academic records (${attCount} attendance, ${perfCount + quizCount + testCount + othersCount} marks/evaluations) and cannot be permanently deleted. Archive or deactivate instead.`
+        }
+      });
+    }
+
+    // Delete associated User account
+    await User.deleteMany({
+      $or: [
+        { loginIdentifierLower: student.rollNumber.toLowerCase() },
+        { profileRef: student._id }
+      ]
+    });
 
     await student.deleteOne();
 
@@ -836,7 +882,7 @@ const deleteStudent = async (req, res) => {
       oldValues: { name: student.name, rollNumber: student.rollNumber, department: student.department }
     });
 
-    res.json({ message: 'Student removed successfully' });
+    res.json({ success: true, message: 'Student removed successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

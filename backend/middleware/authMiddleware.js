@@ -127,6 +127,26 @@ const protect = async (req, res, next) => {
       req.user.departmentCode = req.user.departmentCode || authUser?.department || '';
       req.authUser = authUser;
 
+      // Centralized capability & dual-mode resolution (Section 8)
+      try {
+        const { resolveUserContext } = require('../services/authorizationService');
+        const userContext = await resolveUserContext(authUser);
+        if (userContext) {
+          req.userContext = userContext;
+          req.user.capabilities = userContext.capabilities;
+          if (userContext.teacherProfile) {
+            req.user.teacherProfile = userContext.teacherProfile;
+            req.user.teacherId = req.user.teacherId || userContext.teacherProfile.teacherId;
+            req.user.teacherRef = userContext.teacherProfile._id;
+          }
+          if (userContext.departmentHeadProfile) {
+            req.user.departmentHeadProfile = userContext.departmentHeadProfile;
+          }
+        }
+      } catch (err) {
+        console.warn('resolveUserContext non-blocking warning:', err.message);
+      }
+
       setCachedAuth(cacheKey, { user: req.user, authUser: req.authUser });
 
       return next();
@@ -159,9 +179,35 @@ const requireRole = (...roles) => {
   };
 };
 
+// Teacher Only: allows teachers AND Department Heads (dual-mode teaching capability)
 const teacherOnly = (req, res, next) => {
-  if (req.user && req.user.role === 'teacher') return next();
+  if (req.user && (req.user.role === 'teacher' || (req.user.role === 'department_head' && req.user.capabilities?.canTeach))) {
+    return next();
+  }
   res.status(403).json({ success: false, message: 'Access forbidden: Teacher privileges required', code: 'FORBIDDEN_TEACHER' });
+};
+
+// Department Head Only
+const headOnly = (req, res, next) => {
+  if (req.user && req.user.role === 'department_head') {
+    return next();
+  }
+  res.status(403).json({ success: false, message: 'Access forbidden: Department Head privileges required', code: 'FORBIDDEN_HEAD' });
+};
+
+// Capability Verification Middleware (Section 8)
+const requireCapability = (capabilityName) => {
+  return (req, res, next) => {
+    if (!req.user) return res.status(401).json({ success: false, message: 'Authentication required' });
+    if (req.user.capabilities?.[capabilityName]) {
+      return next();
+    }
+    return res.status(403).json({
+      success: false,
+      message: `Access forbidden: Required capability '${capabilityName}' not granted to your account.`,
+      code: 'FORBIDDEN_CAPABILITY'
+    });
+  };
 };
 
 const studentOnly = (req, res, next) => {
@@ -323,10 +369,12 @@ module.exports = {
   protect,
   requireRole,
   teacherOnly,
+  headOnly,
   studentOnly,
   adminOnly,
   adminOrHead,
   adminOrTeacher,
+  requireCapability,
   enforceDepartmentIsolation,
   requireStudentOwnership,
   requireTeacherCourseAccess,

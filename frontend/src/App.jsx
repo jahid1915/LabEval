@@ -36,6 +36,7 @@ const ImportHistoryPage     = React.lazy(() => import('./pages/admin/ImportHisto
 const ElectiveManagementPage = React.lazy(() => import('./pages/admin/ElectiveManagementPage'));
 const TeachingAssignmentsPage = React.lazy(() => import('./pages/admin/TeachingAssignmentsPage'));
 const DepartmentHeadManagementPage = React.lazy(() => import('./pages/admin/DepartmentHeadManagementPage'));
+const AdminDataManagementPage = React.lazy(() => import('./pages/admin/AdminDataManagementPage'));
 
 // Department Head Pages
 const HeadDashboard            = React.lazy(() => import('./pages/head/HeadDashboard'));
@@ -101,9 +102,8 @@ const ProtectedRoute = ({ children, allowedRole }) => {
   }
 
   if (allowedRole === 'teacher') {
-    if (user.role === 'teacher') return children;
+    if (user.role === 'teacher' || user.role === 'department_head') return children;
     if (user.role === 'admin' || user.role === 'super_admin') return <Navigate to="/admin" replace />;
-    if (user.role === 'department_head') return <Navigate to="/head" replace />;
     return <Navigate to="/student" replace />;
   }
 
@@ -176,6 +176,7 @@ export default function App() {
               <Route path="course-offerings" element={<CourseOfferingsPage />} />
               <Route path="import"           element={<StudentImportPage />} />
               <Route path="import-history"   element={<ImportHistoryPage />} />
+              <Route path="data-management"  element={<AdminDataManagementPage />} />
               <Route path="electives"        element={<ElectiveManagementPage />} />
             </Route>
 

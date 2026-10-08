@@ -108,6 +108,18 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  // Department Head Dual-Mode State (Section 6 & 51)
+  const [headMode, setHeadMode] = useState(() => {
+    return localStorage.getItem('headMode') || 'HEAD';
+  });
+
+  const toggleHeadMode = (newMode) => {
+    const next = newMode || (headMode === 'HEAD' ? 'TEACHER' : 'HEAD');
+    setHeadMode(next);
+    localStorage.setItem('headMode', next);
+    return next;
+  };
+
   const logout = async () => {
     try {
       await api.post('/auth/logout');
@@ -121,7 +133,17 @@ export const AuthProvider = ({ children }) => {
   };
 
   return (
-    <AuthContext.Provider value={{ user, loading, login, register, logout, setUser }}>
+    <AuthContext.Provider value={{
+      user,
+      loading,
+      login,
+      register,
+      logout,
+      setUser,
+      headMode,
+      setHeadMode,
+      toggleHeadMode
+    }}>
       {children}
     </AuthContext.Provider>
   );

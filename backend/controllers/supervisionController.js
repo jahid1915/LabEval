@@ -558,14 +558,15 @@ const getStudentSupervision = async (req, res) => {
 // ── TEACHER: GET /api/teacher/supervision ─────────────────────────────
 const getTeacherSupervision = async (req, res) => {
   try {
-    const uTeacherId = req.user.loginIdentifier?.toUpperCase();
-    const teacher = await Teacher.findOne({
-      $or: [
-        { _id: req.user.profileRef },
-        { teacherId: uTeacherId },
-        { email: req.user.email }
-      ]
-    }).lean();
+    const uTeacherId = (req.user.teacherId || req.user.loginIdentifier || '').toUpperCase();
+    const teacherRef = req.user.teacherRef || req.user.profileRef;
+
+    const teacherQuery = [];
+    if (teacherRef) teacherQuery.push({ _id: teacherRef });
+    if (uTeacherId) teacherQuery.push({ teacherId: uTeacherId });
+    if (req.user.email) teacherQuery.push({ email: req.user.email });
+
+    const teacher = teacherQuery.length > 0 ? await Teacher.findOne({ $or: teacherQuery }).lean() : null;
 
     if (!teacher) {
       return res.status(404).json({ success: false, message: 'Teacher profile not found' });

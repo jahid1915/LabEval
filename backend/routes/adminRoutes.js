@@ -112,5 +112,96 @@ router.get('/correction-requests', getAdminCorrectionRequests);
 router.post('/correction-requests/:id/approve', approveAdminCorrectionRequest);
 router.post('/correction-requests/:id/reject', rejectAdminCorrectionRequest);
 
+// ── Admin Data Management & Imports / Exports (Sections 10, 11, 16, 17, 18, 35, 63) ──
+const multer = require('multer');
+const upload = multer({
+  storage: multer.memoryStorage(),
+  limits: { fileSize: 15 * 1024 * 1024 }
+});
+const uploadFile = upload.single('file');
+
+const {
+  previewXlsx,
+  validateXlsx,
+  commitXlsx,
+  previewJson,
+  validateJson,
+  commitJson,
+  getImportJobs,
+  getImportJobById,
+  getImportJobErrors,
+  cancelImportJob,
+  exportData,
+  deleteStudentSafe,
+  deleteCourseSafe,
+  bulkDeleteSafe,
+  createCourse,
+  getCourseById,
+  updateCourse,
+  bulkUpdateCourses
+} = require('../controllers/adminDataManagementController');
+
+// ── XLSX Import Pipeline ──
+router.post('/imports/xlsx/preview', uploadFile, previewXlsx);
+router.post('/imports/xlsx/validate', validateXlsx);
+router.post('/imports/xlsx/commit', commitXlsx);
+
+// ── JSON Import Pipeline ──
+router.post('/imports/json/preview', previewJson);
+router.post('/imports/json/validate', validateJson);
+router.post('/imports/json/commit', commitJson);
+
+// ── Import Job Status & Error Reports ──
+router.get('/imports', getImportJobs);
+router.get('/imports/:id', getImportJobById);
+router.get('/imports/:id/errors', getImportJobErrors);
+router.post('/imports/:id/cancel', cancelImportJob);
+
+// ── Data Export (XLSX & JSON) ──
+router.get('/export/:entity', exportData);
+router.get('/exports/:entity', exportData);
+
+// ── Safe Delete & Bulk Deletions ──
+router.delete('/students/:id/safe', deleteStudentSafe);
+router.post('/bulk-delete', bulkDeleteSafe);
+
+// ── Master Course Management (Section 18 & 34) ──
+router.post('/courses', createCourse);
+router.get('/courses/:id', getCourseById);
+router.patch('/courses/:id', updateCourse);
+router.delete('/courses/:id', deleteCourseSafe);
+router.post('/courses/bulk-update', bulkUpdateCourses);
+
+// ── Master Data Direct Access Aliases (Section 34) ──
+const { getFaculties, getFacultyById, createFaculty, updateFaculty, deleteFaculty } = require('../controllers/facultyController');
+const { getDepartments, getDepartmentById, createDepartment, updateDepartment, deleteDepartment } = require('../controllers/departmentController');
+const { getAcademicSessions, createAcademicSession, updateAcademicSession } = require('../controllers/academicSessionController');
+const { getSemesters, createSemester } = require('../controllers/academicSessionController');
+const { getSeries, createSeries, updateSeries, deleteSeries } = require('../controllers/academicSessionController');
+
+router.get('/faculties', getFaculties);
+router.post('/faculties', createFaculty);
+router.get('/faculties/:id', getFacultyById);
+router.patch('/faculties/:id', updateFaculty);
+router.delete('/faculties/:id', deleteFaculty);
+
+router.get('/departments', getDepartments);
+router.post('/departments', createDepartment);
+router.get('/departments/:id', getDepartmentById);
+router.patch('/departments/:id', updateDepartment);
+router.delete('/departments/:id', deleteDepartment);
+
+router.get('/academic-sessions', getAcademicSessions);
+router.post('/academic-sessions', createAcademicSession);
+router.patch('/academic-sessions/:id', updateAcademicSession);
+
+router.get('/semesters', getSemesters);
+router.post('/semesters', createSemester);
+
+router.get('/series', getSeries);
+router.post('/series', createSeries);
+router.patch('/series/:id', updateSeries);
+router.delete('/series/:id', deleteSeries);
+
 module.exports = router;
 

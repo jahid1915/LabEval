@@ -10,7 +10,7 @@ import {
   ClipboardList, TrendingUp, LogOut, Sun, Moon, Menu, X,
   Phone, Building2, ChevronRight, GraduationCap, Users,
   Calendar, CalendarOff, FolderTree, FileText, Bell, ChevronDown,
-  Upload, History, Award, KeyRound, Sparkles, CheckSquare, Layers, Shield
+  Upload, History, Award, KeyRound, Sparkles, CheckSquare, Layers, Shield, Database
 } from 'lucide-react';
 import ChangePasswordModal from '../components/ChangePasswordModal';
 
@@ -19,6 +19,7 @@ import ChangePasswordModal from '../components/ChangePasswordModal';
 const adminNav = [
   { heading: 'Overview' },
   { to: '/admin', icon: LayoutDashboard, label: 'Dashboard & Hierarchy', end: true },
+  { to: '/admin/data-management', icon: Database, label: 'Data Management Portal' },
   
   { heading: 'Teaching & Faculty' },
   { to: '/admin/teaching-assignments', icon: BookOpen,      label: 'Teaching Assignments' },
@@ -275,7 +276,7 @@ function Sidebar({ user, navItems, isDarkMode, toggleTheme, handleLogout, onOpen
 
 /* ── Main Layout ─────────────────────────────────────────── */
 export default function DashboardLayout() {
-  const { user, logout } = useContext(AuthContext);
+  const { user, logout, headMode, toggleHeadMode } = useContext(AuthContext);
   const { isDarkMode, toggleTheme } = useTheme();
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [changePasswordOpen, setChangePasswordOpen] = useState(false);
@@ -284,10 +285,22 @@ export default function DashboardLayout() {
 
   let navItems = studentNav;
   if (user?.role === 'teacher') navItems = teacherNav;
-  if (user?.role === 'department_head') navItems = headNav;
+  if (user?.role === 'department_head') {
+    navItems = headMode === 'TEACHER' ? teacherNav : headNav;
+  }
   if (user?.role === 'admin' || user?.role === 'super_admin') navItems = adminNav;
 
   const handleLogout = () => { logout(); navigate('/'); };
+
+  const handleSwitchMode = (targetMode) => {
+    if (headMode === targetMode) return;
+    toggleHeadMode(targetMode);
+    if (targetMode === 'HEAD') {
+      navigate('/head');
+    } else {
+      navigate('/teacher');
+    }
+  };
 
   const bgColor    = isDarkMode ? '#0b132b' : '#f8fafc';
   const sidebarBg  = isDarkMode ? '#0b132b' : '#ffffff';
@@ -349,6 +362,61 @@ export default function DashboardLayout() {
       {/* ── Main Content Area ── */}
       <div className="flex-1 flex flex-col min-w-0 overflow-hidden">
 
+        {/* Desktop Top Bar (Mode Switch, Theme Toggle, User Indicator) */}
+        <header className="hidden lg:flex items-center justify-between px-6 py-3 border-b border-slate-200 dark:border-slate-800 bg-white/80 dark:bg-slate-900/80 backdrop-blur-md shrink-0">
+          <div className="flex items-center gap-3">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              {user?.department ? `Dept. of ${user.department}` : 'RUET LabEval'}
+            </span>
+          </div>
+
+          <div className="flex items-center gap-3">
+            {/* Top-Right Persistent Dual-Mode Switch (Section 1, 6, 51) */}
+            {user?.role === 'department_head' && (
+              <div className="flex items-center bg-slate-100 dark:bg-slate-800/80 border border-slate-200 dark:border-slate-700/80 p-1 rounded-xl shadow-xs">
+                <button
+                  onClick={() => handleSwitchMode('HEAD')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    headMode === 'HEAD'
+                      ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                  title="Switch to Department Academic Management Mode"
+                >
+                  <Shield size={13} />
+                  <span>Head Mode</span>
+                  {headMode === 'HEAD' && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+                  )}
+                </button>
+                <button
+                  onClick={() => handleSwitchMode('TEACHER')}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+                    headMode === 'TEACHER'
+                      ? 'bg-indigo-600 text-white shadow-sm shadow-indigo-500/25'
+                      : 'text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white'
+                  }`}
+                  title="Switch to Personal Teaching & Supervision Mode"
+                >
+                  <GraduationCap size={13} />
+                  <span>Teacher Mode</span>
+                  {headMode === 'TEACHER' && (
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse ml-0.5" />
+                  )}
+                </button>
+              </div>
+            )}
+
+            <button
+              onClick={toggleTheme}
+              className="p-2 rounded-lg bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-600 dark:text-slate-300 hover:text-blue-600 transition-colors"
+              title={isDarkMode ? 'Switch to Light Mode' : 'Switch to Dark Mode'}
+            >
+              {isDarkMode ? <Sun size={15} /> : <Moon size={15} />}
+            </button>
+          </div>
+        </header>
+
         {/* Mobile Header */}
         <header className="flex items-center gap-3 px-4 py-3 lg:hidden"
           style={{ background: headerBg, borderBottom: `1px solid ${borderColor}` }}>
@@ -362,7 +430,18 @@ export default function DashboardLayout() {
               Lab<span className="text-blue-600 dark:text-blue-400">Eval</span>
             </span>
           </div>
-          <div className="ml-auto">
+
+          <div className="ml-auto flex items-center gap-2">
+            {user?.role === 'department_head' && (
+              <button
+                onClick={() => handleSwitchMode(headMode === 'HEAD' ? 'TEACHER' : 'HEAD')}
+                className="px-2.5 py-1 rounded-lg bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 text-[11px] font-bold flex items-center gap-1"
+              >
+                {headMode === 'HEAD' ? <Shield size={11} /> : <GraduationCap size={11} />}
+                <span>{headMode === 'HEAD' ? 'Head' : 'Teacher'}</span>
+              </button>
+            )}
+
             <button onClick={toggleTheme} style={{ color: isDarkMode ? '#8ba99b' : '#6b7280' }}>
               {isDarkMode ? <Sun size={16} /> : <Moon size={16} />}
             </button>

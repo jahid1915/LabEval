@@ -23,15 +23,21 @@ const TOTAL_MARKS = 75;
 // GET /api/teacher/courses — get all assigned courses for the logged-in teacher (Assigned by Department Head only)
 const getCourses = async (req, res) => {
   try {
-    const teacherId = req.user.teacherId;
-    const teacherDoc = req.user;
+    const teacherId = req.user.teacherId || req.user.teacherProfile?.teacherId || '';
+    const teacherRef = req.user.teacherRef || req.user.teacherProfile?._id || req.user._id;
+
+    const queryOr = [];
+    if (teacherId) queryOr.push({ teacherId: teacherId.toUpperCase() });
+    if (teacherRef) queryOr.push({ teacher: teacherRef });
+    if (req.user._id && String(req.user._id) !== String(teacherRef)) queryOr.push({ teacher: req.user._id });
+
+    if (queryOr.length === 0) {
+      return res.json([]);
+    }
 
     // 1. Fetch active TeacherAssignments for this teacher
     const assignments = await TeacherAssignment.find({
-      $or: [
-        { teacherId: teacherId.toUpperCase() },
-        { teacher: teacherDoc._id }
-      ],
+      $or: queryOr,
       status: 'active'
     }).populate('courseOffering');
 

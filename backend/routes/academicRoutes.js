@@ -40,11 +40,11 @@ router.put('/sessions/:id', adminOnly, updateAcademicSession);
 router.get('/semesters', getSemesters);
 router.post('/semesters', adminOnly, createSemester);
 
-// Series (Department Heads can manage series for their own department)
+// Series (Admin only — master academic data)
 router.get('/series', getSeries);
-router.post('/series', adminOrHead, createSeries);
-router.put('/series/:id', adminOrHead, updateSeries);
-router.delete('/series/:id', adminOrHead, deleteSeries);
+router.post('/series', adminOnly, createSeries);
+router.put('/series/:id', adminOnly, updateSeries);
+router.delete('/series/:id', adminOnly, deleteSeries);
 
 module.exports = router;
 
