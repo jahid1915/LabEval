@@ -65,13 +65,19 @@ const getHeadCourses = async (req, res) => {
 
     const courses = await Course.find(courseQuery).sort({ semesterLevel: 1, courseCode: 1 }).lean();
 
-    // Fetch active offerings for these courses in Head's department
+    // Fetch active offerings and assignments in parallel for Head's department
     const courseIds = courses.map(c => c._id);
-    const activeOfferings = await CourseOffering.find({
-      course: { $in: courseIds },
-      departmentCode: deptCode,
-      status: 'active'
-    }).sort({ createdAt: -1 }).lean();
+    const [activeOfferings, assignments] = await Promise.all([
+      CourseOffering.find({
+        course: { $in: courseIds },
+        departmentCode: deptCode,
+        status: 'active'
+      }).sort({ createdAt: -1 }).lean(),
+      TeacherAssignment.find({
+        departmentCode: deptCode,
+        status: 'active'
+      }).populate('teacher', 'name teacherId designation avatarUrl').lean()
+    ]);
 
     const offeringMap = new Map();
     activeOfferings.forEach(off => {
@@ -79,16 +85,11 @@ const getHeadCourses = async (req, res) => {
       if (!offeringMap.has(key)) offeringMap.set(key, off);
     });
 
-    // Fetch active teacher assignments for these offerings
-    const offeringIds = activeOfferings.map(o => o._id);
-    const assignments = await TeacherAssignment.find({
-      courseOffering: { $in: offeringIds },
-      status: 'active'
-    }).populate('teacher', 'name teacherId designation avatarUrl').lean();
-
     const assignmentMap = new Map();
     assignments.forEach(a => {
-      assignmentMap.set(a.courseOffering.toString(), a);
+      if (a.courseOffering) {
+        assignmentMap.set(a.courseOffering.toString(), a);
+      }
     });
 
     const enrichedCourses = courses.map(c => {
@@ -475,7 +476,7 @@ const getHeadSessionalCourses = async (req, res) => {
       .sort({ semesterLevel: 1, courseCode: 1 })
       .lean();
 
-    // Enrich with active offerings and teacher assignments in this department
+    // Enrich with active offerings and teacher assignments in parallel
     const courseCodes = sessionalCourses.map(c => c.courseCode);
     const offeringQuery = {
       courseCode: { $in: courseCodes },
@@ -484,20 +485,25 @@ const getHeadSessionalCourses = async (req, res) => {
     };
     if (series && series !== 'ALL') offeringQuery.seriesName = series.trim();
 
-    const activeOfferings = await CourseOffering.find(offeringQuery).sort({ createdAt: -1 }).lean();
+    const [activeOfferings, assignments] = await Promise.all([
+      CourseOffering.find(offeringQuery).sort({ createdAt: -1 }).lean(),
+      TeacherAssignment.find({
+        departmentCode: deptCode,
+        status: 'active'
+      }).populate('teacher', 'name teacherId designation avatarUrl').lean()
+    ]);
+
     const offeringMap = new Map();
     activeOfferings.forEach(off => {
       if (!offeringMap.has(off.courseCode)) offeringMap.set(off.courseCode, off);
     });
 
-    const offeringIds = activeOfferings.map(o => o._id);
-    const assignments = await TeacherAssignment.find({
-      courseOffering: { $in: offeringIds },
-      status: 'active'
-    }).populate('teacher', 'name teacherId designation avatarUrl').lean();
-
     const assignmentMap = new Map();
-    assignments.forEach(a => assignmentMap.set(a.courseOffering.toString(), a));
+    assignments.forEach(a => {
+      if (a.courseOffering) {
+        assignmentMap.set(a.courseOffering.toString(), a);
+      }
+    });
 
     const enriched = sessionalCourses.map(c => {
       const activeOff = offeringMap.get(c.courseCode);
@@ -589,20 +595,25 @@ const getHeadElectiveCourses = async (req, res) => {
     };
     if (series && series !== 'ALL') offeringQuery.seriesName = series.trim();
 
-    const activeOfferings = await CourseOffering.find(offeringQuery).sort({ createdAt: -1 }).lean();
+    const [activeOfferings, assignments] = await Promise.all([
+      CourseOffering.find(offeringQuery).sort({ createdAt: -1 }).lean(),
+      TeacherAssignment.find({
+        departmentCode: deptCode,
+        status: 'active'
+      }).populate('teacher', 'name teacherId designation avatarUrl').lean()
+    ]);
+
     const offeringMap = new Map();
     activeOfferings.forEach(off => {
       if (!offeringMap.has(off.courseCode)) offeringMap.set(off.courseCode, off);
     });
 
-    const offeringIds = activeOfferings.map(o => o._id);
-    const assignments = await TeacherAssignment.find({
-      courseOffering: { $in: offeringIds },
-      status: 'active'
-    }).populate('teacher', 'name teacherId designation avatarUrl').lean();
-
     const assignmentMap = new Map();
-    assignments.forEach(a => assignmentMap.set(a.courseOffering.toString(), a));
+    assignments.forEach(a => {
+      if (a.courseOffering) {
+        assignmentMap.set(a.courseOffering.toString(), a);
+      }
+    });
 
     const enriched = electiveCourses.map(c => {
       const activeOff = offeringMap.get(c.courseCode);

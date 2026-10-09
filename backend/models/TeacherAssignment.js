@@ -112,6 +112,7 @@ const teacherAssignmentSchema = new mongoose.Schema({
 teacherAssignmentSchema.index({ courseOffering: 1, teacher: 1 });
 teacherAssignmentSchema.index({ teacherId: 1, status: 1 });
 teacherAssignmentSchema.index({ courseOffering: 1, status: 1, role: 1 });
+teacherAssignmentSchema.index({ departmentCode: 1, createdAt: -1 });
 teacherAssignmentSchema.index({ departmentCode: 1, status: 1 });
 teacherAssignmentSchema.index({ facultyCode: 1, status: 1 });
 teacherAssignmentSchema.index({ academicSession: 1, semester: 1 });

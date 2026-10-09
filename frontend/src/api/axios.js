@@ -33,6 +33,10 @@ const CACHEABLE_ROUTES = [
   '/academic/current-info',
   '/academic/semesters',
   '/courses',
+  '/head/courses/sessional',
+  '/head/courses/elective',
+  '/head/academic-sessions',
+  '/head/stats',
   '/admin/stats',
   '/admin/dashboard/summary',
   '/auth/me'

@@ -33,7 +33,10 @@ const setCachedAuth = (cacheKey, data) => {
   });
 };
 
+const { invalidateUserContextCache } = require('../services/authorizationService');
+
 const invalidateAuthCache = (identifierOrId) => {
+  invalidateUserContextCache(identifierOrId);
   if (!identifierOrId) {
     authCache.clear();
     return;
@@ -72,41 +75,43 @@ const protect = async (req, res, next) => {
 
       const commonFields = '-password -passwordHash -__v -enrolledCourses';
 
-      // 1. Look up central User
+      // 1. Single-pass look up central User with populated profileRef
       let authUser = null;
-      if (decoded.userId) {
-        authUser = await User.findById(decoded.userId).select('-passwordHash');
-      } else if (decoded.id) {
-        authUser = await User.findOne({
-          $or: [{ _id: decoded.id }, { profileRef: decoded.id }]
-        }).select('-passwordHash');
+      const userLookupId = decoded.userId || decoded.id;
+      if (userLookupId && mongoose.Types.ObjectId.isValid(userLookupId)) {
+        authUser = await User.findById(userLookupId)
+          .select('-passwordHash')
+          .populate({ path: 'profileRef', select: commonFields })
+          .lean();
       }
 
-      // 2. Look up role profile document for DB queries
-      let profileDoc = null;
-      const targetRole = authUser?.role || decoded.role;
+      if (!authUser && decoded.id) {
+        authUser = await User.findOne({
+          $or: [{ _id: decoded.id }, { profileRef: decoded.id }]
+        })
+          .select('-passwordHash')
+          .populate({ path: 'profileRef', select: commonFields })
+          .lean();
+      }
 
-      if (targetRole === 'teacher') {
-        const query = [];
-        if (authUser?.profileRef) query.push({ _id: authUser.profileRef });
-        if (decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) query.push({ _id: decoded.id });
-        if (authUser?._id) query.push({ user: authUser._id });
-        if (authUser?.loginIdentifier) query.push({ teacherId: authUser.loginIdentifier.toUpperCase() });
-        profileDoc = query.length > 0 ? await Teacher.findOne({ $or: query }).select(commonFields).lean() : null;
-      } else if (targetRole === 'student') {
-        const query = [];
-        if (authUser?.profileRef) query.push({ _id: authUser.profileRef });
-        if (decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) query.push({ _id: decoded.id });
-        if (authUser?._id) query.push({ user: authUser._id });
-        if (authUser?.loginIdentifier) query.push({ rollNumber: authUser.loginIdentifier.toUpperCase() });
-        profileDoc = query.length > 0 ? await Student.findOne({ $or: query }).select(commonFields).lean() : null;
-      } else if (['admin', 'department_head', 'super_admin'].includes(targetRole)) {
-        const query = [];
-        if (authUser?.profileRef) query.push({ _id: authUser.profileRef });
-        if (decoded.id && mongoose.Types.ObjectId.isValid(decoded.id)) query.push({ _id: decoded.id });
-        if (authUser?._id) query.push({ user: authUser._id });
-        if (authUser?.loginIdentifier) query.push({ username: authUser.loginIdentifier.toLowerCase() }, { headId: authUser.loginIdentifier.toUpperCase() });
-        profileDoc = query.length > 0 ? await Admin.findOne({ $or: query }).select(commonFields).lean() : null;
+      let profileDoc = authUser?.profileRef || null;
+
+      // Fallback query only if profileRef was not linked on User
+      if (!profileDoc && authUser) {
+        const targetRole = authUser.role || decoded.role;
+        if (targetRole === 'teacher') {
+          profileDoc = await Teacher.findOne({
+            $or: [{ user: authUser._id }, { teacherId: authUser.loginIdentifier?.toUpperCase() }]
+          }).select(commonFields).lean();
+        } else if (targetRole === 'student') {
+          profileDoc = await Student.findOne({
+            $or: [{ user: authUser._id }, { rollNumber: authUser.loginIdentifier?.toUpperCase() }]
+          }).select(commonFields).lean();
+        } else if (['admin', 'department_head', 'super_admin'].includes(targetRole)) {
+          profileDoc = await Admin.findOne({
+            $or: [{ user: authUser._id }, { username: authUser.loginIdentifier?.toLowerCase() }]
+          }).select(commonFields).lean();
+        }
       }
 
       if (!authUser && !profileDoc) {

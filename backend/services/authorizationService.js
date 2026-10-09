@@ -4,12 +4,30 @@ const Teacher = require('../models/Teacher');
 const Department = require('../models/Department');
 const Admin = require('../models/Admin');
 
+// High-performance in-memory authorization context cache (5-minute TTL)
+const userContextCache = new Map();
+const USER_CONTEXT_TTL = 5 * 60 * 1000;
+
+const invalidateUserContextCache = (userId) => {
+  if (!userId) {
+    userContextCache.clear();
+    return;
+  }
+  userContextCache.delete(String(userId));
+};
+
 /**
  * Resolves unified user capability and role profiles.
  * Central single source of truth for authorization across Admin, Head, Teacher, Student.
  */
 const resolveUserContext = async (userOrId) => {
   if (!userOrId) return null;
+
+  const rawId = userOrId._id ? userOrId._id.toString() : userOrId.toString();
+  const cached = userContextCache.get(rawId);
+  if (cached && Date.now() < cached.expiresAt) {
+    return cached.data;
+  }
 
   let authUser = null;
   if (typeof userOrId === 'string' || (userOrId instanceof mongoose.Types.ObjectId) || (userOrId._id && !userOrId.loginIdentifier)) {
@@ -75,7 +93,7 @@ const resolveUserContext = async (userOrId) => {
     canManageSystemConfig: role === 'admin' || role === 'super_admin'
   };
 
-  return {
+  const result = {
     userId: authUser._id,
     accountRole: role,
     user: authUser,
@@ -83,8 +101,16 @@ const resolveUserContext = async (userOrId) => {
     departmentHeadProfile,
     capabilities
   };
+
+  userContextCache.set(rawId, {
+    data: result,
+    expiresAt: Date.now() + USER_CONTEXT_TTL
+  });
+
+  return result;
 };
 
 module.exports = {
-  resolveUserContext
+  resolveUserContext,
+  invalidateUserContextCache
 };

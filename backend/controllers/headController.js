@@ -714,7 +714,7 @@ const getHeadTeachingAssignments = async (req, res) => {
     const deptCode = getHeadDept(req);
     const assignments = await TeacherAssignment.find({ departmentCode: deptCode })
       .populate('teacher', 'name teacherId designation')
-      .populate('course', 'courseCode courseTitle credit')
+      .populate('courseOffering', 'courseCode courseName')
       .sort({ createdAt: -1 })
       .lean();
     res.json({ success: true, department: deptCode, assignments });

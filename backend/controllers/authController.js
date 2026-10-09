@@ -146,8 +146,8 @@ const login = async (req, res) => {
     const cleanIdentifier = String(identifier).trim();
     const cleanLower = cleanIdentifier.toLowerCase();
 
-    // 1. Find user in central User collection
-    let user = await User.findOne({ loginIdentifierLower: cleanLower });
+    // 1. Single-query lookup: Find user in central User collection and populate profileRef immediately
+    let user = await User.findOne({ loginIdentifierLower: cleanLower }).populate('profileRef');
 
     // Fallback search in legacy collections if not yet synchronized
     if (!user) {
@@ -184,6 +184,7 @@ const login = async (req, res) => {
           profileRef: legacyDoc._id,
           profileModel: legacyRole === 'student' ? 'Student' : (legacyRole === 'teacher' ? 'Teacher' : 'Admin'),
         });
+        user.profileRef = legacyDoc;
       }
     }
 
@@ -195,7 +196,7 @@ const login = async (req, res) => {
       });
     }
 
-    // 2. Check Account Status
+    // 2. Check Account Status (In-memory verification)
     if (user.status === 'SUSPENDED') {
       return res.status(403).json({
         success: false,
@@ -211,23 +212,6 @@ const login = async (req, res) => {
       });
     }
 
-    if (user.role === 'student') {
-      const sDoc = await Student.findOne({
-        $or: [
-          ...(user.profileRef ? [{ _id: user.profileRef }] : []),
-          { user: user._id },
-          { rollNumber: user.loginIdentifier }
-        ]
-      }).select('status').lean();
-      if (sDoc && (sDoc.status === 'inactive' || sDoc.status === 'suspended')) {
-        return res.status(403).json({
-          success: false,
-          message: 'This account is currently inactive. Please contact the administrator.',
-          code: 'ACCOUNT_INACTIVE'
-        });
-      }
-    }
-
     // 3. Check Lockout Status
     if (user.lockedUntil && user.lockedUntil > new Date()) {
       const remainingMinutes = Math.ceil((user.lockedUntil.getTime() - Date.now()) / (60 * 1000));
@@ -239,22 +223,24 @@ const login = async (req, res) => {
       });
     }
 
-    // 4. Verify Password
+    // 4. Verify Password (CPU-bound bcrypt match)
     const isMatch = await user.matchPassword(password);
     if (!isMatch) {
-      user.failedLoginAttempts = (user.failedLoginAttempts || 0) + 1;
-      if (user.failedLoginAttempts >= 5) {
-        user.lockedUntil = new Date(Date.now() + 15 * 60 * 1000); // 15-minute lockout
-        await user.save();
-        await logAudit('LOGIN_LOCKED', 'User', user._id, `Account locked after ${user.failedLoginAttempts} failed attempts`, user, req);
+      const attempts = (user.failedLoginAttempts || 0) + 1;
+      const updateData = { failedLoginAttempts: attempts };
+      if (attempts >= 5) {
+        updateData.lockedUntil = new Date(Date.now() + 15 * 60 * 1000);
+      }
+      User.updateOne({ _id: user._id }, { $set: updateData }).exec().catch(() => {});
+      logAudit('LOGIN_FAILED', 'User', user._id, `Failed login attempt (${attempts}/5)`, user, req).catch(() => {});
+
+      if (attempts >= 5) {
         return res.status(423).json({
           success: false,
           message: 'Too many unsuccessful login attempts. Your account has been temporarily locked for 15 minutes.',
           code: 'ACCOUNT_LOCKED'
         });
       }
-      await user.save();
-      await logAudit('LOGIN_FAILED', 'User', user._id, `Failed login attempt (${user.failedLoginAttempts}/5)`, user, req);
       return res.status(401).json({
         success: false,
         message: 'Invalid credentials. Please verify your ID and password.',
@@ -262,15 +248,20 @@ const login = async (req, res) => {
       });
     }
 
-    // 5. Successful Authentication
-    user.failedLoginAttempts = 0;
-    user.lockedUntil = null;
-    user.lastLoginAt = new Date();
-    user.lastLoginIp = req.ip || req.headers['x-forwarded-for'] || '';
-    await user.save();
+    // 5. Successful Authentication - Non-blocking background state update
+    User.updateOne({ _id: user._id }, {
+      $set: {
+        failedLoginAttempts: 0,
+        lockedUntil: null,
+        lastLoginAt: new Date(),
+        lastLoginIp: req.ip || req.headers['x-forwarded-for'] || ''
+      }
+    }).exec().catch(() => {});
+    logAudit('LOGIN_SUCCESS', 'User', user._id, `Successful login as ${user.role}`, user, req).catch(() => {});
 
-    // 6. Token Generation
-    const profileId = user.profileRef || user._id;
+    // 6. Token Generation & In-Memory Response Formatting
+    const profileDoc = user.profileRef;
+    const profileId = profileDoc?._id || user.profileRef || user._id;
     const token = generateToken({
       id: profileId,
       userId: user._id,
@@ -279,8 +270,8 @@ const login = async (req, res) => {
       sessionVersion: user.sessionVersion || 1
     });
 
-    const safeUser = await formatSafeUser(user);
-    await logAudit('LOGIN_SUCCESS', 'User', user._id, `Successful login as ${user.role}`, user, req);
+    // Reuse already-loaded populated profileDoc to eliminate extra database queries
+    const safeUser = await formatSafeUser(user, profileDoc);
 
     return res.status(200).json({
       success: true,

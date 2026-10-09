@@ -10,8 +10,9 @@ const Student = require('../models/Student');
  */
 async function syncUsers() {
   try {
+    const userCount = await User.countDocuments();
     // 1. Ensure Default System Admin exists (ADMIN / admin123)
-    let adminUser = await User.findOne({ loginIdentifierLower: 'admin' });
+    let adminUser = await User.findOne({ loginIdentifierLower: 'admin' }).lean();
     let adminDoc = await Admin.findOne({
       $or: [{ username: 'admin' }, { role: 'super_admin' }, { role: 'admin' }]
     });
@@ -42,35 +43,44 @@ async function syncUsers() {
         username: 'admin',
         email: adminUser.email || 'admin@ruet.ac.bd',
         contactNo: adminUser.phone || '01700000001',
-        password: 'admin123', // Will be hashed by pre('save')
+        password: 'admin123',
         role: 'super_admin',
         designation: 'System Administrator',
         user: adminUser._id,
         status: 'active'
       });
-      adminUser.profileRef = adminDoc._id;
-      adminUser.profileModel = 'Admin';
-      await adminUser.save();
+      await User.updateOne({ _id: adminUser._id }, {
+        $set: { profileRef: adminDoc._id, profileModel: 'Admin' }
+      });
       console.log('  [UserSync] Default Admin document created and linked.');
     } else if (!adminDoc.user) {
       adminDoc.user = adminUser._id;
       await adminDoc.save();
     }
 
-    // 2. Synchronize all Department Heads & Other Admins
-    const admins = await Admin.find({});
+    // If User collection is already populated with adequate records, skip expensive full scans
+    if (userCount > 10) {
+      console.log(`  [UserSync] Fast startup: ${userCount} authentication records already present.`);
+      return;
+    }
+
+    console.log('  [UserSync] Performing one-time initial bulk synchronization...');
+    // Single-pass Set lookup of existing logins to avoid N+1 queries
+    const existingLogins = new Set(
+      (await User.find({}, 'loginIdentifierLower').lean()).map(u => u.loginIdentifierLower)
+    );
+
+    // 2. Synchronize Department Heads & Admins
+    const admins = await Admin.find({}).lean();
     for (const adm of admins) {
-      const identifier = (adm.headId || adm.username || '').trim();
-      if (!identifier || identifier.toLowerCase() === 'admin') continue;
-
-      const identifierLower = identifier.toLowerCase();
-      let u = await User.findOne({ loginIdentifierLower: identifierLower });
-      const assignedRole = adm.role === 'department_head' ? 'department_head' : (adm.role === 'super_admin' ? 'admin' : 'admin');
-
-      if (!u) {
-        u = await User.create({
-          loginIdentifier: identifier,
-          loginIdentifierLower: identifierLower,
+      const idStr = (adm.headId || adm.username || '').trim();
+      if (!idStr || idStr.toLowerCase() === 'admin') continue;
+      const idLower = idStr.toLowerCase();
+      if (!existingLogins.has(idLower)) {
+        const assignedRole = adm.role === 'department_head' ? 'department_head' : 'admin';
+        const created = await User.create({
+          loginIdentifier: idStr,
+          loginIdentifierLower: idLower,
           passwordHash: adm.password,
           role: assignedRole,
           status: adm.status === 'active' ? 'ACTIVE' : 'INACTIVE',
@@ -79,116 +89,72 @@ async function syncUsers() {
           phone: adm.contactNo || '',
           department: adm.departmentCode || '',
           departmentRef: adm.department || null,
-          faculty: adm.facultyName || '',
-          facultyRef: adm.faculty || null,
           profileRef: adm._id,
           profileModel: 'Admin',
         });
-      } else {
-        // Keep updated
-        u.profileRef = adm._id;
-        u.profileModel = 'Admin';
-        u.role = assignedRole;
-        if (adm.departmentCode) u.department = adm.departmentCode;
-        await u.save();
-      }
-
-      if (!adm.user || !adm.user.equals(u._id)) {
-        adm.user = u._id;
-        await adm.save();
+        existingLogins.add(idLower);
+        await Admin.updateOne({ _id: adm._id }, { $set: { user: created._id } });
       }
     }
 
-    // 3. Synchronize Teachers
-    const teachers = await Teacher.find({});
-    for (const teacher of teachers) {
-      const identifier = (teacher.teacherId || '').trim();
-      if (!identifier) continue;
-      const identifierLower = identifier.toLowerCase();
-
-      let u = await User.findOne({ loginIdentifierLower: identifierLower });
-      const status = teacher.status === 'active' ? 'ACTIVE' : 'INACTIVE';
-
-      if (!u) {
-        u = await User.create({
-          loginIdentifier: identifier.toUpperCase(),
-          loginIdentifierLower: identifierLower,
-          passwordHash: teacher.password,
+    // 3. Synchronize Teachers in bulk
+    const teachers = await Teacher.find({}).lean();
+    for (const t of teachers) {
+      const idStr = (t.teacherId || '').trim();
+      if (!idStr) continue;
+      const idLower = idStr.toLowerCase();
+      if (!existingLogins.has(idLower)) {
+        const created = await User.create({
+          loginIdentifier: idStr.toUpperCase(),
+          loginIdentifierLower: idLower,
+          passwordHash: t.password,
           role: 'teacher',
-          status,
-          name: teacher.name,
-          email: teacher.email || '',
-          phone: teacher.contactNo || '',
-          department: teacher.department || '',
-          departmentRef: teacher.departmentRef || null,
-          facultyRef: teacher.facultyRef || null,
-          profileRef: teacher._id,
+          status: t.status === 'active' ? 'ACTIVE' : 'INACTIVE',
+          name: t.name,
+          email: t.email || '',
+          phone: t.contactNo || '',
+          department: t.department || '',
+          departmentRef: t.departmentRef || null,
+          profileRef: t._id,
           profileModel: 'Teacher',
         });
-      } else {
-        u.profileRef = teacher._id;
-        u.profileModel = 'Teacher';
-        if (teacher.department) u.department = teacher.department;
-        await u.save();
-      }
-
-      if (!teacher.user || !teacher.user.equals(u._id)) {
-        teacher.user = u._id;
-        await teacher.save();
+        existingLogins.add(idLower);
+        await Teacher.updateOne({ _id: t._id }, { $set: { user: created._id } });
       }
     }
 
-    // 4. Synchronize Students
-    const students = await Student.find({});
-    for (const student of students) {
-      const identifier = (student.rollNumber || '').trim();
-      if (!identifier) continue;
-      const identifierLower = identifier.toLowerCase();
-
-      let u = await User.findOne({ loginIdentifierLower: identifierLower });
-      let status = 'ACTIVE';
-      if (student.status === 'suspended') status = 'SUSPENDED';
-      else if (student.status !== 'active') status = 'INACTIVE';
-
-      const pwdHash = (student.password && student.password.startsWith('$2'))
-        ? student.password
-        : await User.hashPassword(student.password || 'password123');
-
-      if (!u) {
-        u = await User.create({
-          loginIdentifier: identifier,
-          loginIdentifierLower: identifierLower,
+    // 4. Synchronize Students in bulk
+    const students = await Student.find({}).lean();
+    for (const s of students) {
+      const idStr = (s.rollNumber || '').trim();
+      if (!idStr) continue;
+      const idLower = idStr.toLowerCase();
+      if (!existingLogins.has(idLower)) {
+        const pwdHash = (s.password && s.password.startsWith('$2'))
+          ? s.password
+          : await User.hashPassword(s.password || 'password123');
+        const created = await User.create({
+          loginIdentifier: idStr,
+          loginIdentifierLower: idLower,
           passwordHash: pwdHash,
           role: 'student',
-          status,
-          name: student.name,
-          email: student.email || '',
-          phone: student.contactNo || '',
-          department: student.department || '',
-          departmentRef: student.departmentRef || null,
-          facultyRef: student.facultyRef || null,
-          profileRef: student._id,
+          status: s.status === 'active' ? 'ACTIVE' : (s.status === 'suspended' ? 'SUSPENDED' : 'INACTIVE'),
+          name: s.name,
+          email: s.email || '',
+          phone: s.contactNo || '',
+          department: s.department || '',
+          departmentRef: s.departmentRef || null,
+          profileRef: s._id,
           profileModel: 'Student',
         });
-      } else {
-        u.profileRef = student._id;
-        u.profileModel = 'Student';
-        if (student.department) u.department = student.department;
-        if (!u.passwordHash || !u.passwordHash.startsWith('$2')) {
-          u.passwordHash = pwdHash;
-        }
-        await u.save();
-      }
-
-      if (!student.user || !student.user.equals(u._id)) {
-        student.user = u._id;
-        await student.save();
+        existingLogins.add(idLower);
+        await Student.updateOne({ _id: s._id }, { $set: { user: created._id } });
       }
     }
 
-    console.log('  [UserSync] Authentication synchronization complete.');
+    console.log('  [UserSync] Initial synchronization complete.');
   } catch (err) {
-    console.error('  [UserSync] Error synchronizing users:', err);
+    console.error('  [UserSync] Error in syncUsers:', err.message);
   }
 }
 
