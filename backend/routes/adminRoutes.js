@@ -34,7 +34,12 @@ const {
   updateTeachingAssignment,
   deleteTeachingAssignment,
   getSystemSettings,
-  updateSystemSettings
+  updateSystemSettings,
+  getTeacherDepartmentSummary,
+  getTeacherById,
+  toggleTeacherStatus,
+  getStudentDepartmentSummary,
+  getStudentCohortSummary
 } = require('../controllers/adminController');
 const { importTeachers, importStudents } = require('../controllers/dataTransferController');
 const { protect, adminOnly, enforceDepartmentIsolation } = require('../middleware/authMiddleware');
@@ -107,13 +112,18 @@ router.get('/courses/:id/teaching-roster', getCourseTeachingRoster);
 // ── Department Headship Transfer (Legacy & Dedicated) ────────────────
 router.post('/transfer-headship', transferHeadship);
 
-// ── Teacher Management ───────────────────────────────────────────────
+// ── Teacher Management (Department-first & Paginated) ────────────────
+router.get('/teachers/department-summary', getTeacherDepartmentSummary);
 router.get('/teachers', getAllTeachers);
 router.post('/teachers', createTeacher);
+router.get('/teachers/:id', getTeacherById);
 router.put('/teachers/:id', updateTeacher);
 router.delete('/teachers/:id', deleteTeacher);
+router.post('/teachers/:id/toggle-status', toggleTeacherStatus);
 
-// ── Student Management ───────────────────────────────────────────────
+// ── Student Management (Department-first & Paginated) ────────────────
+router.get('/students/department-summary', getStudentDepartmentSummary);
+router.get('/students/cohort-summary', getStudentCohortSummary);
 router.get('/students', getAllStudents);
 router.post('/students', createStudent);
 router.get('/students/stats', getStudentStats);  // Must be before :id

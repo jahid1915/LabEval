@@ -185,31 +185,116 @@ const getAdminDashboardSummary = async (req, res) => {
 
 // ── TEACHER MANAGEMENT ───────────────────────────────────────────────
 
-// GET /api/admin/teachers — with pagination and N+1 fix
+// GET /api/admin/teachers/department-summary — Department-first overview of all teachers
+const getTeacherDepartmentSummary = async (req, res) => {
+  try {
+    const deptFilter = getDeptFilter(req);
+    const deptQuery = deptFilter ? { code: deptFilter } : {};
+
+    const [departments, teacherStats] = await Promise.all([
+      Department.find(deptQuery).populate('faculty', 'name').sort({ code: 1 }).lean(),
+      Teacher.aggregate([
+        ...(deptFilter ? [{ $match: { department: deptFilter } }] : []),
+        {
+          $group: {
+            _id: '$department',
+            total: { $sum: 1 },
+            active: {
+              $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
+            },
+            inactive: {
+              $sum: { $cond: [{ $ne: ['$status', 'active'] }, 1, 0] }
+            },
+            incomplete: {
+              $sum: {
+                $cond: [
+                  {
+                    $or: [
+                      { $eq: [{ $ifNull: ['$email', ''] }, ''] },
+                      { $eq: [{ $ifNull: ['$contactNo', ''] }, ''] },
+                      { $eq: ['$contactNo', 'N/A'] }
+                    ]
+                  },
+                  1,
+                  0
+                ]
+              }
+            }
+          }
+        }
+      ])
+    ]);
+
+    const statsMap = {};
+    teacherStats.forEach(s => {
+      if (s._id) statsMap[String(s._id).toUpperCase()] = s;
+    });
+
+    const summary = departments.map(d => {
+      const stat = statsMap[d.code.toUpperCase()] || { total: 0, active: 0, inactive: 0, incomplete: 0 };
+      return {
+        _id: d._id,
+        code: d.code,
+        name: d.name,
+        facultyName: d.faculty?.name || '',
+        totalTeachers: stat.total,
+        activeTeachers: stat.active,
+        inactiveTeachers: stat.inactive,
+        incompleteTeachers: stat.incomplete
+      };
+    });
+
+    const grandTotals = summary.reduce(
+      (acc, s) => {
+        acc.total += s.totalTeachers;
+        acc.active += s.activeTeachers;
+        acc.inactive += s.inactiveTeachers;
+        acc.incomplete += s.incompleteTeachers;
+        return acc;
+      },
+      { total: 0, active: 0, inactive: 0, incomplete: 0 }
+    );
+
+    res.json({
+      success: true,
+      departments: summary,
+      totals: grandTotals
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/admin/teachers — with server-side pagination, sorting & filters (no artificial 50-limit ceiling)
 const getAllTeachers = async (req, res) => {
   try {
     const deptFilter = getDeptFilter(req);
-    const { department, dutyStatus, search, page = 1, limit = 50 } = req.query;
+    const { department, dutyStatus, status, designation, search, page = 1, limit = 50 } = req.query;
 
     const isAll = limit === 'all' || req.query.all === 'true' || limit === '0' || req.query.noLimit === 'true';
     const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = isAll ? 100 : Math.min(100, Math.max(1, parseInt(limit) || 50));
-    const skip = (pageNum - 1) * limitNum;
+    const limitNum = isAll ? 2000 : Math.min(500, Math.max(1, parseInt(limit) || 50));
+    const skip = isAll ? 0 : (pageNum - 1) * limitNum;
 
     let query = {};
 
     if (deptFilter) {
       query.department = deptFilter;
-    } else if (department) {
+    } else if (department && department !== 'ALL') {
       query.department = department.toUpperCase();
     }
 
     if (dutyStatus) query.dutyStatus = dutyStatus;
-    if (search) {
+    if (status && status !== 'ALL') query.status = status;
+    if (designation && designation !== 'ALL') query.designation = designation;
+
+    if (search && search.trim()) {
+      const s = search.trim();
       query.$or = [
-        { name: { $regex: search, $options: 'i' } },
-        { teacherId: { $regex: search, $options: 'i' } },
-        { email: { $regex: search, $options: 'i' } }
+        { name: { $regex: s, $options: 'i' } },
+        { teacherId: { $regex: s, $options: 'i' } },
+        { email: { $regex: s, $options: 'i' } },
+        { designation: { $regex: s, $options: 'i' } }
       ];
     }
 
@@ -246,6 +331,7 @@ const getAllTeachers = async (req, res) => {
     }));
 
     return res.json({
+      success: true,
       teachers: enriched,
       pagination: {
         page: pageNum,
@@ -255,7 +341,77 @@ const getAllTeachers = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/admin/teachers/:id — Single Teacher details with teaching history & user account
+const getTeacherById = async (req, res) => {
+  try {
+    const deptFilter = getDeptFilter(req);
+    const teacher = await Teacher.findById(req.params.id)
+      .select('-password -__v')
+      .populate('departmentRef', 'name code faculty')
+      .lean();
+
+    if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+    if (deptFilter && teacher.department !== deptFilter) {
+      return res.status(403).json({ success: false, message: 'Unauthorized: Cross-department access denied' });
+    }
+
+    const assignments = await TeacherAssignment.find({ teacherId: teacher.teacherId })
+      .populate('courseOffering', 'courseCode courseName seriesName sessionName departmentCode semesterName')
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const userDoc = await User.findOne({ loginIdentifierLower: teacher.teacherId.toLowerCase() })
+      .select('status lastLoginAt email phone role')
+      .lean();
+
+    res.json({
+      success: true,
+      teacher: {
+        ...teacher,
+        userAccount: userDoc || null,
+        assignments: assignments || []
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// POST /api/admin/teachers/:id/toggle-status — Toggle status between active and archived
+const toggleTeacherStatus = async (req, res) => {
+  try {
+    const deptFilter = getDeptFilter(req);
+    const teacher = await Teacher.findById(req.params.id);
+    if (!teacher) return res.status(404).json({ success: false, message: 'Teacher not found' });
+    if (deptFilter && teacher.department !== deptFilter) {
+      return res.status(403).json({ success: false, message: 'Unauthorized: Cross-department access denied' });
+    }
+
+    const newStatus = teacher.status === 'active' ? 'archived' : 'active';
+    teacher.status = newStatus;
+    teacher.dutyStatus = newStatus === 'active' ? 'ON_DUTY' : 'LEAVE';
+    await teacher.save();
+
+    await User.updateOne(
+      { loginIdentifierLower: teacher.teacherId.toLowerCase() },
+      { $set: { status: newStatus === 'active' ? 'ACTIVE' : 'INACTIVE' } }
+    ).exec().catch(() => {});
+
+    await logAudit({
+      req,
+      action: 'UPDATE_TEACHER_STATUS',
+      entity: 'Teacher',
+      entityId: teacher._id,
+      details: `Changed teacher ${teacher.name} status to ${newStatus}`
+    });
+
+    res.json({ success: true, teacher });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -410,7 +566,146 @@ const deleteTeacher = async (req, res) => {
 
 // ── STUDENT MANAGEMENT ───────────────────────────────────────────────
 
-// GET /api/admin/students  — paginated, server-side search & filter
+// GET /api/admin/students/department-summary — Department-first overview of all students
+const getStudentDepartmentSummary = async (req, res) => {
+  try {
+    const deptFilter = getDeptFilter(req);
+    const deptQuery = deptFilter ? { code: deptFilter } : {};
+
+    const [departments, studentStats, cohortStats] = await Promise.all([
+      Department.find(deptQuery).populate('faculty', 'name').sort({ code: 1 }).lean(),
+      Student.aggregate([
+        ...(deptFilter ? [{ $match: { department: deptFilter } }] : []),
+        {
+          $group: {
+            _id: '$department',
+            total: { $sum: 1 },
+            active: {
+              $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
+            },
+            inactive: {
+              $sum: { $cond: [{ $ne: ['$status', 'active'] }, 1, 0] }
+            }
+          }
+        }
+      ]),
+      Student.aggregate([
+        ...(deptFilter ? [{ $match: { department: deptFilter } }] : []),
+        {
+          $group: {
+            _id: { department: '$department', series: '$series' }
+          }
+        },
+        {
+          $group: {
+            _id: '$_id.department',
+            cohortCount: { $sum: 1 }
+          }
+        }
+      ])
+    ]);
+
+    const statsMap = {};
+    studentStats.forEach(s => {
+      if (s._id) statsMap[String(s._id).toUpperCase()] = s;
+    });
+
+    const cohortMap = {};
+    cohortStats.forEach(c => {
+      if (c._id) cohortMap[String(c._id).toUpperCase()] = c.cohortCount;
+    });
+
+    const summary = departments.map(d => {
+      const stat = statsMap[d.code.toUpperCase()] || { total: 0, active: 0, inactive: 0 };
+      const cohorts = cohortMap[d.code.toUpperCase()] || 0;
+      return {
+        _id: d._id,
+        code: d.code,
+        name: d.name,
+        facultyName: d.faculty?.name || '',
+        totalStudents: stat.total,
+        activeStudents: stat.active,
+        inactiveStudents: stat.inactive,
+        cohortCount: cohorts
+      };
+    });
+
+    const grandTotals = summary.reduce(
+      (acc, s) => {
+        acc.total += s.totalStudents;
+        acc.active += s.activeStudents;
+        acc.inactive += s.inactiveStudents;
+        return acc;
+      },
+      { total: 0, active: 0, inactive: 0 }
+    );
+
+    res.json({
+      success: true,
+      departments: summary,
+      totals: grandTotals
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/admin/students/cohort-summary — Academic Session / Series cohorts for a selected department
+const getStudentCohortSummary = async (req, res) => {
+  try {
+    const deptFilter = getDeptFilter(req);
+    const department = deptFilter || (req.query.department ? req.query.department.toUpperCase() : '');
+
+    if (!department) {
+      return res.status(400).json({ success: false, message: 'Department code is required' });
+    }
+
+    const cohorts = await Student.aggregate([
+      { $match: { department } },
+      {
+        $group: {
+          _id: {
+            series: '$series',
+            session: '$session',
+            semester: '$semester'
+          },
+          totalStudents: { $sum: 1 },
+          activeStudents: {
+            $sum: { $cond: [{ $eq: ['$status', 'active'] }, 1, 0] }
+          },
+          inactiveStudents: {
+            $sum: { $cond: [{ $ne: ['$status', 'active'] }, 1, 0] }
+          }
+        }
+      },
+      {
+        $sort: {
+          '_id.series': -1,
+          '_id.session': -1
+        }
+      }
+    ]);
+
+    const formatted = cohorts.map(c => ({
+      series: c._id.series || 'Unassigned',
+      session: c._id.session || 'Unassigned',
+      semester: c._id.semester || 'N/A',
+      totalStudents: c.totalStudents,
+      activeStudents: c.activeStudents,
+      inactiveStudents: c.inactiveStudents
+    }));
+
+    res.json({
+      success: true,
+      department,
+      cohorts: formatted
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+// GET /api/admin/students  — paginated, server-side search & filter (no artificial 100-limit ceiling)
 const getAllStudents = async (req, res) => {
   try {
     const deptFilter = getDeptFilter(req);
@@ -422,25 +717,25 @@ const getAllStudents = async (req, res) => {
 
     const isAll = limit === 'all' || req.query.all === 'true' || limit === '0' || req.query.noLimit === 'true';
     const pageNum = Math.max(1, parseInt(page) || 1);
-    const limitNum = isAll ? 100 : Math.min(100, Math.max(1, parseInt(limit) || 25));
-    const skip = (pageNum - 1) * limitNum;
+    const limitNum = isAll ? 5000 : Math.min(500, Math.max(1, parseInt(limit) || 25));
+    const skip = isAll ? 0 : (pageNum - 1) * limitNum;
 
     let query = {};
 
     // Department isolation
     if (deptFilter) {
       query.department = deptFilter;
-    } else if (department) {
+    } else if (department && department !== 'ALL') {
       query.department = department.toUpperCase();
     }
 
     // Filters
-    if (series) query.series = series;
-    if (session) query.session = session;
-    if (semester) query.semester = semester;
-    if (section) query.section = section.toUpperCase();
-    if (status) query.status = status;
-    if (req.query.regularStatus) query.regularStatus = req.query.regularStatus;
+    if (series && series !== 'ALL') query.series = series;
+    if (session && session !== 'ALL') query.session = session;
+    if (semester && semester !== 'ALL') query.semester = semester;
+    if (section && section !== 'ALL') query.section = section.toUpperCase();
+    if (status && status !== 'ALL') query.status = status;
+    if (req.query.regularStatus && req.query.regularStatus !== 'ALL') query.regularStatus = req.query.regularStatus;
 
     // Sorting
     const sortBy = req.query.sortBy || 'rollNumber';
@@ -470,6 +765,7 @@ const getAllStudents = async (req, res) => {
     ]);
 
     return res.json({
+      success: true,
       students,
       pagination: {
         page: pageNum,
@@ -479,7 +775,7 @@ const getAllStudents = async (req, res) => {
       }
     });
   } catch (error) {
-    res.status(500).json({ message: error.message });
+    res.status(500).json({ success: false, message: error.message });
   }
 };
 
@@ -2485,5 +2781,11 @@ module.exports = {
   deleteTeachingAssignment,
   // System Settings
   getSystemSettings,
-  updateSystemSettings
+  updateSystemSettings,
+  // Department-first Navigation & Details
+  getTeacherDepartmentSummary,
+  getTeacherById,
+  toggleTeacherStatus,
+  getStudentDepartmentSummary,
+  getStudentCohortSummary
 };
