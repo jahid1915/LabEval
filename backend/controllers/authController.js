@@ -149,35 +149,53 @@ const login = async (req, res) => {
     // 1. Single-query lookup: Find user in central User collection and populate profileRef immediately
     let user = await User.findOne({ loginIdentifierLower: cleanLower }).populate('profileRef');
 
-    // Fallback search in legacy collections if not yet synchronized
+    // Fallback: If not found in central User collection, check legacy collections by case-insensitive identifier
     if (!user) {
       let legacyDoc = null;
       let legacyRole = null;
 
-      if (cleanLower === 'admin') {
-        legacyDoc = await Admin.findOne({ username: 'admin' });
-        legacyRole = 'admin';
+      // Check Admin by username or headId (case-insensitive regex)
+      legacyDoc = await Admin.findOne({
+        $or: [
+          { username: { $regex: new RegExp(`^${cleanIdentifier}$`, 'i') } },
+          { headId: { $regex: new RegExp(`^${cleanIdentifier}$`, 'i') } }
+        ]
+      });
+
+      if (legacyDoc) {
+        legacyRole = (legacyDoc.role === 'department_head') ? 'department_head' : 'admin';
+        // If an existing User is linked to this legacyDoc, update its login identifier
+        user = await User.findOne({ profileRef: legacyDoc._id });
+        if (user) {
+          user.loginIdentifier = legacyDoc.username || cleanIdentifier;
+          user.loginIdentifierLower = cleanLower;
+          if (legacyDoc.password && !user.passwordHash.startsWith('$2')) {
+            user.passwordHash = legacyDoc.password;
+          }
+          await user.save();
+          user.profileRef = legacyDoc;
+        }
       } else {
-        legacyDoc = await Student.findOne({ rollNumber: cleanIdentifier });
+        legacyDoc = await Student.findOne({ rollNumber: { $regex: new RegExp(`^${cleanIdentifier}$`, 'i') } });
         if (legacyDoc) legacyRole = 'student';
         else {
-          legacyDoc = await Teacher.findOne({ teacherId: cleanIdentifier.toUpperCase() });
+          legacyDoc = await Teacher.findOne({ teacherId: { $regex: new RegExp(`^${cleanIdentifier}$`, 'i') } });
           if (legacyDoc) legacyRole = 'teacher';
-          else {
-            legacyDoc = await Admin.findOne({ $or: [{ username: cleanLower }, { headId: cleanIdentifier.toUpperCase() }] });
-            if (legacyDoc) legacyRole = legacyDoc.role === 'department_head' ? 'department_head' : 'admin';
-          }
         }
       }
 
-      if (legacyDoc) {
+      if (legacyDoc && !user) {
+        const initialHash = legacyDoc.password
+          ? (legacyDoc.password.startsWith('$2') ? legacyDoc.password : await User.hashPassword(legacyDoc.password))
+          : await User.hashPassword('admin123');
+
         user = await User.create({
           loginIdentifier: cleanIdentifier,
           loginIdentifierLower: cleanLower,
-          passwordHash: legacyDoc.password,
+          passwordHash: initialHash,
           role: legacyRole,
           status: legacyDoc.status === 'inactive' ? 'INACTIVE' : 'ACTIVE',
-          name: legacyDoc.name,
+          name: legacyDoc.name || 'Administrator',
           email: legacyDoc.email || '',
           phone: legacyDoc.contactNo || '',
           department: legacyDoc.department || legacyDoc.departmentCode || '',
@@ -223,8 +241,36 @@ const login = async (req, res) => {
       });
     }
 
-    // 4. Verify Password (CPU-bound bcrypt match)
-    const isMatch = await user.matchPassword(password);
+    // 4. Verify Password (CPU-bound bcrypt match with legacy sync fallback)
+    let isMatch = await user.matchPassword(password);
+    if (!isMatch) {
+      // Check if profile document in legacy collection (e.g. Admin, Teacher, Student) was updated directly in MongoDB
+      let legacyProfile = user.profileRef;
+      if (!legacyProfile || !legacyProfile.password) {
+        if (user.role === 'admin' || user.role === 'department_head') {
+          legacyProfile = await Admin.findById(user.profileRef || user._id);
+        } else if (user.role === 'teacher') {
+          legacyProfile = await Teacher.findById(user.profileRef || user._id);
+        } else if (user.role === 'student') {
+          legacyProfile = await Student.findById(user.profileRef || user._id);
+        }
+      }
+
+      if (legacyProfile && legacyProfile.password) {
+        if (legacyProfile.password === password) {
+          isMatch = true;
+        } else if (legacyProfile.password.startsWith('$2')) {
+          isMatch = await bcrypt.compare(password, legacyProfile.password);
+        }
+        if (isMatch) {
+          // Re-hash and auto-upgrade central User model
+          const newHash = await User.hashPassword(password);
+          user.passwordHash = newHash;
+          User.updateOne({ _id: user._id }, { $set: { passwordHash: newHash } }).exec().catch(() => {});
+        }
+      }
+    }
+
     if (!isMatch) {
       const attempts = (user.failedLoginAttempts || 0) + 1;
       const updateData = { failedLoginAttempts: attempts };

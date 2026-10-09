@@ -64,19 +64,20 @@ export default function AdminDashboard() {
         title="System Control Center"
         subtitle="Universal university management, centralized database administration, and account governance."
         badge="System Administrator"
+        badgeIcon={Shield}
         actions={
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2.5">
             <button
               onClick={fetchDashboardData}
               disabled={loading}
-              className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-semibold rounded-xl border border-slate-200 dark:border-[#243244] bg-white dark:bg-[#111827] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#172033] transition"
+              className="flex items-center gap-1.5 px-3.5 py-2 text-xs font-semibold rounded-xl border border-slate-200 dark:border-[#243244] bg-white dark:bg-[#111827] text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-[#172033] shadow-xs hover:shadow transition"
             >
               <RefreshCw size={13} className={loading ? 'animate-spin' : ''} />
               Refresh
             </button>
             <button
               onClick={() => navigate('/admin/database')}
-              className="flex items-center gap-1.5 px-3.5 py-1.5 text-xs font-semibold rounded-xl bg-blue-600 text-white hover:bg-blue-700 shadow-sm shadow-blue-500/20 transition"
+              className="flex items-center gap-1.5 px-4 py-2 text-xs font-semibold rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 text-white hover:from-blue-700 hover:to-indigo-700 shadow-md shadow-blue-500/25 transition hover:scale-[1.02] active:scale-[0.98]"
             >
               <Database size={13} />
               Database Portal
@@ -88,47 +89,52 @@ export default function AdminDashboard() {
       {/* ── SYSTEM KPI OVERVIEW ── */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3.5">
         <StatCard
-          label="Total Users"
+          title="Total Users"
           value={summary.totalUsers}
           icon={Shield}
           loading={loading}
-          variant="primary"
+          accent="indigo"
           trend="Central Auth"
         />
         <StatCard
-          label="Students"
+          title="Students"
           value={summary.totalStudents}
           icon={Users}
           loading={loading}
+          accent="emerald"
           trend="Enrolled"
         />
         <StatCard
-          label="Teachers"
+          title="Teachers"
           value={summary.totalTeachers}
           icon={GraduationCap}
           loading={loading}
-          trend="Faculty"
+          accent="purple"
+          trend="Faculty Staff"
         />
         <StatCard
-          label="Departments"
+          title="Departments"
           value={summary.totalDepartments}
           icon={Building2}
           loading={loading}
+          accent="amber"
           trend="All Faculties"
         />
         <StatCard
-          label="Academic Sessions"
+          title="Sessions"
           value={summary.totalSessions}
           icon={Calendar}
           loading={loading}
-          trend="Active"
+          accent="cyan"
+          trend="Academic Years"
         />
         <StatCard
-          label="Course Master"
+          title="Course Master"
           value={summary.totalCourses}
           icon={BookOpen}
           loading={loading}
-          trend="Catalog"
+          accent="rose"
+          trend="Active Catalog"
         />
       </div>
 
