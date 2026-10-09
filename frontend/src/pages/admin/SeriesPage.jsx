@@ -5,9 +5,10 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Plus, Pencil, Trash2, Search, X, Loader2,
   Building2, Hash, ArrowUpRight, ExternalLink, Mail,
-  Phone, CheckCircle2, Sparkles, GraduationCap
+  Phone, CheckCircle2, Sparkles, GraduationCap, Calendar
 } from 'lucide-react';
 import api from '../../api/axios';
+import CohortSemesterManagerModal from '../../components/CohortSemesterManagerModal';
 
 const emptyForm = { name: '', department: '', year: '', section: '' };
 
@@ -22,6 +23,10 @@ export default function SeriesPage() {
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
   const [deleteId, setDeleteId] = useState(null);
+
+  // Cohort Semester Progression Modal State
+  const [showCohortModal, setShowCohortModal] = useState(false);
+  const [cohortModalProps, setCohortModalProps] = useState({});
 
   // Series Students Modal State
   const [selectedSeriesForStudents, setSelectedSeriesForStudents] = useState(null);
@@ -160,10 +165,23 @@ export default function SeriesPage() {
             Click on any series card to inspect its full student roster in a tabular format
           </p>
         </div>
-        <button onClick={openAdd}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 text-white font-semibold text-sm shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:-translate-y-0.5 transition-all">
-          <Plus size={18} /> Add Series
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => {
+              setCohortModalProps({});
+              setShowCohortModal(true);
+            }}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/40 shadow-sm transition-all"
+          >
+            <Calendar size={15} /> Progress Current Semester
+          </button>
+          <button
+            onClick={openAdd}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-cyan-600 to-teal-600 text-white font-semibold text-sm shadow-lg shadow-cyan-500/25 hover:shadow-xl hover:-translate-y-0.5 transition-all"
+          >
+            <Plus size={18} /> Add Series
+          </button>
+        </div>
       </div>
 
       {/* Search */}
@@ -224,6 +242,25 @@ export default function SeriesPage() {
               <div className="space-y-1.5 text-xs text-slate-500 dark:text-slate-400 mb-4">
                 <div className="flex items-center gap-2"><Building2 size={13} className="text-slate-400" /> {getDeptName(s)}</div>
                 {s.year && <div className="flex items-center gap-2"><Hash size={13} className="text-slate-400" /> Year: {s.year}</div>}
+                <div className="flex items-center justify-between pt-1">
+                  <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">Current Semester:</span>
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setCohortModalProps({
+                        initialDepartment: s.departmentCode || s.department?.code || '',
+                        initialSeries: s.name,
+                        initialSection: s.section || 'ALL'
+                      });
+                      setShowCohortModal(true);
+                    }}
+                    className="px-2 py-0.5 rounded text-[11px] font-bold text-indigo-700 dark:text-indigo-300 bg-indigo-50 dark:bg-indigo-950/50 hover:bg-indigo-100 dark:hover:bg-indigo-900/40 border border-indigo-200 dark:border-indigo-800 transition flex items-center gap-1"
+                    title="Click to progress running semester for this batch"
+                  >
+                    <span>{s.currentSemester || '1st Semester'}</span>
+                    <Pencil size={10} />
+                  </button>
+                </div>
               </div>
 
               <div className="pt-3 border-t border-slate-100 dark:border-slate-800/80 flex items-center justify-between text-xs font-semibold text-cyan-600 dark:text-cyan-400">
@@ -471,6 +508,14 @@ export default function SeriesPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Cohort Semester Progression Manager Modal */}
+      <CohortSemesterManagerModal
+        isOpen={showCohortModal}
+        onClose={() => setShowCohortModal(false)}
+        onSuccess={fetchAll}
+        {...cohortModalProps}
+      />
     </div>
   );
 }

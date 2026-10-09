@@ -120,16 +120,16 @@ const ProtectedRoute = ({ children, allowedRole }) => {
 };
 
 // ── Hidden Admin Route Component ───────────────────────────────────────
-// If unauthenticated: displays dedicated Admin Login page
+// If unauthenticated: redirects to dedicated /admin/login
 // If authenticated as Admin: renders Admin Dashboard
 // If authenticated as Department Head: redirects to /head
 const AdminPortalGuard = () => {
   const { user, loading } = React.useContext(AuthContext);
   if (loading) return <PageLoader />;
-  if (!user) return <AdminLoginPage />;
+  if (!user) return <Navigate to="/admin/login" replace />;
   if (user.role === 'department_head') return <Navigate to="/head" replace />;
   if (user.role !== 'admin' && user.role !== 'super_admin') {
-    return <AdminLoginPage />;
+    return <Navigate to="/admin/login" replace />;
   }
   return <DashboardLayout />;
 };
@@ -150,6 +150,9 @@ export default function App() {
               <Route path="/about"   element={<About   />} />
               <Route path="/contact" element={<Contact />} />
             </Route>
+
+            {/* ── Dedicated Admin Authentication Route ──────────── */}
+            <Route path="/admin/login" element={<AdminLoginPage />} />
 
             {/* ── Public Auth Portal (Student, Teacher, Head) ───── */}
             <Route path="/login"          element={<AuthPage />} />

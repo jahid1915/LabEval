@@ -5,13 +5,17 @@ const {
   getEntityRecords,
   getEntityRecordById,
   getEntityDependencies,
+  getEntitySchema,
+  createEntityRecord,
   updateEntityRecord,
   deleteEntityRecord
 } = require('../controllers/databaseManagementController');
 
 // All routes require Admin privileges (inherited from parent admin router)
 router.get('/entities', getEntitiesOverview);
+router.get('/:entity/schema', getEntitySchema);
 router.get('/:entity', getEntityRecords);
+router.post('/:entity', createEntityRecord);
 router.get('/:entity/:id', getEntityRecordById);
 router.get('/:entity/:id/dependencies', getEntityDependencies);
 router.patch('/:entity/:id', updateEntityRecord);

@@ -1,3 +1,4 @@
+const mongoose = require('mongoose');
 const AcademicSession = require('../models/AcademicSession');
 const Semester = require('../models/Semester');
 const Series = require('../models/Series');
@@ -272,6 +273,175 @@ const deleteSeries = async (req, res) => {
   }
 };
 
+// ── Cohort Semester Progression Management (Section 1) ───────────────
+const getCohortPreview = async (req, res) => {
+  try {
+    const { department, series, section } = req.query;
+    if (!department || !series) {
+      return res.status(400).json({ success: false, message: 'Department and series are required' });
+    }
+
+    const cleanDept = String(department).trim().toUpperCase();
+    const cleanSeries = String(series).trim();
+    const cleanSection = section && section !== 'ALL' ? String(section).trim().toUpperCase() : null;
+
+    // Resolve Department
+    const deptDoc = await Department.findOne({
+      $or: [
+        { code: cleanDept },
+        ...(mongoose.Types.ObjectId.isValid(department) ? [{ _id: department }] : [])
+      ]
+    });
+    if (!deptDoc) {
+      return res.status(404).json({ success: false, message: `Department '${cleanDept}' not found` });
+    }
+
+    // Resolve Series
+    const seriesDoc = await Series.findOne({
+      department: deptDoc._id,
+      name: cleanSeries
+    }).populate('academicSession', 'name year');
+
+    // Build Student Query
+    const studentQuery = {
+      $and: [
+        { $or: [{ departmentRef: deptDoc._id }, { department: deptDoc.code }] },
+        { $or: [{ series: cleanSeries }, ...(seriesDoc ? [{ seriesRef: seriesDoc._id }] : [])] }
+      ],
+      status: { $ne: 'suspended' }
+    };
+    if (cleanSection) {
+      studentQuery.section = cleanSection;
+    }
+
+    const studentCount = await Student.countDocuments(studentQuery);
+    const sampleStudents = await Student.find(studentQuery)
+      .select('rollNumber name semester section regularStatus')
+      .limit(10)
+      .lean();
+
+    res.json({
+      success: true,
+      department: deptDoc.code,
+      departmentName: deptDoc.name,
+      series: cleanSeries,
+      section: cleanSection || 'ALL',
+      currentSemester: seriesDoc?.currentSemester || sampleStudents[0]?.semester || '1st Semester',
+      academicSession: seriesDoc?.academicSession?.name || '',
+      studentCount,
+      sampleStudents
+    });
+  } catch (err) {
+    console.error('getCohortPreview error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+const updateCohortSemester = async (req, res) => {
+  try {
+    const { department, series, section, currentSemester, academicSession } = req.body;
+    if (!department || !series || !currentSemester) {
+      return res.status(400).json({
+        success: false,
+        message: 'Department, series, and currentSemester are required'
+      });
+    }
+
+    const cleanDept = String(department).trim().toUpperCase();
+    const cleanSeries = String(series).trim();
+    const cleanSemester = String(currentSemester).trim();
+    const cleanSection = section && section !== 'ALL' ? String(section).trim().toUpperCase() : null;
+
+    // Resolve Department
+    const deptDoc = await Department.findOne({
+      $or: [
+        { code: cleanDept },
+        ...(mongoose.Types.ObjectId.isValid(department) ? [{ _id: department }] : [])
+      ]
+    });
+    if (!deptDoc) {
+      return res.status(404).json({ success: false, message: `Department '${cleanDept}' not found` });
+    }
+
+    // Resolve Session if provided
+    let sessionDoc = null;
+    if (academicSession) {
+      sessionDoc = await AcademicSession.findOne({
+        $or: [
+          { name: String(academicSession).trim() },
+          ...(mongoose.Types.ObjectId.isValid(academicSession) ? [{ _id: academicSession }] : [])
+        ]
+      });
+    }
+
+    // 1. Find or create/update Series record
+    let seriesDoc = await Series.findOne({
+      department: deptDoc._id,
+      name: cleanSeries
+    });
+
+    if (seriesDoc) {
+      seriesDoc.currentSemester = cleanSemester;
+      if (sessionDoc) {
+        seriesDoc.academicSession = sessionDoc._id;
+      }
+      await seriesDoc.save();
+    } else {
+      seriesDoc = await Series.create({
+        name: cleanSeries,
+        department: deptDoc._id,
+        departmentCode: deptDoc.code,
+        currentSemester: cleanSemester,
+        academicSession: sessionDoc?._id || null
+      });
+    }
+
+    // 2. Build Student update query (Scoped strictly to this dept + series + optional section)
+    const studentQuery = {
+      $and: [
+        { $or: [{ departmentRef: deptDoc._id }, { department: deptDoc.code }] },
+        { $or: [{ series: cleanSeries }, { seriesRef: seriesDoc._id }] }
+      ]
+    };
+    if (cleanSection) {
+      studentQuery.section = cleanSection;
+    }
+
+    const updateFields = {
+      semester: cleanSemester
+    };
+    if (sessionDoc) {
+      updateFields.session = sessionDoc.name;
+      updateFields.academicSessionRef = sessionDoc._id;
+    }
+
+    // 3. Atomically update all matching students without altering historical marks/attendance
+    const updateResult = await Student.updateMany(studentQuery, { $set: updateFields });
+
+    await logAudit({
+      req,
+      action: 'UPDATE_COHORT_SEMESTER',
+      entity: 'Series',
+      entityId: seriesDoc._id,
+      details: `Updated ${deptDoc.code} Series ${cleanSeries} ${cleanSection ? `(Section ${cleanSection})` : '(All Sections)'} to ${cleanSemester} (${updateResult.modifiedCount} students updated)`,
+      newValues: { department: deptDoc.code, series: cleanSeries, section: cleanSection || 'ALL', currentSemester: cleanSemester }
+    });
+
+    invalidateSeriesCache();
+    invalidateSessionsCache();
+
+    res.json({
+      success: true,
+      message: `Successfully progressed ${deptDoc.code} Series ${cleanSeries} ${cleanSection ? `Section ${cleanSection} ` : ''}to ${cleanSemester} (${updateResult.modifiedCount} students updated).`,
+      affectedStudents: updateResult.modifiedCount,
+      series: seriesDoc
+    });
+  } catch (err) {
+    console.error('updateCohortSemester error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
 module.exports = {
   getAcademicSessions,
   createAcademicSession,
@@ -281,5 +451,7 @@ module.exports = {
   getSeries,
   createSeries,
   updateSeries,
-  deleteSeries
+  deleteSeries,
+  getCohortPreview,
+  updateCohortSemester
 };

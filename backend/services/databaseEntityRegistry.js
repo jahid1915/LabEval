@@ -39,6 +39,13 @@ const ENTITY_REGISTRY = {
     modelName: 'User',
     model: User,
     category: 'SYSTEM_PROTECTED',
+    canCreate: false,
+    colorTheme: {
+      accent: '#e11d48',
+      badgeBg: 'bg-rose-50 dark:bg-rose-950/40',
+      badgeText: 'text-rose-700 dark:text-rose-300',
+      border: 'border-rose-200 dark:border-rose-800'
+    },
     description: 'Centralized authentication identities and security credentials.',
     icon: 'Shield',
     searchFields: ['loginIdentifier', 'name', 'email', 'phone', 'department'],
@@ -84,6 +91,13 @@ const ENTITY_REGISTRY = {
     modelName: 'Student',
     model: Student,
     category: 'MANAGEABLE',
+    canCreate: true,
+    colorTheme: {
+      accent: '#0284c7',
+      badgeBg: 'bg-sky-50 dark:bg-sky-950/40',
+      badgeText: 'text-sky-700 dark:text-sky-300',
+      border: 'border-sky-200 dark:border-sky-800'
+    },
     description: 'Student master identity, enrollment credentials, and academic status.',
     icon: 'Users',
     searchFields: ['rollNumber', 'name', 'registrationNumber', 'email', 'department'],
@@ -110,6 +124,20 @@ const ENTITY_REGISTRY = {
     editableFields: [
       'name', 'registrationNumber', 'department', 'series', 'session',
       'contactNo', 'email', 'status', 'regularStatus', 'gender', 'bloodGroup', 'address', 'section'
+    ],
+    createFields: [
+      { key: 'rollNumber', label: 'Roll Number', type: 'text', required: true, uppercase: true, placeholder: 'e.g. 2208001' },
+      { key: 'name', label: 'Full Name', type: 'text', required: true, placeholder: 'e.g. Jahid Hasan' },
+      { key: 'department', label: 'Department', type: 'select', reference: 'departments', required: true, placeholder: 'Select department' },
+      { key: 'series', label: 'Series / Batch', type: 'select', reference: 'series', required: true, placeholder: 'Select series' },
+      { key: 'registrationNumber', label: 'Registration No (Initial Password)', type: 'text', required: false, placeholder: 'e.g. 102938' },
+      { key: 'session', label: 'Academic Session', type: 'select', reference: 'sessions', required: false, placeholder: 'Select session' },
+      { key: 'semester', label: 'Current Semester', type: 'select', options: ['1st Semester', '2nd Semester', '3rd Semester', '4th Semester', '5th Semester', '6th Semester', '7th Semester', '8th Semester'], required: false, defaultValue: '1st Semester' },
+      { key: 'section', label: 'Section', type: 'text', uppercase: true, required: false, placeholder: 'e.g. A or B' },
+      { key: 'regularStatus', label: 'Regularity Status', type: 'select', options: ['Regular', 'Irregular'], required: true, defaultValue: 'Regular' },
+      { key: 'status', label: 'Status', type: 'select', options: ['active', 'inactive', 'graduated', 'suspended'], required: true, defaultValue: 'active' },
+      { key: 'contactNo', label: 'Contact Phone', type: 'text', required: false, placeholder: 'e.g. 01700000000' },
+      { key: 'email', label: 'Email Address', type: 'email', required: false, placeholder: 'e.g. student@ruet.ac.bd' }
     ],
     protectedFields: ['password', 'enrolledCourses', '__v'],
     deletePolicy: 'SAFE_CHECK',
@@ -141,6 +169,13 @@ const ENTITY_REGISTRY = {
     modelName: 'Teacher',
     model: Teacher,
     category: 'MANAGEABLE',
+    canCreate: true,
+    colorTheme: {
+      accent: '#4f46e5',
+      badgeBg: 'bg-indigo-50 dark:bg-indigo-950/40',
+      badgeText: 'text-indigo-700 dark:text-indigo-300',
+      border: 'border-indigo-200 dark:border-indigo-800'
+    },
     description: 'Faculty members, designations, and departmental appointments.',
     icon: 'GraduationCap',
     searchFields: ['teacherId', 'name', 'email', 'department', 'designation'],
@@ -166,6 +201,17 @@ const ENTITY_REGISTRY = {
       'name', 'department', 'designation', 'email', 'contactNo',
       'status', 'dutyStatus', 'roomNo', 'specialization'
     ],
+    createFields: [
+      { key: 'teacherId', label: 'Teacher ID / Code', type: 'text', required: true, uppercase: true, placeholder: 'e.g. ETE-T01' },
+      { key: 'name', label: 'Teacher Full Name', type: 'text', required: true, placeholder: 'e.g. Dr. Md. Faruk Hossain' },
+      { key: 'department', label: 'Department', type: 'select', reference: 'departments', required: true, placeholder: 'Select department' },
+      { key: 'designation', label: 'Designation', type: 'select', options: ['Professor', 'Associate Professor', 'Assistant Professor', 'Lecturer'], required: true, defaultValue: 'Lecturer' },
+      { key: 'contactNo', label: 'Phone Number', type: 'text', required: true, placeholder: 'e.g. 01711000000' },
+      { key: 'email', label: 'Email Address', type: 'email', required: false, placeholder: 'e.g. teacher@ruet.ac.bd' },
+      { key: 'dutyStatus', label: 'Duty Status', type: 'select', options: ['ON_DUTY', 'STUDY_LEAVE', 'DEPUTATION', 'ON_LEAVE'], required: true, defaultValue: 'ON_DUTY' },
+      { key: 'specialization', label: 'Research Specialization', type: 'text', required: false, placeholder: 'e.g. Wireless Communications' },
+      { key: 'password', label: 'Initial Password', type: 'password', required: false, placeholder: 'Defaults to Teacher ID if empty' }
+    ],
     protectedFields: ['password', '__v'],
     deletePolicy: 'SAFE_CHECK',
     checkDependencies: async (id) => {
@@ -190,6 +236,13 @@ const ENTITY_REGISTRY = {
     modelName: 'Faculty',
     model: Faculty,
     category: 'MANAGEABLE',
+    canCreate: true,
+    colorTheme: {
+      accent: '#d97706',
+      badgeBg: 'bg-amber-50 dark:bg-amber-950/40',
+      badgeText: 'text-amber-700 dark:text-amber-300',
+      border: 'border-amber-200 dark:border-amber-800'
+    },
     description: 'University academic faculties grouping related engineering departments.',
     icon: 'FolderTree',
     searchFields: ['name', 'code', 'deanName'],
@@ -203,6 +256,12 @@ const ENTITY_REGISTRY = {
     ],
     detailFields: ['name', 'code', 'deanName', 'description', 'createdAt'],
     editableFields: ['name', 'code', 'deanName', 'description'],
+    createFields: [
+      { key: 'code', label: 'Faculty Code', type: 'text', required: true, uppercase: true, placeholder: 'e.g. ECE' },
+      { key: 'name', label: 'Faculty Name', type: 'text', required: true, placeholder: 'e.g. Faculty of Electrical & Computer Engineering' },
+      { key: 'deanName', label: 'Dean Name', type: 'text', required: false, placeholder: 'e.g. Prof. Dr. Name' },
+      { key: 'description', label: 'Description', type: 'textarea', required: false, placeholder: 'Overview of academic faculty' }
+    ],
     protectedFields: ['__v'],
     deletePolicy: 'SAFE_CHECK',
     checkDependencies: async (id) => {
@@ -221,6 +280,13 @@ const ENTITY_REGISTRY = {
     modelName: 'Department',
     model: Department,
     category: 'MANAGEABLE',
+    canCreate: true,
+    colorTheme: {
+      accent: '#2563eb',
+      badgeBg: 'bg-blue-50 dark:bg-blue-950/40',
+      badgeText: 'text-blue-700 dark:text-blue-300',
+      border: 'border-blue-200 dark:border-blue-800'
+    },
     description: 'Academic engineering departments with assigned faculty and headship.',
     icon: 'Building2',
     searchFields: ['name', 'code', 'headName'],
@@ -234,6 +300,14 @@ const ENTITY_REGISTRY = {
     ],
     detailFields: ['name', 'code', 'headName', 'status', 'description', 'createdAt'],
     editableFields: ['name', 'code', 'status', 'description', 'headName'],
+    createFields: [
+      { key: 'code', label: 'Department Code', type: 'text', required: true, uppercase: true, placeholder: 'e.g. ETE' },
+      { key: 'name', label: 'Department Name', type: 'text', required: true, placeholder: 'e.g. Electronics and Telecommunication Engineering' },
+      { key: 'faculty', label: 'Parent Faculty', type: 'select', reference: 'faculties', required: false, placeholder: 'Select parent faculty' },
+      { key: 'headName', label: 'Head of Department', type: 'text', required: false, placeholder: 'e.g. Prof. Dr. Name' },
+      { key: 'status', label: 'Status', type: 'select', options: ['active', 'inactive'], required: true, defaultValue: 'active' },
+      { key: 'description', label: 'Description', type: 'textarea', required: false, placeholder: 'Department academic profile' }
+    ],
     protectedFields: ['__v'],
     deletePolicy: 'SAFE_CHECK',
     checkDependencies: async (id) => {
@@ -263,6 +337,13 @@ const ENTITY_REGISTRY = {
     modelName: 'AcademicSession',
     model: AcademicSession,
     category: 'MANAGEABLE',
+    canCreate: true,
+    colorTheme: {
+      accent: '#059669',
+      badgeBg: 'bg-emerald-50 dark:bg-emerald-950/40',
+      badgeText: 'text-emerald-700 dark:text-emerald-300',
+      border: 'border-emerald-200 dark:border-emerald-800'
+    },
     description: 'University academic calendar sessions (e.g. 2022-2023).',
     icon: 'Calendar',
     searchFields: ['name', 'year'],
@@ -279,6 +360,12 @@ const ENTITY_REGISTRY = {
     ],
     detailFields: ['name', 'year', 'isCurrent', 'status', 'createdAt'],
     editableFields: ['name', 'year', 'isCurrent', 'status'],
+    createFields: [
+      { key: 'name', label: 'Session Name', type: 'text', required: true, placeholder: 'e.g. 2023-2024' },
+      { key: 'year', label: 'Session Year', type: 'number', required: true, placeholder: 'e.g. 2024' },
+      { key: 'isCurrent', label: 'Is Current Running Session', type: 'boolean', defaultValue: false },
+      { key: 'status', label: 'Status', type: 'select', options: ['ACTIVE', 'UPCOMING', 'ARCHIVED'], required: true, defaultValue: 'ACTIVE' }
+    ],
     protectedFields: ['__v'],
     deletePolicy: 'SAFE_CHECK',
     checkDependencies: async (id) => {
@@ -301,6 +388,13 @@ const ENTITY_REGISTRY = {
     modelName: 'Series',
     model: Series,
     category: 'MANAGEABLE',
+    canCreate: true,
+    colorTheme: {
+      accent: '#7c3aed',
+      badgeBg: 'bg-violet-50 dark:bg-violet-950/40',
+      badgeText: 'text-violet-700 dark:text-violet-300',
+      border: 'border-violet-200 dark:border-violet-800'
+    },
     description: 'Admitted student cohorts per department (e.g. Series 22).',
     icon: 'Layers',
     searchFields: ['name', 'departmentCode'],
@@ -317,6 +411,13 @@ const ENTITY_REGISTRY = {
     ],
     detailFields: ['name', 'departmentCode', 'currentSemester', 'status', 'createdAt'],
     editableFields: ['name', 'departmentCode', 'currentSemester', 'status'],
+    createFields: [
+      { key: 'name', label: 'Series / Batch Number', type: 'text', required: true, placeholder: 'e.g. 22' },
+      { key: 'departmentCode', label: 'Department', type: 'select', reference: 'departments', required: true, placeholder: 'Select department' },
+      { key: 'academicSession', label: 'Academic Session', type: 'select', reference: 'sessions', required: false, placeholder: 'Select session' },
+      { key: 'currentSemester', label: 'Current Semester', type: 'select', options: ['1st Semester', '2nd Semester', '3rd Semester', '4th Semester', '5th Semester', '6th Semester', '7th Semester', '8th Semester'], required: true, defaultValue: '1st Semester' },
+      { key: 'status', label: 'Status', type: 'select', options: ['active', 'graduated', 'archived'], required: true, defaultValue: 'active' }
+    ],
     protectedFields: ['__v'],
     deletePolicy: 'SAFE_CHECK',
     checkDependencies: async (id) => {
@@ -337,6 +438,13 @@ const ENTITY_REGISTRY = {
     modelName: 'Course',
     model: Course,
     category: 'MANAGEABLE',
+    canCreate: true,
+    colorTheme: {
+      accent: '#0d9488',
+      badgeBg: 'bg-teal-50 dark:bg-teal-950/40',
+      badgeText: 'text-teal-700 dark:text-teal-300',
+      border: 'border-teal-200 dark:border-teal-800'
+    },
     description: 'Master course definitions, credit hours, and syllabi.',
     icon: 'BookOpen',
     searchFields: ['courseCode', 'courseName', 'departmentCode'],
@@ -356,6 +464,16 @@ const ENTITY_REGISTRY = {
     ],
     detailFields: ['courseCode', 'courseName', 'departmentCode', 'credits', 'courseType', 'semesterLevel', 'status', 'description', 'createdAt'],
     editableFields: ['courseCode', 'courseName', 'departmentCode', 'credits', 'courseType', 'semesterLevel', 'status', 'description'],
+    createFields: [
+      { key: 'courseCode', label: 'Course Code', type: 'text', required: true, uppercase: true, placeholder: 'e.g. ETE 4101' },
+      { key: 'courseName', label: 'Course Title', type: 'text', required: true, placeholder: 'e.g. Wireless & Mobile Communication' },
+      { key: 'departmentCode', label: 'Department', type: 'select', reference: 'departments', required: true, placeholder: 'Select department' },
+      { key: 'credits', label: 'Credit Hours', type: 'number', required: true, placeholder: 'e.g. 3.0' },
+      { key: 'courseType', label: 'Course Type', type: 'select', options: ['Theory', 'Sessional'], required: true, defaultValue: 'Theory' },
+      { key: 'semesterLevel', label: 'Semester Level', type: 'select', options: ['1st Semester', '2nd Semester', '3rd Semester', '4th Semester', '5th Semester', '6th Semester', '7th Semester', '8th Semester'], required: false },
+      { key: 'status', label: 'Status', type: 'select', options: ['active', 'inactive'], required: true, defaultValue: 'active' },
+      { key: 'description', label: 'Description / Syllabus', type: 'textarea', required: false, placeholder: 'Course syllabus outline' }
+    ],
     protectedFields: ['__v'],
     deletePolicy: 'SAFE_CHECK',
     checkDependencies: async (id) => {
@@ -374,6 +492,13 @@ const ENTITY_REGISTRY = {
     modelName: 'CourseOffering',
     model: CourseOffering,
     category: 'MANAGEABLE',
+    canCreate: true,
+    colorTheme: {
+      accent: '#ea580c',
+      badgeBg: 'bg-orange-50 dark:bg-orange-950/40',
+      badgeText: 'text-orange-700 dark:text-orange-300',
+      border: 'border-orange-200 dark:border-orange-800'
+    },
     description: 'Offered courses per series, academic session, and semester.',
     icon: 'Award',
     searchFields: ['courseCode', 'courseName', 'seriesName', 'sessionName', 'departmentCode'],
@@ -394,6 +519,14 @@ const ENTITY_REGISTRY = {
     ],
     detailFields: ['courseCode', 'courseName', 'departmentCode', 'seriesName', 'sessionName', 'semesterName', 'status', 'enrollmentSyncStatus', 'createdAt'],
     editableFields: ['status', 'semesterName'],
+    createFields: [
+      { key: 'course', label: 'Master Course', type: 'select', reference: 'courses', required: true, placeholder: 'Select master course' },
+      { key: 'departmentCode', label: 'Department', type: 'select', reference: 'departments', required: true, placeholder: 'Select department' },
+      { key: 'seriesName', label: 'Series', type: 'select', reference: 'series', required: true, placeholder: 'Select series' },
+      { key: 'sessionName', label: 'Academic Session', type: 'select', reference: 'sessions', required: true, placeholder: 'Select session' },
+      { key: 'semesterName', label: 'Offered Semester', type: 'select', options: ['1st Semester', '2nd Semester', '3rd Semester', '4th Semester', '5th Semester', '6th Semester', '7th Semester', '8th Semester'], required: true, defaultValue: '1st Semester' },
+      { key: 'status', label: 'Offering Status', type: 'select', options: ['draft', 'active', 'completed', 'cancelled'], required: true, defaultValue: 'active' }
+    ],
     protectedFields: ['__v'],
     deletePolicy: 'SAFE_CHECK',
     checkDependencies: async (id) => {
@@ -415,6 +548,13 @@ const ENTITY_REGISTRY = {
     modelName: 'Enrollment',
     model: Enrollment,
     category: 'MANAGEABLE',
+    canCreate: false,
+    colorTheme: {
+      accent: '#0891b2',
+      badgeBg: 'bg-cyan-50 dark:bg-cyan-950/40',
+      badgeText: 'text-cyan-700 dark:text-cyan-300',
+      border: 'border-cyan-200 dark:border-cyan-800'
+    },
     description: 'Canonical series student enrollments in offered courses.',
     icon: 'ClipboardList',
     searchFields: ['studentRoll', 'studentName', 'courseCode', 'series', 'departmentCode'],
@@ -454,6 +594,13 @@ const ENTITY_REGISTRY = {
     modelName: 'TeacherAssignment',
     model: TeacherAssignment,
     category: 'MANAGEABLE',
+    canCreate: false,
+    colorTheme: {
+      accent: '#6366f1',
+      badgeBg: 'bg-indigo-50 dark:bg-indigo-950/40',
+      badgeText: 'text-indigo-700 dark:text-indigo-300',
+      border: 'border-indigo-200 dark:border-indigo-800'
+    },
     description: 'Allocated faculty teachers for courses, series, and sessions.',
     icon: 'BookOpen',
     searchFields: ['teacherName', 'teacherId', 'courseCode', 'departmentCode', 'series'],
@@ -486,6 +633,13 @@ const ENTITY_REGISTRY = {
     modelName: 'Project',
     model: Project,
     category: 'MANAGEABLE',
+    canCreate: false,
+    colorTheme: {
+      accent: '#8b5cf6',
+      badgeBg: 'bg-purple-50 dark:bg-purple-950/40',
+      badgeText: 'text-purple-700 dark:text-purple-300',
+      border: 'border-purple-200 dark:border-purple-800'
+    },
     description: 'Undergraduate student projects, supervision, and workspaces.',
     icon: 'Layers',
     searchFields: ['title', 'category', 'departmentCode', 'series'],
@@ -520,6 +674,13 @@ const ENTITY_REGISTRY = {
     modelName: 'AuditLog',
     model: AuditLog,
     category: 'READ_ONLY',
+    canCreate: false,
+    colorTheme: {
+      accent: '#71717a',
+      badgeBg: 'bg-zinc-50 dark:bg-zinc-950/40',
+      badgeText: 'text-zinc-700 dark:text-zinc-300',
+      border: 'border-zinc-200 dark:border-zinc-800'
+    },
     description: 'Immutable system change history, security actions, and mutation logs.',
     icon: 'Shield',
     searchFields: ['userName', 'action', 'entity', 'details'],
@@ -550,6 +711,13 @@ const ENTITY_REGISTRY = {
     modelName: 'ImportJob',
     model: ImportJob,
     category: 'READ_ONLY',
+    canCreate: false,
+    colorTheme: {
+      accent: '#c026d3',
+      badgeBg: 'bg-fuchsia-50 dark:bg-fuchsia-950/40',
+      badgeText: 'text-fuchsia-700 dark:text-fuchsia-300',
+      border: 'border-fuchsia-200 dark:border-fuchsia-800'
+    },
     description: 'History of bulk XLSX / JSON student and teacher data imports.',
     icon: 'History',
     searchFields: ['fileName', 'targetEntity', 'performedByName'],

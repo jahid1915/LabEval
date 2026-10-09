@@ -1,8 +1,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { toast } from 'react-toastify';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Calendar, Plus, Pencil, Trash2, Search, X, Loader2, CheckCircle, Clock } from 'lucide-react';
+import { Calendar, Plus, Pencil, Trash2, Search, X, Loader2, CheckCircle, Clock, GraduationCap } from 'lucide-react';
 import api from '../../api/axios';
+import CohortSemesterManagerModal from '../../components/CohortSemesterManagerModal';
 
 const emptyForm = { name: '', year: '', startDate: '', endDate: '', isActive: false };
 
@@ -11,6 +12,7 @@ export default function AcademicSessionsPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [showModal, setShowModal] = useState(false);
+  const [showCohortModal, setShowCohortModal] = useState(false);
   const [editId, setEditId] = useState(null);
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -93,10 +95,18 @@ export default function AcademicSessionsPage() {
           </h1>
           <p className="text-sm text-slate-500 dark:text-slate-400 mt-1">Manage academic years, terms & active periods</p>
         </div>
-        <button onClick={openAdd}
-          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold text-sm shadow-lg shadow-amber-500/25 hover:shadow-xl hover:-translate-y-0.5 transition-all">
-          <Plus size={18} /> Add Session
-        </button>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          <button
+            onClick={() => setShowCohortModal(true)}
+            className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl border border-indigo-200 dark:border-indigo-800 bg-indigo-50 dark:bg-indigo-950/40 text-indigo-700 dark:text-indigo-300 font-bold text-xs hover:bg-indigo-100 dark:hover:bg-indigo-900/40 shadow-sm transition-all"
+          >
+            <GraduationCap size={16} /> Cohort Progression
+          </button>
+          <button onClick={openAdd}
+            className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl bg-gradient-to-r from-amber-600 to-orange-600 text-white font-semibold text-sm shadow-lg shadow-amber-500/25 hover:shadow-xl hover:-translate-y-0.5 transition-all">
+            <Plus size={18} /> Add Session
+          </button>
+        </div>
       </div>
 
       <div className="relative max-w-md">
@@ -214,6 +224,13 @@ export default function AcademicSessionsPage() {
           </motion.div>
         )}
       </AnimatePresence>
+
+      {/* Cohort Semester Progression Manager Modal */}
+      <CohortSemesterManagerModal
+        isOpen={showCohortModal}
+        onClose={() => setShowCohortModal(false)}
+        onSuccess={fetchAll}
+      />
     </div>
   );
 }

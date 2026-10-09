@@ -5,7 +5,7 @@ import {
   Download, AlertTriangle, CheckCircle2, X, ExternalLink,
   Layers, Users, GraduationCap, Building2, Calendar, BookOpen,
   Award, ClipboardList, History, FolderTree, FileSpreadsheet,
-  FileJson, Check, AlertCircle, Info, Lock
+  FileJson, Check, AlertCircle, Info, Lock, Plus
 } from 'lucide-react';
 import api from '../../api/axios';
 import { toast } from 'react-toastify';
@@ -48,6 +48,14 @@ export default function DatabaseManagementPage() {
   const [sortOrder, setSortOrder] = useState('asc');
   const [visibleColumns, setVisibleColumns] = useState({});
   const [showColumnSelector, setShowColumnSelector] = useState(false);
+
+  // Schema-Driven Create Record Modal State
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [createSchema, setCreateSchema] = useState(null);
+  const [loadingSchema, setLoadingSchema] = useState(false);
+  const [createFormData, setCreateFormData] = useState({});
+  const [submittingCreate, setSubmittingCreate] = useState(false);
+  const [showCreatePassword, setShowCreatePassword] = useState(false);
 
   // Modals State
   const [inspectRecord, setInspectRecord] = useState(null);
@@ -255,6 +263,70 @@ export default function DatabaseManagementPage() {
       toast.error(err.response?.data?.message || 'Failed to delete record');
     } finally {
       setSubmittingDelete(false);
+    }
+  };
+
+  // Open Schema-Driven Create Modal
+  const handleOpenCreateModal = async () => {
+    if (!activeEntityKey) return;
+    setShowCreateModal(true);
+    setLoadingSchema(true);
+    setCreateFormData({});
+    setShowCreatePassword(false);
+    try {
+      const res = await api.get(`/admin/database/${activeEntityKey}/schema`);
+      if (res.data.success) {
+        setCreateSchema(res.data);
+        const defaults = {};
+        (res.data.createFields || []).forEach(f => {
+          if (f.defaultValue !== undefined) {
+            defaults[f.key] = f.defaultValue;
+          }
+        });
+        setCreateFormData(defaults);
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to load table creation schema');
+      setShowCreateModal(false);
+    } finally {
+      setLoadingSchema(false);
+    }
+  };
+
+  // Submit New Record Creation
+  const handleSubmitCreate = async (e) => {
+    e.preventDefault();
+    if (!activeEntityKey) return;
+
+    // Check required fields
+    const missing = [];
+    (createSchema?.createFields || []).forEach(f => {
+      if (f.required) {
+        const val = createFormData[f.key];
+        if (val === undefined || val === null || (typeof val === 'string' && val.trim() === '')) {
+          missing.push(f.label);
+        }
+      }
+    });
+
+    if (missing.length > 0) {
+      toast.error(`Please provide required field(s): ${missing.join(', ')}`);
+      return;
+    }
+
+    setSubmittingCreate(true);
+    try {
+      const res = await api.post(`/admin/database/${activeEntityKey}`, createFormData);
+      if (res.data.success) {
+        toast.success(res.data.message || 'Record created successfully');
+        setShowCreateModal(false);
+        fetchRecords();
+        fetchEntities();
+      }
+    } catch (err) {
+      toast.error(err.response?.data?.message || 'Failed to create record in database');
+    } finally {
+      setSubmittingCreate(false);
     }
   };
 
@@ -496,6 +568,15 @@ export default function DatabaseManagementPage() {
 
               {/* Action Buttons */}
               <div className="flex items-center gap-2 flex-wrap">
+                {activeEntity.canCreate && (
+                  <button
+                    onClick={handleOpenCreateModal}
+                    className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold text-white shadow-sm hover:brightness-110 transition"
+                    style={{ backgroundColor: activeEntity.colorTheme?.accent || '#2563eb' }}
+                  >
+                    <Plus size={14} /> Add New Record
+                  </button>
+                )}
                 <button
                   onClick={() => handleExport('csv')}
                   className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-xs font-semibold bg-slate-100 dark:bg-[#172033] text-slate-700 dark:text-slate-200 hover:bg-slate-200 dark:hover:bg-slate-800 transition"
@@ -939,6 +1020,174 @@ export default function DatabaseManagementPage() {
                     : 'Safe Archive'}
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* ── DYNAMIC SCHEMA-DRIVEN ADD RECORD MODAL ── */}
+      {showCreateModal && activeEntity && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-xs z-50 flex items-center justify-center p-4">
+          <div className="bg-white dark:bg-[#111827] border border-slate-200 dark:border-[#243244] rounded-2xl w-full max-w-2xl shadow-2xl p-6 space-y-4 max-h-[90vh] flex flex-col">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between border-b border-slate-100 dark:border-[#243244] pb-3">
+              <div className="flex items-center gap-3">
+                <div
+                  className="w-2.5 h-7 rounded-full"
+                  style={{ backgroundColor: activeEntity.colorTheme?.accent || '#2563eb' }}
+                />
+                <div>
+                  <h3 className="text-base font-bold text-slate-900 dark:text-white flex items-center gap-2">
+                    Add New Record — {activeEntity.label}
+                    <span
+                      className="text-xs px-2.5 py-0.5 rounded-full font-semibold border"
+                      style={{
+                        backgroundColor: `${activeEntity.colorTheme?.accent || '#2563eb'}18`,
+                        color: activeEntity.colorTheme?.accent || '#2563eb',
+                        borderColor: `${activeEntity.colorTheme?.accent || '#2563eb'}30`
+                      }}
+                    >
+                      {activeEntity.modelName}
+                    </span>
+                  </h3>
+                  <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
+                    Schema-validated entry. Only fields relevant to <strong className="text-slate-700 dark:text-slate-300">{activeEntity.label}</strong> are displayed.
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowCreateModal(false)}
+                className="p-1 text-slate-400 hover:text-slate-700 dark:hover:text-white rounded-lg transition"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            {loadingSchema ? (
+              <div className="py-12 text-center text-slate-400">
+                <RefreshCw size={24} className="animate-spin mx-auto mb-2 text-blue-500" />
+                Querying backend schema & relationship references...
+              </div>
+            ) : !createSchema?.createFields?.length ? (
+              <div className="py-8 text-center text-slate-500">
+                <AlertCircle size={28} className="mx-auto mb-2 text-amber-500" />
+                This table is read-only or does not accept direct record entry.
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitCreate} className="flex-1 flex flex-col overflow-hidden">
+                <div className="overflow-y-auto pr-1 space-y-4 flex-1">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    {createSchema.createFields.map((field) => {
+                      const isFullWidth = field.type === 'textarea';
+                      return (
+                        <div key={field.key} className={isFullWidth ? 'sm:col-span-2' : ''}>
+                          <label className="block text-[11px] font-bold uppercase tracking-wider text-slate-600 dark:text-slate-300 mb-1">
+                            {field.label} {field.required && <span className="text-rose-500">*</span>}
+                          </label>
+
+                          {field.type === 'select' ? (
+                            <select
+                              value={createFormData[field.key] ?? ''}
+                              onChange={(e) => setCreateFormData((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-[#243244] bg-slate-50 dark:bg-[#0b1120] text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500"
+                            >
+                              <option value="">{field.placeholder || `Select ${field.label}`}</option>
+                              {field.reference && createSchema.referenceOptions?.[field.reference]
+                                ? createSchema.referenceOptions[field.reference].map((opt) => (
+                                    <option key={opt.value} value={opt.value}>
+                                      {opt.label}
+                                    </option>
+                                  ))
+                                : (field.options || []).map((opt) => (
+                                    <option key={opt} value={opt}>
+                                      {opt}
+                                    </option>
+                                  ))}
+                            </select>
+                          ) : field.type === 'textarea' ? (
+                            <textarea
+                              rows={3}
+                              value={createFormData[field.key] ?? ''}
+                              onChange={(e) => setCreateFormData((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                              placeholder={field.placeholder || ''}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-[#243244] bg-slate-50 dark:bg-[#0b1120] text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500 resize-none"
+                            />
+                          ) : field.type === 'boolean' ? (
+                            <label className="flex items-center gap-2 mt-2 cursor-pointer text-xs text-slate-700 dark:text-slate-300">
+                              <input
+                                type="checkbox"
+                                checked={!!createFormData[field.key]}
+                                onChange={(e) => setCreateFormData((prev) => ({ ...prev, [field.key]: e.target.checked }))}
+                                className="rounded text-blue-600 focus:ring-0"
+                              />
+                              Enable {field.label}
+                            </label>
+                          ) : field.type === 'password' ? (
+                            <div className="relative">
+                              <input
+                                type={showCreatePassword ? 'text' : 'password'}
+                                value={createFormData[field.key] ?? ''}
+                                onChange={(e) => setCreateFormData((prev) => ({ ...prev, [field.key]: e.target.value }))}
+                                placeholder={field.placeholder || ''}
+                                className="w-full px-3 py-2 pr-9 rounded-xl border border-slate-200 dark:border-[#243244] bg-slate-50 dark:bg-[#0b1120] text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500"
+                              />
+                              <button
+                                type="button"
+                                onClick={() => setShowCreatePassword((v) => !v)}
+                                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600"
+                              >
+                                {showCreatePassword ? <Eye size={14} /> : <Eye size={14} />}
+                              </button>
+                            </div>
+                          ) : (
+                            <input
+                              type={field.type === 'number' ? 'number' : field.type === 'email' ? 'email' : 'text'}
+                              step={field.step || undefined}
+                              value={createFormData[field.key] ?? ''}
+                              onChange={(e) =>
+                                setCreateFormData((prev) => ({
+                                  ...prev,
+                                  [field.key]: field.uppercase ? e.target.value.toUpperCase() : e.target.value
+                                }))
+                              }
+                              placeholder={field.placeholder || ''}
+                              className="w-full px-3 py-2 rounded-xl border border-slate-200 dark:border-[#243244] bg-slate-50 dark:bg-[#0b1120] text-slate-900 dark:text-white text-xs focus:outline-none focus:border-blue-500"
+                            />
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+
+                {/* Footer Controls */}
+                <div className="pt-4 border-t border-slate-100 dark:border-[#243244] flex items-center justify-end gap-2 mt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateModal(false)}
+                    className="px-4 py-2 rounded-xl text-xs font-semibold bg-slate-100 dark:bg-[#172033] text-slate-700 dark:text-slate-300 hover:bg-slate-200 transition"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={submittingCreate}
+                    style={{ backgroundColor: activeEntity.colorTheme?.accent || '#2563eb' }}
+                    className="px-5 py-2 rounded-xl text-xs font-bold text-white shadow-sm hover:brightness-110 transition disabled:opacity-50 flex items-center gap-1.5"
+                  >
+                    {submittingCreate ? (
+                      <>
+                        <RefreshCw size={13} className="animate-spin" /> Saving to MongoDB...
+                      </>
+                    ) : (
+                      <>
+                        <Check size={14} /> Save to {activeEntity.label}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </form>
+            )}
           </div>
         </div>
       )}

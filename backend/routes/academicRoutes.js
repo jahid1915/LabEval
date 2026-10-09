@@ -9,7 +9,9 @@ const {
   getSeries,
   createSeries,
   updateSeries,
-  deleteSeries
+  deleteSeries,
+  getCohortPreview,
+  updateCohortSemester
 } = require('../controllers/academicSessionController');
 const { protect, adminOnly, adminOrHead } = require('../middleware/authMiddleware');
 const { getSessionFromSeries, generateSeriesRange, getCurrentAcademicInfo } = require('../utils/academicUtils');
@@ -45,6 +47,11 @@ router.get('/series', getSeries);
 router.post('/series', adminOnly, createSeries);
 router.put('/series/:id', adminOnly, updateSeries);
 router.delete('/series/:id', adminOnly, deleteSeries);
+
+// ── Cohort Current Semester Management (Section 1) ────────────────────
+router.get('/cohort-preview', adminOrHead, getCohortPreview);
+router.post('/cohort-semester', adminOnly, updateCohortSemester);
+router.post('/update-cohort-semester', adminOnly, updateCohortSemester);
 
 module.exports = router;
 
