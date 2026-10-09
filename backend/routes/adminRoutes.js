@@ -2,6 +2,7 @@ const express = require('express');
 const router = express.Router();
 const {
   getSystemStats,
+  getAdminDashboardSummary,
   getAllTeachers,
   createTeacher,
   updateTeacher,
@@ -42,7 +43,11 @@ router.use(protect);
 router.use(adminOnly);
 router.use(enforceDepartmentIsolation);
 
-// ── System Statistics & Settings ─────────────────────────────────────
+// ── Central Database Management Portal (Section 7, 8, 48) ────────────
+router.use('/database', require('./databaseManagementRoutes'));
+
+// ── System Statistics, Summary & Settings ─────────────────────────────
+router.get('/dashboard/summary', getAdminDashboardSummary);
 router.get('/stats', getSystemStats);
 router.get('/requests', getAdminRequests);
 router.get('/system-settings', getSystemSettings);

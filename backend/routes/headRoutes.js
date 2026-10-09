@@ -11,7 +11,6 @@ const {
   deleteHeadStudent,
   getHeadTeachers,
   getHeadTeacherWorkload,
-  getHeadCourses,
   getHeadTeachingAssignments,
   createHeadTeachingAssignment,
   deleteHeadTeachingAssignment,

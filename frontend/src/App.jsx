@@ -37,6 +37,8 @@ const ElectiveManagementPage = React.lazy(() => import('./pages/admin/ElectiveMa
 const TeachingAssignmentsPage = React.lazy(() => import('./pages/admin/TeachingAssignmentsPage'));
 const DepartmentHeadManagementPage = React.lazy(() => import('./pages/admin/DepartmentHeadManagementPage'));
 const AdminDataManagementPage = React.lazy(() => import('./pages/admin/AdminDataManagementPage'));
+const DatabaseManagementPage = React.lazy(() => import('./pages/admin/DatabaseManagementPage'));
+const AuditLogsPage = React.lazy(() => import('./pages/admin/AuditLogsPage'));
 
 // Department Head Pages
 const HeadDashboard            = React.lazy(() => import('./pages/head/HeadDashboard'));
@@ -176,7 +178,9 @@ export default function App() {
               <Route path="course-offerings" element={<CourseOfferingsPage />} />
               <Route path="import"           element={<StudentImportPage />} />
               <Route path="import-history"   element={<ImportHistoryPage />} />
-              <Route path="data-management"  element={<AdminDataManagementPage />} />
+              <Route path="database"         element={<DatabaseManagementPage />} />
+              <Route path="data-management"  element={<DatabaseManagementPage />} />
+              <Route path="audit-logs"       element={<AuditLogsPage />} />
               <Route path="electives"        element={<ElectiveManagementPage />} />
             </Route>
 

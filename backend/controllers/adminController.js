@@ -113,6 +113,60 @@ const getSystemStats = async (req, res) => {
   }
 };
 
+// ── GET /api/admin/dashboard/summary (Lightweight System Control Center) ───────
+const getAdminDashboardSummary = async (req, res) => {
+  try {
+    const AcademicSession = require('../models/AcademicSession');
+    const Enrollment = require('../models/Enrollment');
+    const AuditLog = require('../models/AuditLog');
+    const ImportJob = require('../models/ImportJob');
+
+    const [
+      totalUsers,
+      totalStudents,
+      totalTeachers,
+      totalDepartments,
+      totalFaculties,
+      totalSessions,
+      totalCourses,
+      totalEnrollments,
+      recentLogs,
+      recentImports
+    ] = await Promise.all([
+      User.countDocuments({}),
+      Student.countDocuments({ status: { $ne: 'deleted' } }),
+      Teacher.countDocuments({}),
+      Department.countDocuments({}),
+      Faculty.countDocuments({}),
+      AcademicSession.countDocuments({}),
+      Course.countDocuments({}),
+      Enrollment.countDocuments({}),
+      AuditLog.find({}).sort({ timestamp: -1 }).limit(8).lean(),
+      ImportJob.find({}).sort({ createdAt: -1 }).limit(5).lean()
+    ]);
+
+    res.json({
+      success: true,
+      summary: {
+        totalUsers,
+        totalStudents,
+        totalTeachers,
+        totalDepartments,
+        totalFaculties,
+        totalSessions,
+        totalCourses,
+        totalEnrollments,
+        databaseHealth: 'Healthy'
+      },
+      recentLogs,
+      recentImports
+    });
+  } catch (error) {
+    console.error('getAdminDashboardSummary error:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 // ── TEACHER MANAGEMENT ───────────────────────────────────────────────
 
 // GET /api/admin/teachers — with pagination and N+1 fix
@@ -2380,6 +2434,7 @@ const updateSystemSettings = async (req, res) => {
 
 module.exports = {
   getSystemStats,
+  getAdminDashboardSummary,
   getAllTeachers,
   createTeacher,
   updateTeacher,

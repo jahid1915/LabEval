@@ -32,3 +32,5 @@ export function TableRowSkeleton({ columns = 5 }) {
     </tr>
   );
 }
+
+export default Skeleton;

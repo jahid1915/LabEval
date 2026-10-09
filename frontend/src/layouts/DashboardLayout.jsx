@@ -18,30 +18,27 @@ import ChangePasswordModal from '../components/ChangePasswordModal';
 /* ── Navigation Configuration ────────────────────────────── */
 
 const adminNav = [
-  { heading: 'Overview' },
-  { to: '/admin', icon: LayoutDashboard, label: 'System Overview', end: true },
-  { to: '/admin/data-management', icon: Database, label: 'Data Management Portal' },
-  
-  { heading: 'Teaching & Faculty' },
-  { to: '/admin/teaching-assignments', icon: BookOpen,      label: 'Teaching Assignments' },
-  { to: '/admin/teachers',             icon: GraduationCap, label: 'All Teachers' },
-  { to: '/admin/heads',                icon: Shield,        label: 'Department Heads' },
+  { heading: 'Dashboard' },
+  { to: '/admin', icon: LayoutDashboard, label: 'Control Center', end: true },
 
-  { heading: 'Student Management' },
-  { to: '/admin/students',         icon: Users,           label: 'All Students' },
-  { to: '/admin/import',           icon: Upload,          label: 'Import Students' },
-  { to: '/admin/import-history',   icon: History,         label: 'Import History' },
+  { heading: 'Users' },
+  { to: '/admin/students',         icon: Users,           label: 'Students' },
+  { to: '/admin/teachers',         icon: GraduationCap,   label: 'Teachers' },
+  { to: '/admin/heads',            icon: Shield,          label: 'Department Heads' },
 
-  { heading: 'Academics & Courses' },
-  { to: '/admin/course-catalog',   icon: BookOpen,        label: 'Course Catalog' },
-  { to: '/admin/course-offerings', icon: Award,           label: 'Course Offerings' },
-  { to: '/admin/electives',        icon: Sparkles,        label: 'Elective Management' },
+  { heading: 'Database' },
+  { to: '/admin/database',         icon: Database,        label: 'Database Management' },
+  { to: '/admin/import',           icon: Upload,          label: 'Imports' },
+  { to: '/admin/import-history',   icon: History,         label: 'Import History / Export' },
 
-  { heading: 'Institution' },
+  { heading: 'Organization' },
   { to: '/admin/faculties',        icon: FolderTree,      label: 'Faculties' },
   { to: '/admin/departments',      icon: Building2,       label: 'Departments' },
   { to: '/admin/sessions',         icon: Calendar,        label: 'Academic Sessions' },
   { to: '/admin/series',           icon: Layers,          label: 'Series / Batches' },
+
+  { heading: 'System' },
+  { to: '/admin/audit-logs',       icon: FileText,        label: 'Audit Logs' }
 ];
 
 const headNav = [

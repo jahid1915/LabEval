@@ -165,7 +165,7 @@ app.use('/api/leaves',           generalLimiter, require('./routes/leaveRoutes')
 app.use('/api/announcements',    generalLimiter, require('./routes/announcementRoutes'));
 app.use('/api/notifications',    generalLimiter, require('./routes/notificationRoutes'));
 app.use('/api/analytics',        generalLimiter, require('./routes/analyticsRoutes'));
-app.use('/api/audit-logs',       generalLimiter, require('./routes/auditRoutes'));
+app.use(['/api/audit', '/api/audit-logs'], generalLimiter, require('./routes/auditRoutes'));
 app.use('/api/search',           generalLimiter, require('./routes/searchRoutes'));
 app.use('/api/users',            generalLimiter, require('./routes/userRoutes'));
 
