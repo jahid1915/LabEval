@@ -5,7 +5,11 @@ const Series = require('../models/Series');
 const Department = require('../models/Department');
 const Student = require('../models/Student');
 const CourseOffering = require('../models/CourseOffering');
+const CohortSemesterHistory = require('../models/CohortSemesterHistory');
+const SessionalCourse = require('../models/SessionalCourse');
 const { logAudit } = require('../middleware/auditMiddleware');
+const { getIO } = require('../utils/socketManager');
+const { normalizeSemesterLevel } = require('../utils/courseCodeParser');
 
 // In-memory caches (60s TTL)
 let sessionsCache = null;
@@ -380,6 +384,8 @@ const updateCohortSemester = async (req, res) => {
       name: cleanSeries
     });
 
+    const previousSemester = seriesDoc?.currentSemester || '1st Semester';
+
     if (seriesDoc) {
       seriesDoc.currentSemester = cleanSemester;
       if (sessionDoc) {
@@ -418,26 +424,111 @@ const updateCohortSemester = async (req, res) => {
     // 3. Atomically update all matching students without altering historical marks/attendance
     const updateResult = await Student.updateMany(studentQuery, { $set: updateFields });
 
+    // 4. Calculate available offerings count for the new semester
+    const normalizedNewSemester = normalizeSemesterLevel(cleanSemester);
+    const availableOfferingsCount = await CourseOffering.countDocuments({
+      department: deptDoc._id,
+      seriesName: cleanSeries,
+      $or: [
+        { semesterLevel: normalizedNewSemester },
+        { semesterName: cleanSemester }
+      ]
+    });
+
+    // 5. Auditable Cohort Semester History Record
+    let historyRecord = null;
+    try {
+      historyRecord = await CohortSemesterHistory.create({
+        department: deptDoc._id,
+        departmentCode: deptDoc.code,
+        series: seriesDoc._id,
+        seriesName: cleanSeries,
+        academicSession: sessionDoc?._id || seriesDoc.academicSession || null,
+        sessionName: sessionDoc?.name || '',
+        section: cleanSection || 'ALL',
+        previousSemester,
+        newSemester: cleanSemester,
+        effectiveAt: new Date(),
+        changedBy: req.user?._id || req.authUser?._id || seriesDoc._id,
+        changedByName: req.user?.name || 'System Administrator',
+        reason: req.body.reason || 'Academic progression to next semester',
+        affectedStudentsCount: updateResult.modifiedCount,
+        availableOfferingsCount
+      });
+    } catch (histErr) {
+      console.warn('CohortSemesterHistory creation warning:', histErr.message);
+    }
+
     await logAudit({
       req,
       action: 'UPDATE_COHORT_SEMESTER',
       entity: 'Series',
       entityId: seriesDoc._id,
-      details: `Updated ${deptDoc.code} Series ${cleanSeries} ${cleanSection ? `(Section ${cleanSection})` : '(All Sections)'} to ${cleanSemester} (${updateResult.modifiedCount} students updated)`,
-      newValues: { department: deptDoc.code, series: cleanSeries, section: cleanSection || 'ALL', currentSemester: cleanSemester }
+      details: `Progressed ${deptDoc.code} Series ${cleanSeries} ${cleanSection ? `(Section ${cleanSection})` : '(All Sections)'} from ${previousSemester} to ${cleanSemester} (${updateResult.modifiedCount} students updated)`,
+      newValues: {
+        department: deptDoc.code,
+        series: cleanSeries,
+        section: cleanSection || 'ALL',
+        previousSemester,
+        newSemester: cleanSemester,
+        availableOfferings: availableOfferingsCount
+      }
     });
 
     invalidateSeriesCache();
     invalidateSessionsCache();
 
+    // 6. Broadcast real-time progression event via Socket.IO
+    try {
+      const io = getIO();
+      if (io) {
+        io.emit('cohort:semester-progressed', {
+          department: deptDoc.code,
+          series: cleanSeries,
+          section: cleanSection || 'ALL',
+          previousSemester,
+          newSemester: cleanSemester,
+          affectedStudents: updateResult.modifiedCount
+        });
+      }
+    } catch (socketErr) {
+      console.warn('Socket broadcast warning:', socketErr.message);
+    }
+
     res.json({
       success: true,
-      message: `Successfully progressed ${deptDoc.code} Series ${cleanSeries} ${cleanSection ? `Section ${cleanSection} ` : ''}to ${cleanSemester} (${updateResult.modifiedCount} students updated).`,
+      message: `Successfully progressed ${deptDoc.code} Series ${cleanSeries} ${cleanSection ? `Section ${cleanSection} ` : ''}from ${previousSemester} to ${cleanSemester} (${updateResult.modifiedCount} students updated).`,
       affectedStudents: updateResult.modifiedCount,
+      previousSemester,
+      currentSemester: cleanSemester,
+      availableOfferingsCount,
+      history: historyRecord,
       series: seriesDoc
     });
   } catch (err) {
     console.error('updateCohortSemester error:', err);
+    res.status(500).json({ success: false, message: err.message });
+  }
+};
+
+// ── GET /api/academic/cohort-history ─────────────────────────────────
+const getCohortSemesterHistory = async (req, res) => {
+  try {
+    const { department, series, seriesId } = req.query;
+    const filter = {};
+    if (seriesId) filter.series = seriesId;
+    if (series) filter.seriesName = String(series).trim();
+    if (department) filter.departmentCode = String(department).trim().toUpperCase();
+
+    const history = await CohortSemesterHistory.find(filter)
+      .sort({ effectiveAt: -1 })
+      .populate('changedBy', 'name email role')
+      .limit(50)
+      .lean();
+
+    res.json({ success: true, count: history.length, history });
+  } catch (err) {
+    console.error('getCohortSemesterHistory error:', err);
     res.status(500).json({ success: false, message: err.message });
   }
 };
@@ -453,5 +544,6 @@ module.exports = {
   updateSeries,
   deleteSeries,
   getCohortPreview,
-  updateCohortSemester
+  updateCohortSemester,
+  getCohortSemesterHistory
 };

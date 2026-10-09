@@ -10,6 +10,8 @@
  */
 
 const Course = require('../models/Course');
+const SessionalCourse = require('../models/SessionalCourse');
+const ElectiveCourse = require('../models/ElectiveCourse');
 const CourseOffering = require('../models/CourseOffering');
 const TeacherAssignment = require('../models/TeacherAssignment');
 const Department = require('../models/Department');
@@ -20,6 +22,7 @@ const { getEligibleStudentsForOffering } = require('../services/academicEligibil
 const { syncEnrollmentsForOffering, cancelOfferingEnrollments } = require('../services/enrollmentConsistencyService');
 const { assignTeacherToOffering, searchDepartmentTeachers } = require('../services/teachingAssignmentService');
 const { logAudit } = require('../middleware/auditMiddleware');
+const { normalizeSemesterLevel, parseCourseCode } = require('../utils/courseCodeParser');
 
 const getHeadDept = (req) => {
   return (req.user?.departmentCode || req.user?.department || 'ETE').toUpperCase();
@@ -434,8 +437,217 @@ const searchTeachers = async (req, res) => {
   }
 };
 
+/**
+ * GET /api/head/courses/sessional
+ * Lists all separated Sessional Courses for the Head's department with active offering status.
+ */
+const getHeadSessionalCourses = async (req, res) => {
+  try {
+    const deptCode = getHeadDept(req);
+    const { semester, search, series } = req.query;
+
+    const query = {
+      departmentCode: deptCode,
+      isActive: true
+    };
+
+    if (semester && semester !== 'ALL') {
+      const norm = normalizeSemesterLevel(semester);
+      query.$or = [
+        { semesterLevel: norm },
+        { semesterLevel: semester.trim() }
+      ];
+    }
+
+    if (search && search.trim()) {
+      const s = search.trim();
+      query.$and = [
+        {
+          $or: [
+            { courseCode: { $regex: s, $options: 'i' } },
+            { courseTitle: { $regex: s, $options: 'i' } }
+          ]
+        }
+      ];
+    }
+
+    const sessionalCourses = await SessionalCourse.find(query)
+      .sort({ semesterLevel: 1, courseCode: 1 })
+      .lean();
+
+    // Enrich with active offerings and teacher assignments in this department
+    const courseCodes = sessionalCourses.map(c => c.courseCode);
+    const offeringQuery = {
+      courseCode: { $in: courseCodes },
+      departmentCode: deptCode,
+      status: 'active'
+    };
+    if (series && series !== 'ALL') offeringQuery.seriesName = series.trim();
+
+    const activeOfferings = await CourseOffering.find(offeringQuery).sort({ createdAt: -1 }).lean();
+    const offeringMap = new Map();
+    activeOfferings.forEach(off => {
+      if (!offeringMap.has(off.courseCode)) offeringMap.set(off.courseCode, off);
+    });
+
+    const offeringIds = activeOfferings.map(o => o._id);
+    const assignments = await TeacherAssignment.find({
+      courseOffering: { $in: offeringIds },
+      status: 'active'
+    }).populate('teacher', 'name teacherId designation avatarUrl').lean();
+
+    const assignmentMap = new Map();
+    assignments.forEach(a => assignmentMap.set(a.courseOffering.toString(), a));
+
+    const enriched = sessionalCourses.map(c => {
+      const activeOff = offeringMap.get(c.courseCode);
+      const activeAssign = activeOff ? assignmentMap.get(activeOff._id.toString()) : null;
+
+      let offeringStatus = 'UNOFFERED';
+      if (activeOff) {
+        offeringStatus = activeAssign ? 'ACTIVE' : 'PENDING_TEACHER';
+      }
+
+      return {
+        ...c,
+        offeringStatus,
+        activeOffering: activeOff ? {
+          _id: activeOff._id,
+          series: activeOff.seriesName,
+          session: activeOff.sessionName,
+          semester: activeOff.semesterName || activeOff.semesterLevel,
+          studentCount: activeOff.enrollmentCount || 0,
+          status: activeOff.status
+        } : null,
+        assignedTeacher: activeAssign ? {
+          teacherId: activeAssign.teacherId,
+          name: activeAssign.teacherName || activeAssign.teacher?.name,
+          designation: activeAssign.teacher?.designation || ''
+        } : null
+      };
+    });
+
+    return res.json({
+      success: true,
+      department: deptCode,
+      count: enriched.length,
+      courses: enriched
+    });
+  } catch (error) {
+    console.error('getHeadSessionalCourses error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+/**
+ * GET /api/head/courses/elective
+ * Lists all separated Elective Courses for the Head's department.
+ */
+const getHeadElectiveCourses = async (req, res) => {
+  try {
+    const deptCode = getHeadDept(req);
+    const { semester, electiveGroup, search, series } = req.query;
+
+    const query = {
+      departmentCode: deptCode,
+      isActive: true
+    };
+
+    if (semester && semester !== 'ALL') {
+      const norm = normalizeSemesterLevel(semester);
+      query.$or = [
+        { semesterLevel: norm },
+        { semesterLevel: semester.trim() }
+      ];
+    }
+
+    if (electiveGroup && electiveGroup !== 'ALL') {
+      query.electiveGroup = { $regex: electiveGroup.trim(), $options: 'i' };
+    }
+
+    if (search && search.trim()) {
+      const s = search.trim();
+      query.$and = [
+        {
+          $or: [
+            { courseCode: { $regex: s, $options: 'i' } },
+            { courseTitle: { $regex: s, $options: 'i' } }
+          ]
+        }
+      ];
+    }
+
+    const electiveCourses = await ElectiveCourse.find(query)
+      .sort({ electiveGroup: 1, semesterLevel: 1, courseCode: 1 })
+      .lean();
+
+    const courseCodes = electiveCourses.map(c => c.courseCode);
+    const offeringQuery = {
+      courseCode: { $in: courseCodes },
+      departmentCode: deptCode,
+      status: 'active'
+    };
+    if (series && series !== 'ALL') offeringQuery.seriesName = series.trim();
+
+    const activeOfferings = await CourseOffering.find(offeringQuery).sort({ createdAt: -1 }).lean();
+    const offeringMap = new Map();
+    activeOfferings.forEach(off => {
+      if (!offeringMap.has(off.courseCode)) offeringMap.set(off.courseCode, off);
+    });
+
+    const offeringIds = activeOfferings.map(o => o._id);
+    const assignments = await TeacherAssignment.find({
+      courseOffering: { $in: offeringIds },
+      status: 'active'
+    }).populate('teacher', 'name teacherId designation avatarUrl').lean();
+
+    const assignmentMap = new Map();
+    assignments.forEach(a => assignmentMap.set(a.courseOffering.toString(), a));
+
+    const enriched = electiveCourses.map(c => {
+      const activeOff = offeringMap.get(c.courseCode);
+      const activeAssign = activeOff ? assignmentMap.get(activeOff._id.toString()) : null;
+
+      let offeringStatus = 'UNOFFERED';
+      if (activeOff) {
+        offeringStatus = activeAssign ? 'ACTIVE' : 'PENDING_TEACHER';
+      }
+
+      return {
+        ...c,
+        offeringStatus,
+        activeOffering: activeOff ? {
+          _id: activeOff._id,
+          series: activeOff.seriesName,
+          session: activeOff.sessionName,
+          semester: activeOff.semesterName || activeOff.semesterLevel,
+          studentCount: activeOff.enrollmentCount || 0,
+          status: activeOff.status
+        } : null,
+        assignedTeacher: activeAssign ? {
+          teacherId: activeAssign.teacherId,
+          name: activeAssign.teacherName || activeAssign.teacher?.name,
+          designation: activeAssign.teacher?.designation || ''
+        } : null
+      };
+    });
+
+    return res.json({
+      success: true,
+      department: deptCode,
+      count: enriched.length,
+      courses: enriched
+    });
+  } catch (error) {
+    console.error('getHeadElectiveCourses error:', error);
+    return res.status(500).json({ success: false, message: error.message });
+  }
+};
+
 module.exports = {
   getHeadCourses,
+  getHeadSessionalCourses,
+  getHeadElectiveCourses,
   getHeadCourseOfferings,
   createCourseOffering,
   getEligibleStudentsPreview,

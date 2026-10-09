@@ -69,6 +69,8 @@ router.get('/teachers/workload', getHeadTeacherWorkload);
 // Courses & Course Offerings (Sections 14-24, 38-42)
 const {
   getHeadCourses,
+  getHeadSessionalCourses,
+  getHeadElectiveCourses,
   getHeadCourseOfferings,
   createCourseOffering,
   getEligibleStudentsPreview,
@@ -79,6 +81,8 @@ const {
 } = require('../controllers/headCourseOfferingController');
 
 router.get('/courses', getHeadCourses);
+router.get('/courses/sessional', getHeadSessionalCourses);
+router.get('/courses/elective', getHeadElectiveCourses);
 router.get('/course-offerings', getHeadCourseOfferings);
 router.post('/course-offerings', createCourseOffering);
 router.get('/course-offerings/:id/eligible-students', getEligibleStudentsPreview);

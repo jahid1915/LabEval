@@ -60,17 +60,47 @@ router.get('/departments/:deptCode/head-history', getDepartmentHeadHistory);
 router.post('/departments/:deptCode/assign-head', assignDepartmentHead);
 router.post('/departments/:deptCode/remove-head', removeDepartmentHead);
 
-// ── Course & Assignment Management ───────────────────────────────────
+// ── Course & Assignment Management (Read-only for Admin per Phase 4.A) ─
 router.get('/courses', getDepartmentCourses);
-router.post('/assign-course', assignCourseToTeacher);
-router.delete('/revoke-assignment/:id', revokeCourseAssignment);
+router.post('/assign-course', (req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Forbidden: Administrators cannot directly allocate teachers to course offerings. Teacher and course assignments are strictly managed by Department Heads.',
+    code: 'FORBIDDEN_ADMIN_ACADEMIC_OPERATION'
+  });
+});
+router.delete('/revoke-assignment/:id', (req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Forbidden: Administrators cannot revoke teaching assignments. Course assignments are strictly managed by Department Heads.',
+    code: 'FORBIDDEN_ADMIN_ACADEMIC_OPERATION'
+  });
+});
 router.get('/teacher-assignments/:teacherId', getTeacherAssignedCourses);
 
-// ── Current Teacher–Course Assignments & Workload (ADD-ON) ────────────
+// ── Current Teacher–Course Assignments & Workload (Read-only for Admin) ─
 router.get('/teaching-assignments/current', getCurrentTeachingAssignments);
-router.post('/teaching-assignments', createTeachingAssignment);
-router.patch('/teaching-assignments/:id', updateTeachingAssignment);
-router.delete('/teaching-assignments/:id', deleteTeachingAssignment);
+router.post('/teaching-assignments', (req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Forbidden: Administrators cannot create teaching assignments. Course assignments are strictly managed by Department Heads.',
+    code: 'FORBIDDEN_ADMIN_ACADEMIC_OPERATION'
+  });
+});
+router.patch('/teaching-assignments/:id', (req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Forbidden: Administrators cannot modify teaching assignments. Course assignments are strictly managed by Department Heads.',
+    code: 'FORBIDDEN_ADMIN_ACADEMIC_OPERATION'
+  });
+});
+router.delete('/teaching-assignments/:id', (req, res) => {
+  return res.status(403).json({
+    success: false,
+    message: 'Forbidden: Administrators cannot delete teaching assignments. Course assignments are strictly managed by Department Heads.',
+    code: 'FORBIDDEN_ADMIN_ACADEMIC_OPERATION'
+  });
+});
 router.get('/teachers/:id/teaching-overview', getTeacherTeachingOverview);
 router.get('/courses/:id/teaching-roster', getCourseTeachingRoster);
 

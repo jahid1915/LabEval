@@ -9,16 +9,24 @@ import {
   ShieldCheck, Sparkles, Filter, ExternalLink, Award
 } from 'lucide-react';
 
-const SEMESTER_TABS = [
+const COURSE_CATEGORY_TABS = [
+  { id: 'sessional', label: 'Sessional Courses', icon: BookOpen },
+  { id: 'elective', label: 'Elective Courses', icon: Sparkles },
+  { id: 'offerings', label: 'Course Offerings', icon: Layers },
+  { id: 'assignments', label: 'Teacher Assignments', icon: UserCheck },
+  { id: 'history', label: 'Previous Assignments', icon: Clock }
+];
+
+const SEMESTER_LEVEL_PILLS = [
   { id: 'ALL', label: 'All Semesters' },
-  { id: '1st Semester', label: '1st Sem' },
-  { id: '2nd Semester', label: '2nd Sem' },
-  { id: '3rd Semester', label: '3rd Sem' },
-  { id: '4th Semester', label: '4th Sem' },
-  { id: '5th Semester', label: '5th Sem' },
-  { id: '6th Semester', label: '6th Sem' },
-  { id: '7th Semester', label: '7th Sem' },
-  { id: '8th Semester', label: '8th Sem' },
+  { id: '1-1', label: '1-1' },
+  { id: '1-2', label: '1-2' },
+  { id: '2-1', label: '2-1' },
+  { id: '2-2', label: '2-2' },
+  { id: '3-1', label: '3-1' },
+  { id: '3-2', label: '3-2' },
+  { id: '4-1', label: '4-1' },
+  { id: '4-2', label: '4-2' },
 ];
 
 export default function HeadCoursesPage() {
@@ -26,11 +34,13 @@ export default function HeadCoursesPage() {
   const deptCode = (user?.departmentCode || user?.department || 'ETE').toUpperCase();
 
   // Primary state
-  const [activeTab, setActiveTab] = useState('ALL');
+  const [categoryTab, setCategoryTab] = useState('sessional'); // 'sessional' | 'elective' | 'offerings' | 'assignments' | 'history'
+  const [semesterPill, setSemesterPill] = useState('ALL');
   const [viewMode, setViewMode] = useState('catalog'); // 'catalog' | 'history'
   const [loading, setLoading] = useState(true);
   const [courses, setCourses] = useState([]);
   const [historyOfferings, setHistoryOfferings] = useState([]);
+  const [teachingAssignments, setTeachingAssignments] = useState([]);
   const [search, setSearch] = useState('');
 
   // Course Offering Drawer / Modal State
@@ -53,21 +63,30 @@ export default function HeadCoursesPage() {
   const [availableSessions, setAvailableSessions] = useState(['2024-2025', '2023-2024', '2022-2023', '2021-2022']);
   const [availableSeries, setAvailableSeries] = useState(['24', '23', '22', '21', '20']);
 
-  // Fetch Course Catalog
+  // Fetch Course Catalog according to selected Category & Semester
   const fetchCourses = useCallback(async () => {
     setLoading(true);
     try {
-      const semQuery = activeTab === 'ALL' ? '' : `semester=${encodeURIComponent(activeTab)}`;
-      const res = await api.get(`/head/courses?${semQuery}`);
-      if (res.data?.success) {
-        setCourses(res.data.courses || []);
+      const semQuery = semesterPill === 'ALL' ? '' : `semester=${encodeURIComponent(semesterPill)}`;
+      if (categoryTab === 'sessional') {
+        const res = await api.get(`/head/courses/sessional?${semQuery}`);
+        if (res.data?.success) setCourses(res.data.courses || []);
+      } else if (categoryTab === 'elective') {
+        const res = await api.get(`/head/courses/elective?${semQuery}`);
+        if (res.data?.success) setCourses(res.data.courses || []);
+      } else if (categoryTab === 'assignments') {
+        const res = await api.get('/head/teaching-assignments');
+        if (res.data?.success) setTeachingAssignments(res.data.assignments || []);
+      } else {
+        const res = await api.get(`/head/course-offerings?${semQuery}`);
+        if (res.data?.success) setHistoryOfferings(res.data.offerings || []);
       }
     } catch (err) {
       toast.error(err.response?.data?.message || 'Failed to load department courses');
     } finally {
       setLoading(false);
     }
-  }, [activeTab]);
+  }, [categoryTab, semesterPill]);
 
   // Fetch Offerings History
   const fetchOfferingsHistory = useCallback(async () => {
@@ -266,51 +285,57 @@ export default function HeadCoursesPage() {
         </div>
 
         <div className="flex items-center gap-2">
-          <div className="inline-flex rounded-xl bg-slate-100 dark:bg-slate-800 p-1 border border-slate-200 dark:border-slate-700">
-            <button
-              onClick={() => setViewMode('catalog')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'catalog'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              Course Master Catalog
-            </button>
-            <button
-              onClick={() => setViewMode('history')}
-              className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
-                viewMode === 'history'
-                  ? 'bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm'
-                  : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-200'
-              }`}
-            >
-              Offering History ({historyOfferings.length})
-            </button>
-          </div>
-
           <button
             onClick={() => { fetchCourses(); fetchOfferingsHistory(); }}
             disabled={loading}
-            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 shadow-sm"
+            className="p-2.5 rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900 text-slate-600 dark:text-slate-300 hover:bg-slate-50 shadow-sm flex items-center gap-2 text-xs font-bold"
             title="Refresh Catalog"
           >
             <RefreshCw className={`w-4 h-4 ${loading ? 'animate-spin' : ''}`} />
+            <span className="hidden sm:inline">Refresh</span>
           </button>
         </div>
+      </div>
+
+      {/* ── 5 CATEGORY TABS (Phase 5 Required Tabs) ── */}
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800 pb-2 overflow-x-auto">
+        {COURSE_CATEGORY_TABS.map((tab) => {
+          const Icon = tab.icon;
+          const isActive = categoryTab === tab.id;
+          return (
+            <button
+              key={tab.id}
+              onClick={() => {
+                setCategoryTab(tab.id);
+                setSearch('');
+              }}
+              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                isActive
+                  ? 'bg-amber-600 text-white shadow-md shadow-amber-600/20'
+                  : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800/60'
+              }`}
+            >
+              <Icon className="w-4 h-4" />
+              <span>{tab.label}</span>
+              {tab.id === 'sessional' && <span className="text-[10px] opacity-80 font-mono">({stats.total})</span>}
+              {tab.id === 'offerings' && <span className="text-[10px] opacity-80 font-mono">({stats.active})</span>}
+              {tab.id === 'history' && <span className="text-[10px] opacity-80 font-mono">({historyOfferings.length})</span>}
+            </button>
+          );
+        })}
       </div>
 
       {/* ── KPI SUMMARY CARDS (Section 63) ── */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between text-slate-500 text-xs font-semibold">
-            <span>Total Catalog Courses</span>
+            <span>Department Courses</span>
             <BookOpen className="w-4 h-4 text-indigo-500" />
           </div>
           <div className="text-2xl font-extrabold text-slate-900 dark:text-white mt-2 font-mono">
             {stats.total}
           </div>
-          <div className="text-[11px] text-slate-400 mt-1">Official master courses</div>
+          <div className="text-[11px] text-slate-400 mt-1">Master catalog items</div>
         </div>
 
         <div className="bg-emerald-50/50 dark:bg-emerald-950/20 border border-emerald-200/60 dark:border-emerald-800/40 rounded-2xl p-4 shadow-sm">
@@ -337,168 +362,303 @@ export default function HeadCoursesPage() {
 
         <div className="bg-blue-50/50 dark:bg-blue-950/20 border border-blue-200/60 dark:border-blue-800/40 rounded-2xl p-4 shadow-sm">
           <div className="flex items-center justify-between text-blue-700 dark:text-blue-400 text-xs font-semibold">
-            <span>Total Enrolled Students</span>
+            <span>Enrolled Students</span>
             <Users className="w-4 h-4 text-blue-500" />
           </div>
           <div className="text-2xl font-extrabold text-blue-700 dark:text-blue-400 mt-2 font-mono">
             {stats.totalEnrolled}
           </div>
-          <div className="text-[11px] text-blue-600/80 dark:text-blue-500 mt-1">Automatic enrollments</div>
+          <div className="text-[11px] text-blue-600/80 dark:text-blue-500 mt-1">Active registrations</div>
         </div>
       </div>
 
-      {viewMode === 'catalog' ? (
-        <>
-          {/* ── SEMESTER SELECTOR TABS (Section 14 & 15) ── */}
-          <div className="flex items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-800 pb-3 overflow-x-auto">
-            <div className="flex items-center gap-1.5 shrink-0">
-              {SEMESTER_TABS.map((tab) => (
-                <button
-                  key={tab.id}
-                  onClick={() => setActiveTab(tab.id)}
-                  className={`px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
-                    activeTab === tab.id
-                      ? 'bg-amber-600 text-white shadow-sm shadow-amber-600/30'
-                      : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
-                  }`}
-                >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-
-            <div className="relative min-w-[240px]">
-              <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
-              <input
-                type="text"
-                placeholder="Search course code or title..."
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
-              />
-            </div>
+      {/* ── SEMESTER PILLS & SEARCH TOOLBAR (For Course Catalogs & Offerings) ── */}
+      {(categoryTab === 'sessional' || categoryTab === 'elective' || categoryTab === 'offerings') && (
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-white dark:bg-slate-900 p-3 rounded-2xl border border-slate-200 dark:border-slate-800 shadow-sm">
+          <div className="flex items-center gap-1.5 overflow-x-auto pb-1 sm:pb-0">
+            {SEMESTER_LEVEL_PILLS.map((pill) => (
+              <button
+                key={pill.id}
+                onClick={() => setSemesterPill(pill.id)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all shrink-0 ${
+                  semesterPill === pill.id
+                    ? 'bg-slate-900 dark:bg-amber-600 text-white shadow-sm'
+                    : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-800'
+                }`}
+              >
+                {pill.label}
+              </button>
+            ))}
           </div>
 
-          {/* ── COURSE MASTER CARDS GRID (Section 15 & 16) ── */}
-          {loading ? (
-            <div className="py-20 text-center text-slate-400">
-              <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2 text-amber-500" />
-              <p className="text-xs">Loading department course catalog...</p>
-            </div>
-          ) : filteredCourses.length === 0 ? (
-            <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 p-8">
-              <BookOpen className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
-              <h3 className="text-base font-bold text-slate-700 dark:text-white">No Courses Found</h3>
-              <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
-                No course master definitions match the selected semester ({activeTab}). Check your search filter or add courses in the Master Catalog.
-              </p>
-            </div>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-              {filteredCourses.map((course) => {
-                const isAssigned = course.offeringStatus === 'ACTIVE';
-                const isPending = course.offeringStatus === 'PENDING_TEACHER';
+          <div className="relative min-w-[240px]">
+            <Search className="w-4 h-4 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
+            <input
+              type="text"
+              placeholder="Search code, title, semester..."
+              value={search}
+              onChange={(e) => setSearch(e.target.value)}
+              className="w-full pl-9 pr-3 py-1.5 text-xs rounded-xl bg-slate-50 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 text-slate-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-amber-500"
+            />
+          </div>
+        </div>
+      )}
 
-                return (
-                  <motion.div
-                    key={course._id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group relative overflow-hidden"
-                  >
-                    <div className={`absolute top-0 left-0 right-0 h-1.5 ${
-                      isAssigned ? 'bg-emerald-500' : isPending ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'
-                    }`} />
+      {/* ── TAB 1 & 2: SESSIONAL & ELECTIVE COURSES CARDS ── */}
+      {(categoryTab === 'sessional' || categoryTab === 'elective') && (
+        loading ? (
+          <div className="py-20 text-center text-slate-400">
+            <RefreshCw className="w-8 h-8 animate-spin mx-auto mb-2 text-amber-500" />
+            <p className="text-xs">Loading {categoryTab} course catalog...</p>
+          </div>
+        ) : filteredCourses.length === 0 ? (
+          <div className="text-center py-16 bg-white dark:bg-slate-900 rounded-3xl border border-dashed border-slate-200 dark:border-slate-800 p-8">
+            <BookOpen className="w-12 h-12 text-slate-300 dark:text-slate-600 mx-auto mb-3" />
+            <h3 className="text-base font-bold text-slate-700 dark:text-white">No {categoryTab === 'sessional' ? 'Sessional' : 'Elective'} Courses Found</h3>
+            <p className="text-xs text-slate-400 mt-1 max-w-sm mx-auto">
+              No courses match the selected semester ({semesterPill}). Check your search filter or semester selection.
+            </p>
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+            {filteredCourses.map((course) => {
+              const isAssigned = course.offeringStatus === 'ACTIVE';
+              const isPending = course.offeringStatus === 'PENDING_TEACHER';
 
-                    <div>
-                      {/* Top Badges */}
-                      <div className="flex items-start justify-between gap-2 mb-2">
-                        <span className="font-mono font-extrabold text-base text-amber-700 dark:text-amber-400">
-                          {course.courseCode}
+              return (
+                <motion.div
+                  key={course._id}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className="bg-white dark:bg-slate-900 rounded-2xl border border-slate-200/90 dark:border-slate-800 p-5 shadow-sm hover:shadow-md transition-all flex flex-col justify-between group relative overflow-hidden"
+                >
+                  <div className={`absolute top-0 left-0 right-0 h-1.5 ${
+                    isAssigned ? 'bg-emerald-500' : isPending ? 'bg-amber-500' : 'bg-slate-300 dark:bg-slate-700'
+                  }`} />
+
+                  <div>
+                    {/* Top Badges */}
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <span className="font-mono font-extrabold text-base text-amber-700 dark:text-amber-400">
+                        {course.courseCode}
+                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          categoryTab === 'sessional'
+                            ? 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
+                            : 'bg-indigo-50 text-indigo-700 dark:bg-indigo-950 dark:text-indigo-300'
+                        }`}>
+                          {categoryTab === 'sessional' ? 'Sessional' : (course.electiveGroup ? `Elective (${course.electiveGroup})` : 'Elective')}
                         </span>
-                        <div className="flex items-center gap-1.5">
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            course.isSessional
-                              ? 'bg-purple-50 text-purple-700 dark:bg-purple-950 dark:text-purple-300'
-                              : 'bg-blue-50 text-blue-700 dark:bg-blue-950 dark:text-blue-300'
-                          }`}>
-                            {course.isSessional ? 'Sessional' : 'Theory'}
-                          </span>
-                          <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
-                            isAssigned
-                              ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
-                              : isPending
-                              ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
-                              : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
-                          }`}>
-                            {isAssigned ? 'Active Offering' : isPending ? 'Pending Teacher' : 'Unoffered'}
-                          </span>
-                        </div>
-                      </div>
-
-                      {/* Course Title */}
-                      <h3 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-2 mb-2">
-                        {course.courseTitle}
-                      </h3>
-
-                      {/* Academic Specs */}
-                      <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mb-3">
-                        <span>Credits: <strong>{course.credit}</strong></span>
-                        <span>•</span>
-                        <span>Sem: <strong>{course.semesterLevel}</strong></span>
-                        <span>•</span>
-                        <span>Dept: <strong>{deptCode}</strong></span>
-                      </div>
-
-                      {/* Offering Context / Current Assignment Details */}
-                      <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs space-y-1.5 mb-4">
-                        {course.activeOffering ? (
-                          <>
-                            <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
-                              <span className="text-slate-400">Cohort:</span>
-                              <span className="font-semibold">Series {course.activeOffering.series} • {course.activeOffering.session}</span>
-                            </div>
-                            <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
-                              <span className="text-slate-400">Instructor:</span>
-                              <span className="font-semibold text-indigo-600 dark:text-indigo-400 truncate max-w-[160px]">
-                                {course.assignedTeacher ? course.assignedTeacher.name : 'Unassigned'}
-                              </span>
-                            </div>
-                            <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
-                              <span className="text-slate-400">Enrolled Roster:</span>
-                              <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
-                                {course.activeOffering.studentCount} students
-                              </span>
-                            </div>
-                          </>
-                        ) : (
-                          <div className="text-slate-400 py-1 text-center italic">
-                            No active cohort offering. Click below to offer course.
-                          </div>
-                        )}
+                        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${
+                          isAssigned
+                            ? 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800'
+                            : isPending
+                            ? 'bg-amber-50 text-amber-700 dark:bg-amber-950 dark:text-amber-300 border border-amber-200 dark:border-amber-800'
+                            : 'bg-slate-100 text-slate-600 dark:bg-slate-800 dark:text-slate-400'
+                        }`}>
+                          {isAssigned ? 'Active Offering' : isPending ? 'Pending Teacher' : 'Unoffered'}
+                        </span>
                       </div>
                     </div>
 
-                    {/* Action Button */}
-                    <button
-                      onClick={() => handleOpenOffering(course)}
-                      className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 ${
-                        isAssigned
-                          ? 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white'
-                          : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20'
-                      }`}
-                    >
-                      <span>{isAssigned ? 'Manage / Reassign Offering' : 'Open & Offer Course'}</span>
-                      <ArrowRight size={14} />
-                    </button>
-                  </motion.div>
-                );
-              })}
-            </div>
-          )}
-        </>
-      ) : (
-        /* ── OFFERING HISTORY TABLE (Section 41 & 42) ── */
+                    {/* Course Title */}
+                    <h3 className="font-bold text-sm text-slate-900 dark:text-white line-clamp-2 mb-2">
+                      {course.courseTitle}
+                    </h3>
+
+                    {/* Academic Specs */}
+                    <div className="flex items-center gap-3 text-xs text-slate-500 dark:text-slate-400 mb-3">
+                      <span>Credits: <strong>{course.credit}</strong></span>
+                      <span>•</span>
+                      <span>Sem: <strong>{course.semesterLevel || `${course.semesterNumber || 1}-${course.semesterTerm || 1}`}</strong></span>
+                      <span>•</span>
+                      <span>Dept: <strong>{deptCode}</strong></span>
+                    </div>
+
+                    {/* Offering Context / Current Assignment Details */}
+                    <div className="p-3 rounded-xl bg-slate-50 dark:bg-slate-800/60 border border-slate-100 dark:border-slate-800 text-xs space-y-1.5 mb-4">
+                      {course.activeOffering ? (
+                        <>
+                          <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                            <span className="text-slate-400">Cohort:</span>
+                            <span className="font-semibold">Series {course.activeOffering.series} • {course.activeOffering.session}</span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                            <span className="text-slate-400">Instructor:</span>
+                            <span className="font-semibold text-indigo-600 dark:text-indigo-400 truncate max-w-[160px]">
+                              {course.assignedTeacher ? course.assignedTeacher.name : 'Unassigned'}
+                            </span>
+                          </div>
+                          <div className="flex items-center justify-between text-slate-700 dark:text-slate-300">
+                            <span className="text-slate-400">Enrolled:</span>
+                            <span className="font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                              {course.activeOffering.studentCount || 0} students
+                            </span>
+                          </div>
+                        </>
+                      ) : (
+                        <div className="text-slate-400 py-1 text-center italic">
+                          No active cohort offering. Click below to offer course.
+                        </div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Action Button */}
+                  <button
+                    onClick={() => handleOpenOffering(course)}
+                    className={`w-full py-2.5 px-4 rounded-xl font-bold text-xs shadow-sm transition-all flex items-center justify-center gap-1.5 ${
+                      isAssigned
+                        ? 'bg-slate-900 hover:bg-slate-800 dark:bg-slate-800 dark:hover:bg-slate-700 text-white'
+                        : 'bg-amber-600 hover:bg-amber-700 text-white shadow-amber-600/20'
+                    }`}
+                  >
+                    <span>{isAssigned ? 'Manage / Reassign Offering' : 'Open & Offer Course'}</span>
+                    <ArrowRight size={14} />
+                  </button>
+                </motion.div>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {/* ── TAB 3: COURSE OFFERINGS VIEW ── */}
+      {categoryTab === 'offerings' && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              Active Course Offerings — Dept. of {deptCode}
+            </h3>
+            <span className="text-xs text-slate-400">Showing offerings for current cohorts</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500 tracking-wider">
+                  <th className="px-4 py-3">Course</th>
+                  <th className="px-4 py-3">Academic Session</th>
+                  <th className="px-4 py-3">Series</th>
+                  <th className="px-4 py-3">Semester</th>
+                  <th className="px-4 py-3">Assigned Teacher</th>
+                  <th className="px-4 py-3">Enrolled</th>
+                  <th className="px-4 py-3">Status</th>
+                  <th className="px-4 py-3 text-right">Actions</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {historyOfferings.filter(o => o.status === 'active').length === 0 ? (
+                  <tr>
+                    <td colSpan="8" className="px-4 py-12 text-center text-slate-400">
+                      No active course offerings found. Switch to Sessional or Elective tab to create an offering.
+                    </td>
+                  </tr>
+                ) : (
+                  historyOfferings.filter(o => o.status === 'active').map((off) => (
+                    <tr key={off._id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-mono font-bold text-amber-700 dark:text-amber-400">{off.courseCode}</div>
+                        <div className="text-[11px] text-slate-500 truncate max-w-[180px]">{off.courseName}</div>
+                      </td>
+                      <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">{off.sessionName}</td>
+                      <td className="px-4 py-3 font-mono font-bold text-blue-600 dark:text-blue-400">Series {off.seriesName}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{off.semesterName}</td>
+                      <td className="px-4 py-3">
+                        {off.teacherAssignment ? (
+                          <div>
+                            <div className="font-semibold text-slate-800 dark:text-slate-200">{off.teacherAssignment.teacherName || off.teacherAssignment.teacher?.name}</div>
+                            <div className="text-[10px] text-slate-400 font-mono">{off.teacherAssignment.teacherId}</div>
+                          </div>
+                        ) : (
+                          <span className="text-amber-600 dark:text-amber-400 italic">Unassigned</span>
+                        )}
+                      </td>
+                      <td className="px-4 py-3 font-mono font-bold text-emerald-600 dark:text-emerald-400">
+                        {off.enrollmentCount || 0} students
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          {off.status}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3 text-right">
+                        <button
+                          onClick={() => handleCancelOffering(off._id)}
+                          className="px-2.5 py-1 text-[11px] font-bold rounded-lg text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/40 border border-rose-200 dark:border-rose-800"
+                        >
+                          Cancel Offering
+                        </button>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 4: TEACHER ASSIGNMENTS VIEW ── */}
+      {categoryTab === 'assignments' && (
+        <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
+          <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
+            <h3 className="text-sm font-bold text-slate-900 dark:text-white">
+              Official Teacher Course Assignments ({deptCode})
+            </h3>
+            <span className="text-xs text-slate-400">Authorized faculty course allocations</span>
+          </div>
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-slate-50 dark:bg-slate-800/60 border-b border-slate-200 dark:border-slate-800 text-[11px] font-bold uppercase text-slate-500 tracking-wider">
+                  <th className="px-4 py-3">Faculty Member</th>
+                  <th className="px-4 py-3">Course Code & Title</th>
+                  <th className="px-4 py-3">Credits</th>
+                  <th className="px-4 py-3">Session</th>
+                  <th className="px-4 py-3">Series</th>
+                  <th className="px-4 py-3">Semester</th>
+                  <th className="px-4 py-3">Status</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
+                {teachingAssignments.length === 0 ? (
+                  <tr>
+                    <td colSpan="7" className="px-4 py-12 text-center text-slate-400">
+                      No teacher assignments found.
+                    </td>
+                  </tr>
+                ) : (
+                  teachingAssignments.map((a) => (
+                    <tr key={a._id} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/40 transition-colors">
+                      <td className="px-4 py-3">
+                        <div className="font-bold text-slate-900 dark:text-white">{a.teacher?.name || a.teacherName}</div>
+                        <div className="text-[10px] text-slate-400 font-mono">{a.teacher?.teacherId || a.teacher?.designation}</div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="font-mono font-bold text-amber-700 dark:text-amber-400">{a.course?.courseCode}</div>
+                        <div className="text-[11px] text-slate-500">{a.course?.courseTitle}</div>
+                      </td>
+                      <td className="px-4 py-3 font-semibold">{a.course?.credit || 1.5}</td>
+                      <td className="px-4 py-3 font-semibold text-slate-700 dark:text-slate-300">{a.academicSession}</td>
+                      <td className="px-4 py-3 font-mono font-bold text-blue-600 dark:text-blue-400">Series {a.series}</td>
+                      <td className="px-4 py-3 text-slate-600 dark:text-slate-300">{a.semester}</td>
+                      <td className="px-4 py-3">
+                        <span className="px-2 py-0.5 rounded-full text-[10px] font-bold uppercase bg-emerald-50 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800">
+                          {a.status || 'Active'}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        </div>
+      )}
+
+      {/* ── TAB 5: PREVIOUS ASSIGNMENTS & OFFERING HISTORY ── */}
+      {categoryTab === 'history' && (
         <div className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-3xl overflow-hidden shadow-sm">
           <div className="p-4 border-b border-slate-200 dark:border-slate-800 flex items-center justify-between">
             <h3 className="text-sm font-bold text-slate-900 dark:text-white">

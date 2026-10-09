@@ -535,6 +535,18 @@ const getStudentProfile = async (req, res) => {
 
     if (!fullStudent) return res.status(404).json({ message: 'Student not found' });
 
+    const Series = require('../models/Series');
+    let dynamicSemester = fullStudent.semester || '';
+    if (fullStudent.series) {
+      const sDoc = await Series.findOne({
+        name: fullStudent.series,
+        $or: [{ departmentCode: fullStudent.department }, { department: fullStudent.departmentRef?._id }]
+      }).select('currentSemester').lean();
+      if (sDoc?.currentSemester) {
+        dynamicSemester = sDoc.currentSemester;
+      }
+    }
+
     res.json({
       _id: fullStudent._id,
       name: fullStudent.name,
@@ -546,7 +558,8 @@ const getStudentProfile = async (req, res) => {
       department: fullStudent.department,
       departmentName: fullStudent.departmentRef?.name || fullStudent.department,
       facultyName: fullStudent.facultyRef?.name || '',
-      semester: fullStudent.semester || '',
+      semester: dynamicSemester,
+      currentSemester: dynamicSemester,
       session: fullStudent.session || '',
       section: fullStudent.section || '',
       batch: fullStudent.batch || '',

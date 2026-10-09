@@ -19,12 +19,21 @@ export default function StudentDashboard() {
   const { user } = useContext(AuthContext);
   const navigate = useNavigate();
 
-  const [activeSemester, setActiveSemester] = useState('3-2');
+  const [activeSemester, setActiveSemester] = useState(() => {
+    return user?.currentSemester || user?.semester || '3-2';
+  });
   const [courses, setCourses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [requestingCourse, setRequestingCourse] = useState(null);
   const [detailedMarksModal, setDetailedMarksModal] = useState(null);
   const [supervisions, setSupervisions] = useState([]);
+
+  // Automatically update activeSemester when student's series cohort progresses
+  useEffect(() => {
+    if (user?.currentSemester || user?.semester) {
+      setActiveSemester(user.currentSemester || user.semester);
+    }
+  }, [user?.currentSemester, user?.semester]);
 
   const fetchCourses = useCallback(async (sem) => {
     setLoading(true);
@@ -123,6 +132,10 @@ export default function StudentDashboard() {
           </div>
 
           <div className="flex flex-wrap items-center gap-2">
+            <button onClick={() => navigate('/student/history')}
+              className="px-3.5 py-2 rounded-lg bg-indigo-50 hover:bg-indigo-100 dark:bg-indigo-950/40 dark:hover:bg-indigo-900/60 border border-indigo-200 dark:border-indigo-800 text-indigo-700 dark:text-indigo-300 text-xs font-semibold flex items-center gap-1.5 transition-colors">
+              <Clock size={13} /> Previous Courses
+            </button>
             <button onClick={handleDownloadTranscript}
               className="px-3.5 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-xs font-semibold flex items-center gap-1.5 transition-colors shadow-sm shadow-blue-500/20">
               <Download size={13} /> Semester Transcript (PDF)
