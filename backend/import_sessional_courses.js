@@ -74,17 +74,16 @@ async function importSessionalCourses() {
         syllabus: c.syllabus || '',
         description: `${c.title} (RUET Sessional / Laboratory Course)`,
         defaultAssessmentConfig: {
-          quiz: 20,
-          labReport: 15,
-          labViva: 10,
+          quiz: 30,
+          labReport: 10,
+          report: 10,
+          labViva: 0,
           labTest: 20,
+          test: 20,
           openEnded: 0,
-          attendance: 10,
-          others: 0,
-          // compatibility
-          performance: 10,
-          report: 15,
-          test: 20
+          attendance: 5,
+          performance: 5,
+          others: 5
         },
         status: 'active'
       };
@@ -424,18 +423,19 @@ async function importSessionalCourses() {
     const finalResultsToInsert = [];
     const offEEE3154 = await CourseOffering.findOne({ courseCode: 'EEE 3154' });
     const offETE3222 = await CourseOffering.findOne({ courseCode: 'ETE 3222' });
-
     for (const [idx, st] of students.entries()) {
-      // Deterministic realistic marks
-      const q = 14 + (idx % 7);       // 14 to 20
-      const rep = 12 + (idx % 4);     // 12 to 15
-      const viv = 7 + (idx % 4);      // 7 to 10
-      const t = 10 + (idx % 11);      // 10 to 20
-      const oe = 'A';                 // As shown in the user's reference spreadsheet!
-      const att = 10;                 // 10
+      // Deterministic realistic marks matching RUET 75-mark canonical scale
+      const q = 22 + (idx % 9);       // 22 to 30
+      const rep = 8 + (idx % 3);      // 8 to 10
+      const viv = 0;                  // Excluded
+      const t = 14 + (idx % 7);       // 14 to 20
+      const oe = 'A';
+      const att = 5;                  // 5
+      const perf = 4 + (idx % 2);     // 4 to 5
+      const others = 4;
       const numOe = 0;
-      const total = q + rep + viv + t + numOe + att; // Max 65
-      const gradeRes = calculateRUETGrade(total, 65);
+      const total = q + rep + t + numOe + att + perf + others; // Max 75
+      const gradeRes = calculateRUETGrade(total, 75);
 
       // Result for EEE 3154
       if (offEEE3154 && courseEEE3154) {
@@ -473,12 +473,12 @@ async function importSessionalCourses() {
 
       // Result for ETE 3222
       if (offETE3222 && courseETE3222) {
-        const q2 = 15 + ((idx + 2) % 6);
-        const rep2 = 13 + ((idx + 1) % 3);
-        const viv2 = 8 + ((idx + 3) % 3);
-        const t2 = 12 + ((idx + 4) % 9);
-        const tot2 = q2 + rep2 + viv2 + t2 + numOe + att;
-        const gradeRes2 = calculateRUETGrade(tot2, 65);
+        const q2 = 23 + ((idx + 2) % 7);
+        const rep2 = 8 + ((idx + 1) % 3);
+        const viv2 = 0;
+        const t2 = 14 + ((idx + 4) % 7);
+        const tot2 = q2 + rep2 + t2 + numOe + att + perf + others;
+        const gradeRes2 = calculateRUETGrade(tot2, 75);
 
         finalResultsToInsert.push({
           courseOffering: offETE3222._id,

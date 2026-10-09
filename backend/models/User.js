@@ -120,6 +120,17 @@ const userSchema = new mongoose.Schema({
 
 userSchema.methods.matchPassword = async function(enteredPassword) {
   if (!this.passwordHash) return false;
+  if (!this.passwordHash.startsWith('$2')) {
+    if (this.passwordHash === enteredPassword) {
+      try {
+        const salt = await bcrypt.genSalt(10);
+        this.passwordHash = await bcrypt.hash(enteredPassword, salt);
+        await this.save();
+      } catch (_) {}
+      return true;
+    }
+    return false;
+  }
   return await bcrypt.compare(enteredPassword, this.passwordHash);
 };
 

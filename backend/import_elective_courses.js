@@ -41,18 +41,18 @@ async function importElectiveCourses() {
     const electiveCourses = allCourses.filter(c => c.isElective === true);
     console.log(`Found ${electiveCourses.length} elective courses out of ${allCourses.length} total entries.`);
 
-    // 4. Remove previous courses to guarantee ONLY elective courses exist in initial database
-    const deleteOld = await Course.deleteMany({});
-    console.log(`Cleared previous courses: ${deleteOld.deletedCount} removed.`);
+    const { getDefaultConfig } = require('./config/assessmentConfig');
 
-    // 5. Insert all elective courses
-    const docsToInsert = electiveCourses.map(c => {
-      // Clean course code, e.g. "ETE 3221"
+    // 4. Upsert all elective courses safely
+    let insertedCount = 0;
+    const bySemester = {};
+
+    for (const c of electiveCourses) {
       const courseCode = c.courseCode.trim().toUpperCase();
       const isSessional = !!c.isSessional;
       const courseType = isSessional ? 'Sessional' : 'Theory';
 
-      return {
+      const doc = {
         courseCode,
         courseName: c.title.trim(),
         credit: parseFloat(c.credits) || 3.0,
@@ -68,39 +68,16 @@ async function importElectiveCourses() {
         semesterLevel: c.semester ? c.semester.trim() : '3-2',
         syllabus: c.syllabus || '',
         description: `${c.title} (${courseType} Elective Course)`,
-        defaultAssessmentConfig: isSessional ? {
-          quiz: 20,
-          labReport: 15,
-          labViva: 10,
-          labTest: 20,
-          openEnded: 0,
-          attendance: 10,
-          others: 0,
-          // compatibility
-          performance: 10,
-          report: 15,
-          test: 20
-        } : {
-          quiz: 20,
-          labReport: 0,
-          labViva: 0,
-          labTest: 0,
-          openEnded: 0,
-          attendance: 10,
-          others: 70
-        },
+        defaultAssessmentConfig: getDefaultConfig(),
         status: 'active'
       };
-    });
 
-    const inserted = await Course.insertMany(docsToInsert);
-    console.log(`\n🎉 Successfully imported ${inserted.length} ELECTIVE courses into RUET database!`);
+      await Course.findOneAndUpdate({ courseCode }, doc, { upsert: true, returnDocument: 'after' });
+      insertedCount++;
+      bySemester[doc.semesterLevel] = (bySemester[doc.semesterLevel] || 0) + 1;
+    }
 
-    // Grouping summary by semester
-    const bySemester = {};
-    inserted.forEach(c => {
-      bySemester[c.semesterLevel] = (bySemester[c.semesterLevel] || 0) + 1;
-    });
+    console.log(`\n🎉 Successfully upserted ${insertedCount} ELECTIVE courses into RUET database!`);
     console.log('Elective courses by semester:', bySemester);
 
     process.exit(0);

@@ -150,11 +150,15 @@ async function syncUsers() {
       if (student.status === 'suspended') status = 'SUSPENDED';
       else if (student.status !== 'active') status = 'INACTIVE';
 
+      const pwdHash = (student.password && student.password.startsWith('$2'))
+        ? student.password
+        : await User.hashPassword(student.password || 'password123');
+
       if (!u) {
         u = await User.create({
           loginIdentifier: identifier,
           loginIdentifierLower: identifierLower,
-          passwordHash: student.password,
+          passwordHash: pwdHash,
           role: 'student',
           status,
           name: student.name,
@@ -170,6 +174,9 @@ async function syncUsers() {
         u.profileRef = student._id;
         u.profileModel = 'Student';
         if (student.department) u.department = student.department;
+        if (!u.passwordHash || !u.passwordHash.startsWith('$2')) {
+          u.passwordHash = pwdHash;
+        }
         await u.save();
       }
 
