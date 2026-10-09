@@ -1,7 +1,7 @@
 /**
  * RUET Official Grading System Utility
  */
-export const calculateRUETGrade = (marks, maxMarks = 65) => {
+export const calculateRUETGrade = (marks, maxMarks = 75) => {
   if (marks === null || marks === undefined || isNaN(marks)) {
     return { grade: 'F', gradePoint: 0.00 };
   }

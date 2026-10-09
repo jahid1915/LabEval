@@ -40,13 +40,13 @@ export default function TeacherDashboard() {
   const [requestStatusFilter, setRequestStatusFilter] = useState('All');
   const [activeRequestModal, setActiveRequestModal] = useState(null);
   const [marksForm, setMarksForm] = useState({
-    quiz: 18,
-    labReport: 15,
-    labViva: 9,
-    labTest: 10,
+    quiz: 25,
+    labReport: 8,
+    labViva: 0,
+    labTest: 16,
     openEnded: 'A',
-    attendance: 10,
-    maxMarks: 65,
+    attendance: 5,
+    maxMarks: 75,
     remarks: ''
   });
   const [processingMarks, setProcessingMarks] = useState(false);
@@ -119,8 +119,8 @@ export default function TeacherDashboard() {
       labViva: existing.labViva ?? 8,
       labTest: existing.labTest ?? 9,
       openEnded: existing.openEnded ?? 'A',
-      attendance: existing.attendance ?? 10,
-      maxMarks: 65,
+      attendance: existing.attendance ?? 5,
+      maxMarks: existing.maxMarks ?? 75,
       remarks: req.remarks || 'Verified by Course Teacher'
     });
   };
@@ -137,7 +137,7 @@ export default function TeacherDashboard() {
   };
 
   const total = calcTotal();
-  const maxMarks = parseFloat(marksForm.maxMarks) || 65;
+  const maxMarks = parseFloat(marksForm.maxMarks) || 75;
   const pct = maxMarks > 0 ? (total / maxMarks) * 100 : 0;
 
   // Real-time RUET letter grade & grade point

@@ -1,24 +1,8 @@
 const Course = require('../models/Course');
 const CourseOffering = require('../models/CourseOffering');
 const TeacherAssignment = require('../models/TeacherAssignment');
-const Teacher = require('../models/Teacher');
 const Student = require('../models/Student');
-
-const DEFAULT_CONFIG = {
-  quiz:        20,
-  labReport:   15,
-  labViva:     10,
-  labTest:     20,
-  openEnded:   0,
-  attendance:  10,
-  others:      0,
-  // legacy keys
-  performance: 5,
-  report:      10,
-  test:        20,
-};
-
-const TOTAL_MARKS = 75;
+const { getDefaultConfig, resolveConfig, TOTAL_MARKS } = require('../config/assessmentConfig');
 
 // GET /api/teacher/courses — get all assigned courses for the logged-in teacher (Assigned by Department Head only)
 const getCourses = async (req, res) => {
@@ -56,6 +40,8 @@ const getCourses = async (req, res) => {
       });
 
       const assignDoc = assignments.find(a => String(a.courseOffering?._id) === String(off._id));
+      // Use canonical resolver — never fall back to old wrong defaults
+      const cfg = resolveConfig(off);
 
       return {
         _id: off._id,
@@ -72,7 +58,7 @@ const getCourses = async (req, res) => {
         courseType: off.course?.courseType || (off.course?.isSessional ? 'Sessional' : 'Theory'),
         isElective: off.course?.isElective !== undefined ? off.course.isElective : true,
         isSessional: !!off.course?.isSessional,
-        assessmentConfig: off.assessmentConfig || DEFAULT_CONFIG,
+        assessmentConfig: cfg,
         isMarksPublished: off.isMarksPublished,
         studentCount,
         role: assignDoc?.role || 'PRIMARY',
@@ -104,28 +90,21 @@ const deleteCourse = async (req, res) => {
 const getAssessmentConfig = async (req, res) => {
   try {
     const id = req.params.id;
-    let config = DEFAULT_CONFIG;
 
     const offering = await CourseOffering.findById(id);
-    if (offering && offering.assessmentConfig) {
-      config = {
-        quiz:        offering.assessmentConfig.quiz        ?? DEFAULT_CONFIG.quiz,
-        labReport:   offering.assessmentConfig.labReport   ?? DEFAULT_CONFIG.labReport,
-        labViva:     offering.assessmentConfig.labViva     ?? DEFAULT_CONFIG.labViva,
-        labTest:     offering.assessmentConfig.labTest     ?? DEFAULT_CONFIG.labTest,
-        openEnded:   offering.assessmentConfig.openEnded   ?? DEFAULT_CONFIG.openEnded,
-        attendance:  offering.assessmentConfig.attendance  ?? DEFAULT_CONFIG.attendance,
-        others:      offering.assessmentConfig.others      ?? DEFAULT_CONFIG.others,
-      };
-      return res.json({ config, totalMarks: TOTAL_MARKS });
+    if (offering) {
+      const cfg = resolveConfig(offering);
+      return res.json({ config: cfg, totalMarks: TOTAL_MARKS });
     }
 
     const course = await Course.findOne({ _id: id });
-    if (course && course.defaultAssessmentConfig) {
-      config = course.defaultAssessmentConfig;
+    if (course) {
+      const cfg = resolveConfig(course);
+      return res.json({ config: cfg, totalMarks: TOTAL_MARKS });
     }
 
-    res.json({ config, totalMarks: TOTAL_MARKS });
+    // No offering or course found — return canonical defaults
+    res.json({ config: getDefaultConfig(), totalMarks: TOTAL_MARKS });
   } catch (err) {
     res.status(500).json({ message: err.message });
   }

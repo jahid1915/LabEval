@@ -2,12 +2,12 @@
  * RUET Standard Grading System Calculator
  */
 
-function calculateRUETGrade(totalMarks, maxMarks = 65) {
+function calculateRUETGrade(totalMarks, maxMarks = 75) {
   if (totalMarks === null || totalMarks === undefined || isNaN(totalMarks)) {
     return { grade: 'F', gradePoint: 0.00, percentage: 0 };
   }
 
-  const effectiveMax = maxMarks > 0 ? maxMarks : 65;
+  const effectiveMax = maxMarks > 0 ? maxMarks : 75;
   const percentage = (Number(totalMarks) / effectiveMax) * 100;
   const roundedPct = Math.round(percentage * 100) / 100;
 

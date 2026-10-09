@@ -73,8 +73,9 @@ export default function ProjectTeamWorkspace() {
   // Socket.IO Real-Time Integration (Sections 35, 40, 41, 42)
   useEffect(() => {
     const token = localStorage.getItem('token') || localStorage.getItem('accessToken');
-    const socketUrl = import.meta.env.VITE_API_URL
-      ? import.meta.env.VITE_API_URL.replace(/\/api\/?$/, '')
+    const apiUrl = import.meta.env.VITE_API_BASE_URL || import.meta.env.VITE_API_URL || '';
+    const socketUrl = apiUrl
+      ? apiUrl.replace(/\/api\/?$/, '')
       : window.location.origin.includes('localhost') ? 'http://localhost:5000' : window.location.origin;
 
     const socket = io(socketUrl, {

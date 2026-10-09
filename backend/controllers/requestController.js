@@ -185,7 +185,7 @@ const updateRequest = async (req, res) => {
         return Math.min(max, Math.round(num * 100) / 100);
       };
 
-      const maxMarks = sanitize(detailedMarks.maxMarks, 300) || 65;
+      const maxMarks = sanitize(detailedMarks.maxMarks, 300) || 75;
       const q = sanitize(detailedMarks.quiz, 30);
       const r = sanitize(detailedMarks.labReport, 30);
       const v = sanitize(detailedMarks.labViva, 30);

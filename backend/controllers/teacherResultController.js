@@ -10,39 +10,12 @@ const CourseOffering = require('../models/CourseOffering');
 const FinalResult = require('../models/FinalResult');
 const { calculateRUETGrade } = require('../utils/gradeCalculator');
 const { logAudit } = require('../middleware/auditMiddleware');
+const {
+  resolveConfig,
+  sanitizeMark,
+  TOTAL_MARKS
+} = require('../config/assessmentConfig');
 
-// LabEval Official Marking Structure (per spec): Total = 75 marks
-// Attendance(5) + Reports(10) + Performance(5) + Quiz(30) + Test(20) + Others(5)
-const DEFAULT_CONFIG = {
-  attendance:  5,
-  report:      10,
-  performance: 5,
-  quiz:        30,
-  test:        20,
-  others:      5,
-  // Legacy field aliases (kept for backward compat)
-  labReport:   10,
-  labViva:     0,
-  labTest:     20,
-  openEnded:   0,
-};
-
-const resolveConfig = (sourceDoc) => {
-  const ac = sourceDoc?.assessmentConfig || sourceDoc?.defaultAssessmentConfig || {};
-  return {
-    attendance:  ac.attendance  ?? DEFAULT_CONFIG.attendance,
-    report:      ac.report      ?? ac.labReport ?? DEFAULT_CONFIG.report,
-    performance: ac.performance ?? DEFAULT_CONFIG.performance,
-    quiz:        ac.quiz        ?? DEFAULT_CONFIG.quiz,
-    test:        ac.test        ?? ac.labTest   ?? DEFAULT_CONFIG.test,
-    others:      ac.others      ?? DEFAULT_CONFIG.others,
-    // Legacy aliases for backward compat with existing FinalResult records
-    labReport:   ac.report      ?? ac.labReport ?? DEFAULT_CONFIG.labReport,
-    labViva:     ac.labViva     ?? 0,
-    labTest:     ac.test        ?? ac.labTest   ?? DEFAULT_CONFIG.labTest,
-    openEnded:   ac.openEnded   ?? 0,
-  };
-};
 
 const getPercentageMark = (percentage, maxMark) => {
   if (percentage >= 90) return maxMark;
@@ -195,12 +168,7 @@ const submitMarkSheet = async (req, res) => {
     // LabEval official: Attendance(5) + Reports(10) + Performance(5) + Quiz(30) + Test(20) + Others(5) = 75
     const maxTotalMarks = (cfg.attendance + cfg.report + cfg.performance + cfg.quiz + cfg.test + cfg.others) || 75;
 
-    const sanitizeMark = (val, max) => {
-      if (val === undefined || val === null || val === '') return 0;
-      const num = Number(val);
-      if (isNaN(num) || !isFinite(num) || num < 0) return 0;
-      return Math.min(max, Math.round(num * 100) / 100);
-    };
+    // sanitizeMark imported from config/assessmentConfig.js — clamps to [0, max], returns 0 for bad input
 
     const bulkOps = records.map((r) => {
       const att  = sanitizeMark(r.attendanceMark, cfg.attendance);

@@ -185,7 +185,7 @@ const getStudentCourses = async (req, res) => {
         grade: result?.grade || '',
         gradePoint: result?.gradePoint !== undefined ? result.gradePoint : null,
         totalMarks: result?.totalMarks || null,
-        maxTotalMarks: result?.maxTotalMarks || 65,
+        maxTotalMarks: result?.maxTotalMarks || 75,
         detailedMarks: (reqDoc?.status === 'Accepted' || reqDoc?.status === 'Completed' || result?.isPublished)
           ? (reqDoc?.detailedMarks || result?.detailedMarks)
           : null,
@@ -238,7 +238,7 @@ const getStudentCourses = async (req, res) => {
           grade: result?.grade || '',
           gradePoint: result?.gradePoint !== undefined ? result.gradePoint : null,
           totalMarks: result?.totalMarks || null,
-          maxTotalMarks: result?.maxTotalMarks || 65,
+          maxTotalMarks: result?.maxTotalMarks || 75,
           detailedMarks: (reqDoc?.status === 'Accepted' || reqDoc?.status === 'Completed' || result?.isPublished)
             ? (reqDoc?.detailedMarks || result?.detailedMarks)
             : null,
@@ -293,7 +293,7 @@ const getStudentCourses = async (req, res) => {
           grade: result?.grade || '',
           gradePoint: result?.gradePoint !== undefined ? result.gradePoint : null,
           totalMarks: result?.totalMarks || null,
-          maxTotalMarks: result?.maxTotalMarks || 65,
+          maxTotalMarks: result?.maxTotalMarks || 75,
           detailedMarks: (reqDoc?.status === 'Accepted' || reqDoc?.status === 'Completed' || result?.isPublished)
             ? (reqDoc?.detailedMarks || result?.detailedMarks)
             : null,

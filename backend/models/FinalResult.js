@@ -1,5 +1,7 @@
 const mongoose = require('mongoose');
 
+// LabEval grading: Attendance(5)+Reports(10)+Performance(5)+Quiz(30)+Test(20)+Others(5)=75
+// Board viva is EXCLUDED from the grade calculation.
 const finalResultSchema = new mongoose.Schema({
   student:          { type: mongoose.Schema.Types.ObjectId, ref: 'Student', required: true },
   rollNumber:       { type: String, trim: true },
@@ -15,18 +17,21 @@ const finalResultSchema = new mongoose.Schema({
   teacherId:        { type: String, uppercase: true, trim: true },
   teacherName:      { type: String, trim: true },
   
-  // Assessment components (RUET format: Quiz [20], Lab Report [15], Lab Viva [10], Lab Test [20], Open Ended [0], Atnd [10], Total [65/75])
-  quizMarks:        { type: Number, default: 0, min: 0 },
-  reportMarks:      { type: Number, default: 0, min: 0 },
-  vivaMarks:        { type: Number, default: 0, min: 0 },
-  testMarks:        { type: Number, default: 0, min: 0 },
+  // Assessment components — LabEval spec: Att(5)+Rep(10)+Perf(5)+Quiz(30)+Test(20)+Others(5)=75
+  attendanceMarks:  { type: Number, default: 0, min: 0, max: 5  },
+  reportMarks:      { type: Number, default: 0, min: 0, max: 10 },
+  performanceMarks: { type: Number, default: 0, min: 0, max: 5  },
+  quizMarks:        { type: Number, default: 0, min: 0, max: 30 },
+  testMarks:        { type: Number, default: 0, min: 0, max: 20 },
+  othersMarks:      { type: Number, default: 0, min: 0, max: 5  },
+  // vivaMarks: retained for backward compatibility with legacy imported records only.
+  // Board viva is NOT part of the LabEval grading structure and MUST NOT
+  // contribute to totalMarks or grade scaling. Value is informational only.
+  vivaMarks:        { type: Number, default: 0, min: 0, max: 0 },
   openEndedMarks:   { type: mongoose.Schema.Types.Mixed, default: 'A' },
-  attendanceMarks:  { type: Number, default: 0, min: 0 },
-  performanceMarks: { type: Number, default: 0, min: 0 },
-  othersMarks:      { type: Number, default: 0, min: 0 },
-  
-  totalMarks:       { type: Number, default: 0, min: 0 },
-  maxTotalMarks:    { type: Number, default: 65 }, // default 65 or 75
+
+  totalMarks:       { type: Number, default: 0, min: 0, max: 75 },
+  maxTotalMarks:    { type: Number, default: 75 }, // canonical total per LabEval spec
   grade:            { type: String, default: 'F', trim: true }, // A+, A, A-, B+, B, B-, C+, C, D, F
   gradePoint:       { type: Number, default: 0.00, min: 0, max: 4.00 },
 

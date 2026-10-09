@@ -8,14 +8,51 @@ const Performance = require('../models/Performance');
 const Quiz = require('../models/Quiz');
 const Test = require('../models/Test');
 const Others = require('../models/Others');
+const { resolveConfig, validateMark, ASSESSMENT_LIMITS } = require('../config/assessmentConfig');
 
 // @desc  Get students by dept + series query or by course enrollment roster
 // @route GET /api/teacher/students/any?department=ETE&series=22&courseId=ETE3221
 // @route GET /api/teacher/students/:courseId (legacy)
+//
+// SECURITY: Teachers can only retrieve students from their own department.
+// Admins and department heads have unrestricted access.
+// A teacher cannot supply a foreign department to bypass this restriction.
 const getStudentsByCourse = async (req, res) => {
   try {
     const { department, series, courseId: queryCourseId } = req.query;
     const courseId = req.params.courseId || queryCourseId;
+
+    // ── Authorization: scope department to the authenticated teacher ────────
+    const isAdmin = ['admin', 'super_admin', 'department_head'].includes(req.user.role);
+    const teacherDept = (
+      req.user.department ||
+      req.user.departmentCode ||
+      req.user.teacherProfile?.department ||
+      ''
+    ).trim().toUpperCase();
+
+    let resolvedDept;
+    if (isAdmin) {
+      // Admins can query any department they specify, or all if none specified
+      resolvedDept = department ? department.toUpperCase() : null;
+    } else {
+      // Teachers: ignore client-supplied department if it doesn't match their own
+      if (!teacherDept) {
+        return res.status(403).json({
+          success: false,
+          message: 'Teacher department not configured. Contact administrator.',
+          code: 'TEACHER_DEPT_MISSING'
+        });
+      }
+      if (department && department.toUpperCase() !== teacherDept) {
+        return res.status(403).json({
+          success: false,
+          message: `Access denied: You can only access students in your department (${teacherDept}).`,
+          code: 'DEPARTMENT_ISOLATION_VIOLATION'
+        });
+      }
+      resolvedDept = teacherDept;
+    }
 
     // If a course is specified, check if it has approved elective enrollments in FinalEnrollment
     if (courseId && courseId !== 'any') {
@@ -34,24 +71,61 @@ const getStudentsByCourse = async (req, res) => {
         }).populate('studentId').lean();
 
         if (enrollments.length > 0) {
-          const enrolledStudents = enrollments
+          let enrolledStudents = enrollments
             .map(e => e.studentId)
-            .filter(Boolean)
-            .sort((a, b) => (a.rollNumber > b.rollNumber ? 1 : -1));
-          return res.json(enrolledStudents);
+            .filter(Boolean);
+
+          // Enforce department scope on enrollment results too
+          if (resolvedDept) {
+            enrolledStudents = enrolledStudents.filter(
+              s => (s.department || '').toUpperCase() === resolvedDept
+            );
+          }
+
+          return res.json(
+            enrolledStudents
+              .sort((a, b) => (a.rollNumber > b.rollNumber ? 1 : -1))
+              .map(s => ({
+                _id: s._id,
+                name: s.name,
+                rollNumber: s.rollNumber,
+                department: s.department,
+                series: s.series,
+                section: s.section,
+                status: s.status
+              }))
+          );
         }
       }
     }
 
-    let query = {};
-    if (department) query.department = department.toUpperCase();
-    if (series)     query.series     = series;
-    const students = await Student.find(query).sort({ rollNumber: 1 });
+    // Fallback: query students by dept/series with enforced scope
+    const query = { status: 'active' };
+    if (resolvedDept) query.department = resolvedDept;
+    if (series)       query.series     = series;
+
+    if (!resolvedDept && !series) {
+      // Would return ALL students — deny for non-admins, return empty for safety
+      if (!isAdmin) {
+        return res.status(403).json({
+          success: false,
+          message: 'Department scope is required to fetch students.',
+          code: 'SCOPE_REQUIRED'
+        });
+      }
+    }
+
+    const students = await Student.find(query)
+      .select('name rollNumber department series section status')
+      .sort({ rollNumber: 1 })
+      .lean();
+
     res.json(students);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
 };
+
 
 // ── Bulk Attendance + Report save ─────────────────────────────────
 // @desc  Save attendance + auto-report for all students in one request via single bulkWrite
@@ -124,29 +198,26 @@ const saveLabRecord = async (req, res, Model) => {
   try {
     const { studentId, courseId, date, marks, status, type, dayName } = req.body;
 
-    // Validate marks against course's assessmentConfig if marks are provided
+    // ── Server-side marks validation (reject, do NOT silently clamp) ─────
     if (marks !== undefined && marks !== null) {
-      const Course = require('../models/Course');
       const CourseOffering = require('../models/CourseOffering');
-      const cleanCourse = courseId.trim().toUpperCase();
-      const courseDoc = await Course.findOne({ courseCode: cleanCourse }) || await CourseOffering.findOne({ courseCode: cleanCourse });
-      const config = courseDoc?.assessmentConfig || courseDoc?.defaultAssessmentConfig || {
-        performance: 5,
-        quiz: 30,
-        test: 20,
-        others: 5
+      const cleanCourse = (courseId || '').trim().toUpperCase();
+      const courseDoc = await Course.findOne({ courseCode: cleanCourse })
+                     || await CourseOffering.findOne({ courseCode: cleanCourse });
+      const cfg = resolveConfig(courseDoc);
+
+      // Map model name → config key → max limit
+      const componentMap = {
+        Performance: 'performance',
+        Quiz:        'quiz',
+        Test:        'test',
+        Others:      'others',
       };
-
-      let configKey = '';
-      if (Model.modelName === 'Performance') configKey = 'performance';
-      else if (Model.modelName === 'Quiz') configKey = 'quiz';
-      else if (Model.modelName === 'Test') configKey = 'test';
-      else if (Model.modelName === 'Others') configKey = 'others';
-
+      const configKey = componentMap[Model.modelName];
       if (configKey) {
-        const maxAllowed = config[configKey] ?? 30;
-        if (Number(marks) > maxAllowed) {
-          return res.status(400).json({ message: `Marks (${marks}) exceed maximum configured limit of ${maxAllowed} for ${configKey}.` });
+        const err = validateMark(marks, configKey, cfg);
+        if (err) {
+          return res.status(400).json({ success: false, message: err, code: 'MARKS_VALIDATION_ERROR' });
         }
       }
     }
@@ -181,26 +252,6 @@ const savePerformance = (req, res) => saveLabRecord(req, res, Performance);
 const saveQuiz        = (req, res) => saveLabRecord(req, res, Quiz);
 const saveTest        = (req, res) => saveLabRecord(req, res, Test);
 const saveOthers      = (req, res) => saveLabRecord(req, res, Others);
-
-// ── Bulk save for marks tables (Quiz / Test / Others) ─────────────
-// @body { courseId, date, type (optional), records: [{ studentId, marks }] }
-const bulkSaveMarks = async (req, res, Model) => {
-  try {
-    const { courseId, date, type, records } = req.body;
-    if (!Array.isArray(records)) return res.status(400).json({ message: 'records[] required' });
-    const ops = records.map(({ studentId, marks }) => {
-      const query = { student: studentId, course: courseId };
-      if (type) query.type = type;
-      const update = { student: studentId, course: courseId, date: date || new Date(), marks, teacher: req.user._id };
-      if (type) update.type = type;
-      return Model.findOneAndUpdate(query, update, { upsert: true, new: true });
-    });
-    const saved = await Promise.all(ops);
-    res.json(saved);
-  } catch (error) {
-    res.status(500).json({ message: error.message });
-  }
-};
 
 // @desc  Get Lab Records by model name
 // @route GET /api/teacher/records/:model/:courseId

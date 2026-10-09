@@ -15,15 +15,16 @@ export const DEFAULT_LAYOUT_CONFIG = {
   includeGrade: false,
   includeGP: false,
   criteria: {
-    quiz: 20,
-    labReport: 15,
-    labViva: 10,
+    quiz: 30,
+    labReport: 10,
+    performance: 5,
     labTest: 20,
-    openEnded: 0,
-    attendance: 10,
-    others: 0
+    attendance: 5,
+    others: 5,
+    labViva: 0,
+    openEnded: 0
   },
-  maxMarks: 65,
+  maxMarks: 75,
   remarks: ''
 };
 
@@ -68,13 +69,14 @@ export default function EvaluationLayoutModal({
 
   // Calculate live total marks from criteria
   const computedMaxMarks = 
-    (Number(config.criteria.quiz) || 0) +
-    (Number(config.criteria.labReport) || 0) +
-    (Number(config.criteria.labViva) || 0) +
-    (Number(config.criteria.labTest) || 0) +
-    (Number(config.criteria.openEnded) || 0) +
-    (Number(config.criteria.attendance) || 0) +
-    (Number(config.criteria.others) || 0);
+    (Number(config.criteria?.quiz) || 0) +
+    (Number(config.criteria?.labReport) || 0) +
+    (Number(config.criteria?.performance) || 0) +
+    (Number(config.criteria?.labViva) || 0) +
+    (Number(config.criteria?.labTest) || 0) +
+    (Number(config.criteria?.openEnded) || 0) +
+    (Number(config.criteria?.attendance) || 0) +
+    (Number(config.criteria?.others) || 0);
 
   const handleCriteriaChange = (field, val) => {
     const num = Math.max(0, parseInt(val, 10) || 0);
@@ -89,14 +91,14 @@ export default function EvaluationLayoutModal({
 
   const handleResetDefaults = () => {
     setConfig(DEFAULT_LAYOUT_CONFIG);
-    toast.info('Reset to official RUET standard marks breakdown');
+    toast.info('Reset to official RUET standard marks breakdown (Total: 75)');
   };
 
   const handleSave = async () => {
     setSaving(true);
     const updatedConfig = {
       ...config,
-      maxMarks: computedMaxMarks || 65
+      maxMarks: computedMaxMarks || 75
     };
     
     // Save to local storage
@@ -108,8 +110,11 @@ export default function EvaluationLayoutModal({
         await api.patch(`/teacher/courses/${course._id}/config`, {
           quiz: updatedConfig.criteria.quiz,
           labReport: updatedConfig.criteria.labReport,
+          report: updatedConfig.criteria.labReport,
+          performance: updatedConfig.criteria.performance,
           labViva: updatedConfig.criteria.labViva,
           labTest: updatedConfig.criteria.labTest,
+          test: updatedConfig.criteria.labTest,
           openEnded: updatedConfig.criteria.openEnded,
           attendance: updatedConfig.criteria.attendance,
           others: updatedConfig.criteria.others
@@ -207,13 +212,14 @@ export default function EvaluationLayoutModal({
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-3.5">
               {[
-                { key: 'quiz', label: 'Lab Quiz', def: 20, max: 40 },
-                { key: 'labReport', label: 'Lab Report', def: 15, max: 30 },
-                { key: 'labViva', label: 'Lab Viva', def: 10, max: 25 },
+                { key: 'quiz', label: 'Lab Quiz', def: 30, max: 40 },
                 { key: 'labTest', label: 'Lab Test', def: 20, max: 40 },
+                { key: 'labReport', label: 'Lab Report', def: 10, max: 30 },
+                { key: 'performance', label: 'Class Performance', def: 5, max: 20 },
+                { key: 'attendance', label: 'Attendance', def: 5, max: 20 },
+                { key: 'others', label: 'Others', def: 5, max: 20 },
+                { key: 'labViva', label: 'Lab Viva (Board Viva Excluded)', def: 0, max: 25 },
                 { key: 'openEnded', label: 'Open Ended Lab', def: 0, max: 30 },
-                { key: 'attendance', label: 'Attendance', def: 10, max: 20 },
-                { key: 'others', label: 'Other/Performance', def: 0, max: 20 },
               ].map(item => (
                 <div key={item.key} className="p-3 bg-slate-50 dark:bg-slate-800/50 rounded-2xl border border-slate-200/70 dark:border-slate-800 flex items-center justify-between gap-3">
                   <div>

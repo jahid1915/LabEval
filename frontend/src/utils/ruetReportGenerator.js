@@ -48,7 +48,7 @@ export const generateRUETPDFReport = async ({
     department: 'ETE'
   },
   results = [],
-  maxMarks = 65,
+  maxMarks = 75,
   layoutConfig = {}
 }) => {
   const doc = new jsPDF({ orientation: 'landscape', unit: 'mm', format: 'a4' });
@@ -65,15 +65,16 @@ export const generateRUETPDFReport = async ({
   const includeGrade = layoutConfig.includeGrade ?? false;
   const includeGP = layoutConfig.includeGP ?? false;
   const crit = {
-    quiz: layoutConfig.criteria?.quiz ?? 20,
-    labReport: layoutConfig.criteria?.labReport ?? 15,
-    labViva: layoutConfig.criteria?.labViva ?? 10,
-    labTest: layoutConfig.criteria?.labTest ?? 20,
+    quiz: layoutConfig.criteria?.quiz ?? 30,
+    labReport: layoutConfig.criteria?.labReport ?? layoutConfig.criteria?.report ?? 10,
+    performance: layoutConfig.criteria?.performance ?? 5,
+    labViva: layoutConfig.criteria?.labViva ?? 0,
+    labTest: layoutConfig.criteria?.labTest ?? layoutConfig.criteria?.test ?? 20,
     openEnded: layoutConfig.criteria?.openEnded ?? 0,
-    attendance: layoutConfig.criteria?.attendance ?? 10,
-    others: layoutConfig.criteria?.others ?? 0,
+    attendance: layoutConfig.criteria?.attendance ?? 5,
+    others: layoutConfig.criteria?.others ?? 5,
   };
-  const effectiveMaxMarks = layoutConfig.maxMarks ?? (crit.quiz + crit.labReport + crit.labViva + crit.labTest + crit.openEnded + crit.attendance + crit.others || maxMarks);
+  const effectiveMaxMarks = layoutConfig.maxMarks ?? (crit.quiz + crit.labReport + crit.labViva + crit.labTest + crit.openEnded + crit.attendance + crit.others || maxMarks || 75);
 
   // RUET Emblem on top-left
   if (logoBase64) {
@@ -318,7 +319,7 @@ export const generateRUETXLSXReport = ({
     department: 'ETE'
   },
   results = [],
-  maxMarks = 65,
+  maxMarks = 75,
   layoutConfig = {}
 }) => {
   const wb = XLSX.utils.book_new();
@@ -330,15 +331,16 @@ export const generateRUETXLSXReport = ({
   const includeGrade = layoutConfig.includeGrade ?? false;
   const includeGP = layoutConfig.includeGP ?? false;
   const crit = {
-    quiz: layoutConfig.criteria?.quiz ?? 20,
-    labReport: layoutConfig.criteria?.labReport ?? 15,
-    labViva: layoutConfig.criteria?.labViva ?? 10,
-    labTest: layoutConfig.criteria?.labTest ?? 20,
+    quiz: layoutConfig.criteria?.quiz ?? 30,
+    labReport: layoutConfig.criteria?.labReport ?? layoutConfig.criteria?.report ?? 10,
+    performance: layoutConfig.criteria?.performance ?? 5,
+    labViva: layoutConfig.criteria?.labViva ?? 0,
+    labTest: layoutConfig.criteria?.labTest ?? layoutConfig.criteria?.test ?? 20,
     openEnded: layoutConfig.criteria?.openEnded ?? 0,
-    attendance: layoutConfig.criteria?.attendance ?? 10,
-    others: layoutConfig.criteria?.others ?? 0,
+    attendance: layoutConfig.criteria?.attendance ?? 5,
+    others: layoutConfig.criteria?.others ?? 5,
   };
-  const effectiveMaxMarks = layoutConfig.maxMarks ?? (crit.quiz + crit.labReport + crit.labViva + crit.labTest + crit.openEnded + crit.attendance + crit.others || maxMarks);
+  const effectiveMaxMarks = layoutConfig.maxMarks ?? (crit.quiz + crit.labReport + crit.labViva + crit.labTest + crit.openEnded + crit.attendance + crit.others || maxMarks || 75);
 
   // Sort students by roll number
   const sorted = [...results].sort((a, b) => {

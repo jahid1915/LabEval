@@ -9,13 +9,13 @@ import EvaluationLayoutModal, { getStoredLayoutConfig } from '../../components/E
 
 const DEFAULT_CONFIG = {
   performance: 5,
-  quiz:        20,
-  report:      15,
-  attendance:  10,
+  quiz:        30,
+  report:      10,
+  attendance:  5,
   test:        20,
-  viva:        10,
+  viva:        0,
   openEnded:   0,
-  others:      0,
+  others:      5,
 };
 
 const FinalResult = () => {
@@ -36,7 +36,7 @@ const FinalResult = () => {
 
   // Config comes embedded in each result row or falls back to layoutConfig
   const cfg = layoutConfig?.criteria || DEFAULT_CONFIG;
-  const maxTotal = layoutConfig?.maxMarks || 65;
+  const maxTotal = layoutConfig?.maxMarks || 75;
 
   const fetchResults = useCallback(async () => {
     setLoading(true);

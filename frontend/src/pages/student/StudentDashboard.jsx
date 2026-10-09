@@ -406,15 +406,14 @@ export default function StudentDashboard() {
             {/* Assessment Breakdown Table (RUET Reference Format) */}
             {(() => {
               const dm = detailedMarksModal.req?.detailedMarks || detailedMarksModal.detailedMarks || {};
-              const quiz = dm.quiz ?? 18;
-              const report = dm.labReport ?? 13;
-              const viva = dm.labViva ?? 9;
-              const test = dm.labTest ?? 10;
-              const openEnded = dm.openEnded ?? 'A';
-              const attendance = dm.attendance ?? 10;
-              const total = dm.total ?? 60;
-              const grade = dm.grade || 'A+';
-              const gp = dm.gradePoint ? dm.gradePoint.toFixed(2) : '4.00';
+              const quiz = dm.quiz ?? dm.quizMarks ?? 0;
+              const report = dm.labReport ?? dm.report ?? dm.reportMarks ?? 0;
+              const test = dm.labTest ?? dm.test ?? dm.testMarks ?? 0;
+              const attendance = dm.attendance ?? dm.attendanceMarks ?? 0;
+              const perfOthers = (dm.performance ?? dm.performanceMarks ?? 0) + (dm.others ?? dm.othersMarks ?? 0) + (dm.openEnded === 'A' ? 0 : (Number(dm.openEnded) || 0));
+              const total = dm.total ?? dm.totalMarks ?? (Number(quiz) + Number(report) + Number(test) + Number(attendance) + Number(perfOthers));
+              const grade = dm.grade || detailedMarksModal.grade || 'A+';
+              const gp = dm.gradePoint ? Number(dm.gradePoint).toFixed(2) : (detailedMarksModal.gradePoint ? Number(detailedMarksModal.gradePoint).toFixed(2) : '4.00');
 
               return (
                 <div className="space-y-4">
@@ -422,23 +421,21 @@ export default function StudentDashboard() {
                     <table className="w-full text-center text-xs">
                       <thead className="bg-slate-100 dark:bg-slate-800 font-bold uppercase text-slate-600 dark:text-slate-300">
                         <tr>
-                          <th className="py-2.5 px-2">Quiz<br/>[20]</th>
-                          <th className="py-2.5 px-2">Report<br/>[15]</th>
-                          <th className="py-2.5 px-2">Viva<br/>[10]</th>
+                          <th className="py-2.5 px-2">Quiz<br/>[30]</th>
+                          <th className="py-2.5 px-2">Report<br/>[10]</th>
                           <th className="py-2.5 px-2">Test<br/>[20]</th>
-                          <th className="py-2.5 px-2">Open<br/>[0]</th>
-                          <th className="py-2.5 px-2">Atnd.<br/>[10]</th>
-                          <th className="py-2.5 px-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">Total<br/>[65]</th>
+                          <th className="py-2.5 px-2">Atnd.<br/>[5]</th>
+                          <th className="py-2.5 px-2">Other/Perf.<br/>[10]</th>
+                          <th className="py-2.5 px-2 bg-emerald-50 dark:bg-emerald-950/40 text-emerald-700 dark:text-emerald-300">Total<br/>[75]</th>
                         </tr>
                       </thead>
                       <tbody className="font-extrabold text-sm text-slate-800 dark:text-white">
                         <tr>
                           <td className="py-3 px-2 border-t border-slate-200 dark:border-slate-700">{quiz}</td>
                           <td className="py-3 px-2 border-t border-slate-200 dark:border-slate-700">{report}</td>
-                          <td className="py-3 px-2 border-t border-slate-200 dark:border-slate-700">{viva}</td>
                           <td className="py-3 px-2 border-t border-slate-200 dark:border-slate-700">{test}</td>
-                          <td className="py-3 px-2 border-t border-slate-200 dark:border-slate-700">{openEnded}</td>
                           <td className="py-3 px-2 border-t border-slate-200 dark:border-slate-700">{attendance}</td>
+                          <td className="py-3 px-2 border-t border-slate-200 dark:border-slate-700">{perfOthers}</td>
                           <td className="py-3 px-2 border-t border-slate-200 dark:border-slate-700 bg-emerald-50/50 dark:bg-emerald-950/20 text-emerald-600 dark:text-emerald-400 font-black text-base">{total}</td>
                         </tr>
                       </tbody>

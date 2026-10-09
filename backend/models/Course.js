@@ -1,17 +1,20 @@
 const mongoose = require('mongoose');
 
+// ── Canonical assessment limits (must match config/assessmentConfig.js) ──────
+// Attendance(5) + Reports(10) + Performance(5) + Quiz(30) + Test(20) + Others(5) = 75
 const assessmentConfigSchema = new mongoose.Schema({
-  quiz:        { type: Number, default: 20, min: 0 },
-  labReport:   { type: Number, default: 15, min: 0 },
-  labViva:     { type: Number, default: 10, min: 0 },
+  attendance:  { type: Number, default: 5,  min: 0, max: 5  },
+  report:      { type: Number, default: 10, min: 0, max: 10 },
+  performance: { type: Number, default: 5,  min: 0, max: 5  },
+  quiz:        { type: Number, default: 30, min: 0, max: 30 },
+  test:        { type: Number, default: 20, min: 0, max: 20 },
+  others:      { type: Number, default: 5,  min: 0, max: 5  },
+  // Legacy aliases — kept for backward compatibility with old CourseOffering records.
+  // Board viva is excluded from the LabEval grading structure; set to 0.
+  labReport:   { type: Number, default: 10, min: 0 },
+  labViva:     { type: Number, default: 0,  min: 0, max: 0  },
   labTest:     { type: Number, default: 20, min: 0 },
-  openEnded:   { type: Number, default: 0,  min: 0 },
-  attendance:  { type: Number, default: 10, min: 0 },
-  others:      { type: Number, default: 0,  min: 0 },
-  // Legacy fields
-  performance: { type: Number, default: 5,  min: 0 },
-  report:      { type: Number, default: 10, min: 0 },
-  test:        { type: Number, default: 20, min: 0 },
+  openEnded:   { type: Number, default: 0,  min: 0, max: 0  },
 }, { _id: false });
 
 const courseSchema = new mongoose.Schema({
