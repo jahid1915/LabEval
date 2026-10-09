@@ -6,10 +6,31 @@ const Student = require('../models/Student');
 const CourseOffering = require('../models/CourseOffering');
 const { logAudit } = require('../middleware/auditMiddleware');
 
+// In-memory caches (60s TTL)
+let sessionsCache = null;
+let sessionsCacheExpiresAt = 0;
+let seriesCache = new Map();
+const CACHE_TTL = 60 * 1000;
+
+const invalidateSessionsCache = () => {
+  sessionsCache = null;
+  sessionsCacheExpiresAt = 0;
+};
+
+const invalidateSeriesCache = () => {
+  seriesCache.clear();
+};
+
 // ── Academic Sessions ──────────────────────────────────────────────────
 const getAcademicSessions = async (req, res) => {
   try {
+    if (sessionsCache && Date.now() < sessionsCacheExpiresAt) {
+      return res.json(sessionsCache);
+    }
+
     const sessions = await AcademicSession.find().sort({ year: -1 });
+    sessionsCache = sessions;
+    sessionsCacheExpiresAt = Date.now() + CACHE_TTL;
     res.json(sessions);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -48,6 +69,7 @@ const createAcademicSession = async (req, res) => {
       newValues: session
     });
 
+    invalidateSessionsCache();
     res.status(201).json(session);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -75,6 +97,7 @@ const updateAcademicSession = async (req, res) => {
     if (endDate !== undefined) session.endDate = endDate;
 
     await session.save();
+    invalidateSessionsCache();
     res.json(session);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -124,6 +147,13 @@ const createSemester = async (req, res) => {
 const getSeries = async (req, res) => {
   try {
     const { departmentId, search } = req.query;
+    const cacheKey = `${departmentId || 'all'}_${search || 'all'}`;
+    const cached = seriesCache.get(cacheKey);
+
+    if (cached && Date.now() < cached.expiresAt) {
+      return res.json(cached.data);
+    }
+
     let query = { status: { $ne: 'archived' } };
     if (departmentId) query.department = departmentId;
     if (search) query.name = { $regex: search, $options: 'i' };
@@ -152,6 +182,11 @@ const getSeries = async (req, res) => {
         stats: { studentCount, offeringCount }
       };
     }));
+
+    seriesCache.set(cacheKey, {
+      data: enriched,
+      expiresAt: Date.now() + CACHE_TTL
+    });
 
     res.json(enriched);
   } catch (error) {
@@ -187,6 +222,7 @@ const createSeries = async (req, res) => {
       newValues: series
     });
 
+    invalidateSeriesCache();
     res.status(201).json(series);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -205,6 +241,7 @@ const updateSeries = async (req, res) => {
     if (status) series.status = status;
 
     await series.save();
+    invalidateSeriesCache();
     res.json(series);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -223,10 +260,12 @@ const deleteSeries = async (req, res) => {
     if (studentCount > 0) {
       series.status = 'archived';
       await series.save();
+      invalidateSeriesCache();
       return res.json({ message: `Series archived (${studentCount} students preserved)` });
     }
 
     await series.deleteOne();
+    invalidateSeriesCache();
     res.json({ message: 'Series deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });

@@ -7,11 +7,26 @@ const Series = require('../models/Series');
 const CourseOffering = require('../models/CourseOffering');
 const { logAudit } = require('../middleware/auditMiddleware');
 
+// In-memory departments cache (60s TTL)
+let departmentsCache = new Map();
+const DEPT_CACHE_TTL = 60 * 1000;
+
+const invalidateDepartmentsCache = () => {
+  departmentsCache.clear();
+};
+
 // @desc Get all departments with optional faculty filter
 // @route GET /api/departments
 const getDepartments = async (req, res) => {
   try {
     const { facultyId, search } = req.query;
+    const cacheKey = `${facultyId || 'all'}_${search || 'all'}`;
+    const cached = departmentsCache.get(cacheKey);
+
+    if (cached && Date.now() < cached.expiresAt) {
+      return res.json(cached.data);
+    }
+
     let query = { status: { $ne: 'archived' } };
     if (facultyId) query.faculty = facultyId;
     if (search) {
@@ -46,6 +61,11 @@ const getDepartments = async (req, res) => {
         }
       };
     }));
+
+    departmentsCache.set(cacheKey, {
+      data: enriched,
+      expiresAt: Date.now() + DEPT_CACHE_TTL
+    });
 
     res.json(enriched);
   } catch (error) {
@@ -104,6 +124,7 @@ const createDepartment = async (req, res) => {
       newValues: department
     });
 
+    invalidateDepartmentsCache();
     res.status(201).json(department);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -140,6 +161,7 @@ const updateDepartment = async (req, res) => {
       newValues: department
     });
 
+    invalidateDepartmentsCache();
     res.json(department);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -161,6 +183,7 @@ const deleteDepartment = async (req, res) => {
     if (teacherCount > 0 || studentCount > 0) {
       department.status = 'archived';
       await department.save();
+      invalidateDepartmentsCache();
       return res.json({ message: `Department archived (${teacherCount} teachers & ${studentCount} students preserved)` });
     }
 
@@ -174,6 +197,7 @@ const deleteDepartment = async (req, res) => {
       details: `Deleted department ${department.name}`
     });
 
+    invalidateDepartmentsCache();
     res.json({ message: 'Department deleted successfully' });
   } catch (error) {
     res.status(500).json({ message: error.message });

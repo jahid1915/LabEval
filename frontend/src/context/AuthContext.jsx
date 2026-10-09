@@ -9,21 +9,32 @@ export const AuthProvider = ({ children }) => {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const checkUserLoggedIn = async () => {
+    const checkUserLoggedIn = () => {
       const storedUser = localStorage.getItem('user');
       const token = localStorage.getItem('token');
       if (storedUser && token) {
         try {
           const parsed = JSON.parse(storedUser);
           setUser(parsed);
-          // Verify and refresh profile from backend
-          const res = await api.get('/auth/me');
-          if (res.data?.success && res.data?.user) {
-            setUser(res.data.user);
-            localStorage.setItem('user', JSON.stringify(res.data.user));
-          }
+          // Unblock UI immediately so pages render with 0ms delay
+          setLoading(false);
+
+          // Revalidate and refresh profile in background (stale-while-revalidate)
+          api.get('/auth/me').then((res) => {
+            if (res.data?.success && res.data?.user) {
+              setUser(res.data.user);
+              localStorage.setItem('user', JSON.stringify(res.data.user));
+            }
+          }).catch((err) => {
+            // Token expired or invalid
+            if (err.response?.status === 401) {
+              localStorage.removeItem('user');
+              localStorage.removeItem('token');
+              setUser(null);
+            }
+          });
+          return;
         } catch {
-          // Token expired or invalid
           localStorage.removeItem('user');
           localStorage.removeItem('token');
           setUser(null);

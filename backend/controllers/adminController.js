@@ -30,10 +30,19 @@ const getDeptFilter = (req) => {
   return null;
 };
 
+// In-memory stats cache (30s TTL)
+const statsCache = new Map();
+const STATS_CACHE_TTL = 30 * 1000;
+
 // ── GET /api/admin/stats ──────────────────────────────────────────────
 const getSystemStats = async (req, res) => {
   try {
     const deptFilter = getDeptFilter(req);
+    const cacheKey = deptFilter || 'GLOBAL';
+    const cached = statsCache.get(cacheKey);
+    if (cached && Date.now() < cached.expiresAt) {
+      return res.json(cached.data);
+    }
 
     const studentQuery = { status: 'active' };
     const teacherQuery = {};
@@ -92,7 +101,7 @@ const getSystemStats = async (req, res) => {
       { $sort: { _id: -1 } }
     ]);
 
-    res.json({
+    const statsData = {
       departmentCode: deptFilter || 'ALL',
       totalStudents,
       totalTeachers,
@@ -107,7 +116,14 @@ const getSystemStats = async (req, res) => {
       departments,
       studentDeptDistribution,
       studentSeriesDistribution
+    };
+
+    statsCache.set(cacheKey, {
+      data: statsData,
+      expiresAt: Date.now() + STATS_CACHE_TTL
     });
+
+    res.json(statsData);
   } catch (error) {
     res.status(500).json({ message: error.message });
   }

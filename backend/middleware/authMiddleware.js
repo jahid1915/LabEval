@@ -8,9 +8,9 @@ const TeacherAssignment = require('../models/TeacherAssignment');
 const CourseOffering = require('../models/CourseOffering');
 const Course = require('../models/Course');
 
-// ── High-Performance Auth Cache (30s TTL, max 5,000 active sessions) ────────
+// ── High-Performance Auth Cache (5 min TTL, max 5,000 active sessions) ────────
 const authCache = new Map();
-const AUTH_CACHE_TTL = 30 * 1000;
+const AUTH_CACHE_TTL = 5 * 60 * 1000;
 
 const getCachedAuth = (cacheKey) => {
   const item = authCache.get(cacheKey);
@@ -64,6 +64,9 @@ const protect = async (req, res, next) => {
       if (cached) {
         req.user = { ...cached.user };
         req.authUser = cached.authUser;
+        if (cached.userContext) {
+          req.userContext = cached.userContext;
+        }
         return next();
       }
 
@@ -147,7 +150,7 @@ const protect = async (req, res, next) => {
         console.warn('resolveUserContext non-blocking warning:', err.message);
       }
 
-      setCachedAuth(cacheKey, { user: req.user, authUser: req.authUser });
+      setCachedAuth(cacheKey, { user: req.user, authUser: req.authUser, userContext: req.userContext });
 
       return next();
     } catch (error) {
